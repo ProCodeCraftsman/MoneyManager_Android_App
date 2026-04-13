@@ -44,8 +44,8 @@ Phase 6: Build & Publish (NOT STARTED)
 - [x] Dark mode toggle
 - [x] Currency selection
 - [x] Auto-lock timer
-- [ ] PIN lock functional - **TOGGLE ONLY**
-- [ ] Biometric auth - **TOGGLE ONLY**
+- [x] PIN lock functional - **IMPLEMENTED** ✅
+- [x] Biometric auth - **IMPLEMENTED** ✅
 - [ ] Import/Export - **TODO in UI**
 
 ### Phase 6: Build & Publish ❌ NOT STARTED
@@ -54,9 +54,9 @@ Phase 6: Build & Publish (NOT STARTED)
 ## Critical Gaps (Must Fix)
 1. ~~Repository layer~~ - **FIXED** ✅
 2. ~~Firebase sync~~ - **PARTIAL** - infrastructure ready, needs testing
-3. **Security features non-functional** - PIN/biometric need implementation
+3. ~~Security features non-functional~~ - **IMPLEMENTED** ✅
 4. ~~Dashboard pie chart missing~~ - **FIXED** ✅
-5. **No reports screen** - Phase 4 requirement
+5. **No reports screen** - Phase 5 requirement
 
 ## Next Step
 Fix critical gaps before continuing to Phase 6
