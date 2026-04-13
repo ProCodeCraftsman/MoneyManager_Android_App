@@ -16,6 +16,7 @@ class PreferencesManager(private val context: Context) {
         private val CURRENCY = stringPreferencesKey("currency")
         private val PIN_ENABLED = booleanPreferencesKey("pin_enabled")
         private val PIN_HASH = stringPreferencesKey("pin_hash")
+        private val PIN_SALT = stringPreferencesKey("pin_salt")
         private val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
         private val AUTO_LOCK_MINUTES = intPreferencesKey("auto_lock_minutes")
         private val LAST_SYNC = longPreferencesKey("last_sync")
@@ -36,6 +37,10 @@ class PreferencesManager(private val context: Context) {
 
     val pinHash: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[PIN_HASH]
+    }
+
+    val pinSalt: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[PIN_SALT]
     }
 
     val biometricEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -78,6 +83,16 @@ class PreferencesManager(private val context: Context) {
                 preferences[PIN_HASH] = hash
             } else {
                 preferences.remove(PIN_HASH)
+            }
+        }
+    }
+
+    suspend fun setPinSalt(salt: String?) {
+        context.dataStore.edit { preferences ->
+            if (salt != null) {
+                preferences[PIN_SALT] = salt
+            } else {
+                preferences.remove(PIN_SALT)
             }
         }
     }

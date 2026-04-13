@@ -12,38 +12,38 @@ Settings has toggles for PIN and biometric but they don't function. Need full im
 <tasks>
 
 ## 1. PIN Lock Implementation
-- [ ] Create PinLockScreen composable
-- [ ] PIN setup flow (enter 4 digits, confirm)
-- [ ] PIN verification on app launch
-- [ ] Store hashed PIN in PreferencesManager
-- [ ] Handle wrong PIN attempts (limit to 5)
+- [x] Create PinLockScreen composable
+- [x] PIN setup flow (enter 4 digits, confirm)
+- [x] PIN verification on app launch
+- [x] Store hashed PIN in PreferencesManager
+- [x] Handle wrong PIN attempts (limit to 5)
 - [ ] Option to reset after limit (with warning)
 
 ## 2. Biometric Authentication
-- [ ] Add androidx.biometric dependency
-- [ ] Create BiometricPrompt wrapper
-- [ ] Implement BiometricAuthManager
-- [ ] Prompt on app launch if enabled
-- [ ] Fallback to PIN if biometric fails
+- [x] Add androidx.biometric dependency (already present)
+- [x] Create BiometricPrompt wrapper
+- [x] Implement BiometricAuthManager
+- [x] Prompt on app launch if enabled
+- [x] Fallback to PIN if biometric fails
 
 ## 3. Lock Screen Integration
-- [ ] Create LockScreen composable (shown at app startup)
+- [x] Create LockScreen composable (shown at app startup)
 - [ ] Check authentication state before showing main content
 - [ ] Handle app backgrounding (lock after timeout)
 
 ## 4. Settings Integration
-- [ ] PIN setup accessible from Settings
-- [ ] Change PIN option
-- [ ] Biometric enable/disable tied to real authentication
-- [ ] Show "Setup PIN" if biometric enabled but no PIN
+- [x] PIN setup accessible from Settings
+- [x] Change PIN option
+- [x] Biometric enable/disable tied to real authentication
+- [x] Show "Setup PIN" if biometric enabled but no PIN
 
 ## 5. Auto-Lock Timer
-- [ ] Implement timer in SettingsViewModel
-- [ ] Track app background timestamp
-- [ ] Require re-auth when returning from background
+- [x] Implement timer in SettingsViewModel
+- [x] Track app background timestamp
+- [x] Require re-auth when returning from background
 
 ## 6. Security Considerations
-- [ ] PIN stored as salted hash, not plaintext
+- [x] PIN stored as salted hash, not plaintext
 - [ ] Clear sensitive data from memory on lock
 - [ ] Prevent screenshots of lock screen
 
