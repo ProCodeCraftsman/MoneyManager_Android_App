@@ -5,17 +5,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
+data class TrendPoint(
+    val label: String,
+    val income: Double,
+    val expense: Double,
+    val net: Double
+)
 
 @Composable
 fun TrendLineChart(
@@ -23,7 +25,10 @@ fun TrendLineChart(
     modifier: Modifier = Modifier
 ) {
     if (data.isEmpty()) {
-        Box(modifier = modifier.fillMaxWidth().height(200.dp)) {
+        Box(
+            modifier = modifier.fillMaxWidth().height(200.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
                 text = "No data available",
                 style = MaterialTheme.typography.bodyMedium,
@@ -37,7 +42,9 @@ fun TrendLineChart(
     val expenseColor = MaterialTheme.colorScheme.error
     val netColor = MaterialTheme.colorScheme.secondary
 
-    val textMeasurer = rememberTextMeasurer()
+    val maxValue = data.maxOfOrNull { maxOf(it.income, it.expense, kotlin.math.abs(it.net)) } ?: 1.0
+    val minValue = data.minOfOrNull { minOf(it.income, it.expense, kotlin.math.abs(it.net), 0.0) } ?: 0.0
+    val range = (maxValue - minValue).coerceAtLeast(1.0)
 
     Column(modifier = modifier) {
         Row(
@@ -59,12 +66,7 @@ fun TrendLineChart(
             val padding = 40f
             val chartWidth = size.width - padding * 2
             val chartHeight = size.height - padding * 2
-
-            val maxValue = data.maxOfOrNull { maxOf(it.income, it.expense, kotlin.math.abs(it.net)) } ?: 1.0
-            val minValue = data.minOfOrNull { minOf(it.income, it.expense, kotlin.math.abs(it.net), 0.0) } ?: 0.0
-            val range = (maxValue - minValue).coerceAtLeast(1.0)
-
-            val stepX = chartWidth / (data.size - 1).coerceAtLeast(1)
+            val stepX = if (data.size > 1) chartWidth / (data.size - 1) else chartWidth
 
             fun getY(value: Double): Float {
                 return (padding + chartHeight - ((value - minValue) / range * chartHeight)).toFloat()
@@ -144,7 +146,7 @@ fun TrendLineChart(
 
 @Composable
 private fun LegendItem(color: Color, label: String) {
-    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Canvas(modifier = Modifier.size(12.dp)) {
             drawCircle(color = color)
         }
