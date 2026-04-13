@@ -38,6 +38,32 @@ fun LockScreen(
     
     val scope = rememberCoroutineScope()
     
+    fun triggerBiometric() {
+        biometricAuthManager.authenticate(
+            activity = activity,
+            title = "Unlock MoneyManager",
+            subtitle = "Use your fingerprint",
+            negativeButtonText = "Use PIN"
+        ) { result ->
+            when (result) {
+                is BiometricResult.Success -> {
+                    securityManager.resetWrongAttempts()
+                    isAuthenticated = true
+                    errorMessage = null
+                }
+                is BiometricResult.Error -> {
+                    errorMessage = result.message
+                }
+                is BiometricResult.Cancelled -> {
+                    // User wants to use PIN
+                }
+                is BiometricResult.NotAvailable -> {
+                    // Biometric not available
+                }
+            }
+        }
+    }
+    
     LaunchedEffect(Unit) {
         preferencesManager.pinEnabled.collect { enabled ->
             if (!enabled) {
@@ -68,32 +94,6 @@ fun LockScreen(
         BiometricStatus.NoHardware -> "No biometric hardware"
         BiometricStatus.HardwareUnavailable -> "Biometric unavailable"
         BiometricStatus.Unknown -> ""
-    }
-
-    fun triggerBiometric() {
-        biometricAuthManager.authenticate(
-            activity = activity,
-            title = "Unlock MoneyManager",
-            subtitle = "Use your fingerprint",
-            negativeButtonText = "Use PIN"
-        ) { result ->
-            when (result) {
-                is BiometricResult.Success -> {
-                    securityManager.resetWrongAttempts()
-                    isAuthenticated = true
-                    errorMessage = null
-                }
-                is BiometricResult.Error -> {
-                    errorMessage = result.message
-                }
-                is BiometricResult.Cancelled -> {
-                    // User wants to use PIN
-                }
-                is BiometricResult.NotAvailable -> {
-                    // Biometric not available
-                }
-            }
-        }
     }
 
     if (isLoading) {

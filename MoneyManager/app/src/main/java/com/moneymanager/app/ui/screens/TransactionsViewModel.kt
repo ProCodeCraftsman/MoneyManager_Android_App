@@ -35,13 +35,9 @@ class TransactionsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
-    private val _filterType = MutableStateFlow("")
-    // Filter state
-    private val _filterAccountId = MutableStateFlow<Long?>(null)
-    private val _filterCategoryId = MutableStateFlow<Long?>(null)
-    private val _filterTagId = MutableStateFlow<Long?>(null)
-    private val _filterStartDate = MutableStateFlow<Long?>(null)
-    private val _filterEndDate = MutableStateFlow<Long?>(null)
+    
+    // Use a data class to hold all filter state - simpler than combine
+    private val _filters = MutableStateFlow(FilterState("", null, null, null, null, null))
 
     // Expose all tags and categories for filter UI
     val allTags: StateFlow<List<TagEntity>> = categoryRepository.getAllTags()
@@ -50,21 +46,10 @@ class TransactionsViewModel @Inject constructor(
     val allCategories: StateFlow<List<CategoryEntity>> = categoryRepository.getAllCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val filtersFlow = combine(
-        _filterType,
-        _filterAccountId,
-        _filterCategoryId,
-        _filterTagId,
-        _filterStartDate,
-        _filterEndDate
-    ) { type, accountId, categoryId, tagId, startDate, endDate ->
-        FilterState(type, accountId, categoryId, tagId, startDate, endDate)
-    }
-
     val uiState: StateFlow<TransactionsUiState> = combine(
         transactionRepository.getAllTransactions(),
         _searchQuery,
-        filtersFlow,
+        _filters,
         allTags,
         allCategories
     ) { transactions, query, filters, tags, categories ->
@@ -105,33 +90,27 @@ class TransactionsViewModel @Inject constructor(
     }
 
     fun setTypeFilter(type: String) {
-        _filterType.value = type
+        _filters.value = _filters.value.copy(type = type)
     }
 
     fun setAccountFilter(accountId: Long?) {
-        _filterAccountId.value = accountId
+        _filters.value = _filters.value.copy(accountId = accountId)
     }
 
     fun setCategoryFilter(categoryId: Long?) {
-        _filterCategoryId.value = categoryId
+        _filters.value = _filters.value.copy(categoryId = categoryId)
     }
 
     fun setTagFilter(tagId: Long?) {
-        _filterTagId.value = tagId
+        _filters.value = _filters.value.copy(tagId = tagId)
     }
 
     fun setDateRangeFilter(startDate: Long?, endDate: Long?) {
-        _filterStartDate.value = startDate
-        _filterEndDate.value = endDate
+        _filters.value = _filters.value.copy(startDate = startDate, endDate = endDate)
     }
 
     fun clearAllFilters() {
-        _filterType.value = ""
-        _filterAccountId.value = null
-        _filterCategoryId.value = null
-        _filterTagId.value = null
-        _filterStartDate.value = null
-        _filterEndDate.value = null
+        _filters.value = FilterState("", null, null, null, null, null)
     }
 
     fun addTransaction(transaction: TransactionEntity) {

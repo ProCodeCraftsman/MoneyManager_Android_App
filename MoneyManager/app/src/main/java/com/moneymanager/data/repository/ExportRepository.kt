@@ -83,6 +83,7 @@ class ExportRepository @Inject constructor(
                 ExportType.BUDGETS -> exportBudgetsCsv()
                 ExportType.GOALS -> exportGoalsCsv()
                 ExportType.ALL -> exportAllCsv()
+                ExportType.TAGS -> exportTagsCsv()
             }
             
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -173,6 +174,10 @@ class ExportRepository @Inject constructor(
                     val count = importCategoriesFromCsv(csv)
                     ImportResult(true, "$count categories imported", categoriesImported = count)
                 }
+                ExportType.TAGS -> {
+                    val count = importTagsFromCsv(csv)
+                    ImportResult(true, "$count tags imported", tagsImported = count)
+                }
                 else -> ImportResult(false, "CSV import not supported for ${type.name}")
             }
         } catch (e: Exception) {
@@ -180,7 +185,7 @@ class ExportRepository @Inject constructor(
         }
     }
 
-    private fun exportAccounts(): JSONArray {
+    private suspend fun exportAccounts(): JSONArray {
         val accounts = accountDao.getAllAccounts().first()
         val array = JSONArray()
         accounts.forEach { account ->
@@ -191,7 +196,6 @@ class ExportRepository @Inject constructor(
             obj.put("balance", account.balance)
             obj.put("currency", account.currency)
             obj.put("color", account.color)
-            obj.put("icon", account.icon)
             obj.put("createdAt", account.createdAt)
             obj.put("updatedAt", account.updatedAt)
             array.put(obj)
@@ -199,7 +203,7 @@ class ExportRepository @Inject constructor(
         return array
     }
 
-    private fun exportTransactions(): JSONArray {
+    private suspend fun exportTransactions(): JSONArray {
         val transactions = transactionDao.getAllTransactions().first()
         val array = JSONArray()
         transactions.forEach { tx ->
@@ -218,23 +222,24 @@ class ExportRepository @Inject constructor(
         return array
     }
 
-    private fun exportCategories(): JSONArray {
+    private suspend fun exportCategories(): JSONArray {
         val categories = categoryDao.getAllCategories().first()
         val array = JSONArray()
         categories.forEach { cat ->
             val obj = JSONObject()
             obj.put("id", cat.id)
             obj.put("name", cat.name)
+            obj.put("emoji", cat.emoji)
             obj.put("type", cat.type)
-            obj.put("icon", cat.icon)
-            obj.put("color", cat.color)
-            obj.put("isDefault", cat.isDefault)
+            obj.put("parentId", cat.parentId)
+            obj.put("isCustom", cat.isCustom)
+            obj.put("createdAt", cat.createdAt)
             array.put(obj)
         }
         return array
     }
 
-    private fun exportBudgets(): JSONArray {
+    private suspend fun exportBudgets(): JSONArray {
         val budgets = budgetDao.getAllBudgets().first()
         val array = JSONArray()
         budgets.forEach { budget ->
@@ -242,14 +247,14 @@ class ExportRepository @Inject constructor(
             obj.put("id", budget.id)
             obj.put("categoryId", budget.categoryId)
             obj.put("amount", budget.amount)
-            obj.put("period", budget.period)
-            obj.put("startDate", budget.startDate)
+            obj.put("month", budget.month)
+            obj.put("createdAt", budget.createdAt)
             array.put(obj)
         }
         return array
     }
 
-    private fun exportGoals(): JSONArray {
+    private suspend fun exportGoals(): JSONArray {
         val goals = goalDao.getAllGoals().first()
         val array = JSONArray()
         goals.forEach { goal ->
@@ -266,7 +271,7 @@ class ExportRepository @Inject constructor(
         return array
     }
 
-    private fun exportTags(): JSONArray {
+    private suspend fun exportTags(): JSONArray {
         val tags = tagDao.getAllTags().first()
         val array = JSONArray()
         tags.forEach { tag ->
@@ -274,13 +279,12 @@ class ExportRepository @Inject constructor(
             obj.put("id", tag.id)
             obj.put("name", tag.name)
             obj.put("color", tag.color)
-            obj.put("categoryId", tag.categoryId)
             array.put(obj)
         }
         return array
     }
 
-    private fun exportTransactionsCsv(): String {
+    private suspend fun exportTransactionsCsv(): String {
         val transactions = transactionDao.getAllTransactions().first()
         val sb = StringBuilder()
         sb.appendLine("date,amount,type,category_id,note,account_id,is_recurring")
@@ -290,37 +294,37 @@ class ExportRepository @Inject constructor(
         return sb.toString()
     }
 
-    private fun exportAccountsCsv(): String {
+    private suspend fun exportAccountsCsv(): String {
         val accounts = accountDao.getAllAccounts().first()
         val sb = StringBuilder()
-        sb.appendLine("name,type,balance,currency,color,icon")
+        sb.appendLine("name,type,balance,currency,color")
         accounts.forEach { acc ->
-            sb.appendLine("${acc.name},${acc.type},${acc.balance},${acc.currency},${acc.color ?: ""},${acc.icon ?: ""}")
+            sb.appendLine("${acc.name},${acc.type},${acc.balance},${acc.currency},${acc.color}")
         }
         return sb.toString()
     }
 
-    private fun exportCategoriesCsv(): String {
+    private suspend fun exportCategoriesCsv(): String {
         val categories = categoryDao.getAllCategories().first()
         val sb = StringBuilder()
-        sb.appendLine("name,type,icon,color,is_default")
+        sb.appendLine("name,type,emoji,parent_id,is_custom")
         categories.forEach { cat ->
-            sb.appendLine("${cat.name},${cat.type},${cat.icon ?: ""},${cat.color ?: ""},${cat.isDefault}")
+            sb.appendLine("${cat.name},${cat.type},${cat.emoji ?: ""},${cat.parentId ?: ""},${cat.isCustom}")
         }
         return sb.toString()
     }
 
-    private fun exportBudgetsCsv(): String {
+    private suspend fun exportBudgetsCsv(): String {
         val budgets = budgetDao.getAllBudgets().first()
         val sb = StringBuilder()
-        sb.appendLine("category_id,amount,period,start_date")
+        sb.appendLine("category_id,amount,month")
         budgets.forEach { budget ->
-            sb.appendLine("${budget.categoryId},${budget.amount},${budget.period},${dateFormat.format(Date(budget.startDate))}")
+            sb.appendLine("${budget.categoryId},${budget.amount},${budget.month}")
         }
         return sb.toString()
     }
 
-    private fun exportGoalsCsv(): String {
+    private suspend fun exportGoalsCsv(): String {
         val goals = goalDao.getAllGoals().first()
         val sb = StringBuilder()
         sb.appendLine("name,emoji,target_amount,current_amount,deadline")
@@ -330,7 +334,7 @@ class ExportRepository @Inject constructor(
         return sb.toString()
     }
 
-    private fun exportAllCsv(): String {
+    private suspend fun exportAllCsv(): String {
         return buildString {
             appendLine("# ACCOUNTS")
             appendLine(exportAccountsCsv())
@@ -346,7 +350,20 @@ class ExportRepository @Inject constructor(
             appendLine()
             appendLine("# GOALS")
             appendLine(exportGoalsCsv())
+            appendLine()
+            appendLine("# TAGS")
+            appendLine(exportTagsCsv())
         }
+    }
+
+    private suspend fun exportTagsCsv(): String {
+        val tags = tagDao.getAllTags().first()
+        val sb = StringBuilder()
+        sb.appendLine("name,color")
+        tags.forEach { tag ->
+            sb.appendLine("${tag.name},${tag.color}")
+        }
+        return sb.toString()
     }
 
     private suspend fun importAccounts(array: JSONArray): Int {
@@ -359,8 +376,7 @@ class ExportRepository @Inject constructor(
                 type = obj.getString("type"),
                 balance = obj.getDouble("balance"),
                 currency = obj.optString("currency", "USD"),
-                color = obj.optString("color"),
-                icon = obj.optString("icon")
+                color = obj.optString("color", "#2a6049")
             )
             accountDao.insertAccount(account)
             count++
@@ -396,10 +412,10 @@ class ExportRepository @Inject constructor(
             val category = CategoryEntity(
                 id = obj.optLong("id", 0),
                 name = obj.getString("name"),
+                emoji = obj.optString("emoji", "📁"),
                 type = obj.getString("type"),
-                icon = obj.optString("icon"),
-                color = obj.optString("color"),
-                isDefault = obj.optBoolean("isDefault", false)
+                parentId = if (obj.has("parentId") && !obj.isNull("parentId")) obj.getLong("parentId") else null,
+                isCustom = obj.optBoolean("isCustom", false)
             )
             categoryDao.insertCategory(category)
             count++
@@ -415,8 +431,7 @@ class ExportRepository @Inject constructor(
                 id = obj.optLong("id", 0),
                 categoryId = obj.getLong("categoryId"),
                 amount = obj.getDouble("amount"),
-                period = obj.optString("period", "monthly"),
-                startDate = obj.optLong("startDate", System.currentTimeMillis())
+                month = obj.optString("month", "2024-01")
             )
             budgetDao.insertBudget(budget)
             count++
@@ -431,10 +446,11 @@ class ExportRepository @Inject constructor(
             val goal = GoalEntity(
                 id = obj.optLong("id", 0),
                 name = obj.getString("name"),
-                emoji = obj.optString("emoji", ""),
+                emoji = obj.optString("emoji", "🎯"),
                 targetAmount = obj.getDouble("targetAmount"),
                 currentAmount = obj.optDouble("currentAmount", 0.0),
-                deadline = if (obj.has("deadline") && !obj.isNull("deadline")) obj.getLong("deadline") else null
+                deadline = if (obj.has("deadline") && !obj.isNull("deadline")) obj.getLong("deadline") else null,
+                isCompleted = obj.optBoolean("isCompleted", false)
             )
             goalDao.insertGoal(goal)
             count++
@@ -449,8 +465,7 @@ class ExportRepository @Inject constructor(
             val tag = TagEntity(
                 id = obj.optLong("id", 0),
                 name = obj.getString("name"),
-                color = obj.optString("color"),
-                categoryId = obj.optLong("categoryId", 0)
+                color = obj.optString("color", "#c8420a")
             )
             tagDao.insertTag(tag)
             count++
@@ -512,6 +527,24 @@ class ExportRepository @Inject constructor(
                     type = parts.getOrNull(1) ?: "expense"
                 )
                 categoryDao.insertCategory(category)
+                count++
+            }
+        }
+        return count
+    }
+
+    private suspend fun importTagsFromCsv(csv: String): Int {
+        var count = 0
+        val lines = csv.lines().drop(1)
+        for (line in lines) {
+            if (line.isBlank()) continue
+            val parts = parseCsvLine(line)
+            if (parts.isNotEmpty()) {
+                val tag = TagEntity(
+                    name = parts[0],
+                    color = parts.getOrNull(1) ?: "#c8420a"
+                )
+                tagDao.insertTag(tag)
                 count++
             }
         }
