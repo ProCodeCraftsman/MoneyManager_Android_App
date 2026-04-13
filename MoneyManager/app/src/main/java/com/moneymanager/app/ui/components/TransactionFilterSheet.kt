@@ -356,6 +356,7 @@ fun TransactionFilterSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DatePickerDialog(
     onDismiss: () -> Unit,

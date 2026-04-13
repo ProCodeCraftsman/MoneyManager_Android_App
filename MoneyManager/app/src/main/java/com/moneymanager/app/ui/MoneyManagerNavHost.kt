@@ -33,7 +33,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
 @Composable
 fun MoneyManagerNavHost() {
     val navController = rememberNavController()
-    val screens = listOf(
+    val bottomNavScreens = listOf(
         Screen.Dashboard,
         Screen.Accounts,
         Screen.Transactions,
@@ -49,21 +49,23 @@ fun MoneyManagerNavHost() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
 
-                screens.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
-                        label = { Text(screen.title) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                bottomNavScreens.forEach { screen ->
+                    screen.icon?.let { icon ->
+                        NavigationBarItem(
+                            icon = { Icon(icon, contentDescription = screen.title) },
+                            label = { Text(screen.title) },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }

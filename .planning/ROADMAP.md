@@ -41,6 +41,13 @@
 - [ ] Create Play Store listing
 - [ ] Upload and publish
 
+## Phase 7: Core Transaction Features 🔄 IN PROGRESS
+- [x] Transaction Search - Full-text search across transactions
+- [x] Transaction Filters - Filter by type, account, category, tag
+- [x] Transaction Tags - Create tags with colors, assign to transactions, filter by tags
+- [x] Sub-categories - Categories with sub-categories
+- [x] Transfer Between Accounts - Move money without income/expense
+
 ## Summary
 
 | Phase | Status |
