@@ -7,10 +7,12 @@ interface AccountRepository {
     fun getAllAccounts(): Flow<List<AccountEntity>>
     fun getTotalAssets(): Flow<Double>
     fun getTotalDebt(): Flow<Double>
+    fun getAccountBalance(accountId: Long): Flow<Double>
     suspend fun getAccountById(id: Long): AccountEntity?
     suspend fun insertAccount(account: AccountEntity): Long
     suspend fun updateAccount(account: AccountEntity)
-    suspend fun deleteAccount(account: AccountEntity)
     suspend fun updateBalance(accountId: Long, newBalance: Double)
+    suspend fun updateAccountBalance(accountId: Long, delta: Double)
+    suspend fun deleteAccount(account: AccountEntity)
     suspend fun deleteAllAccounts()
 }
