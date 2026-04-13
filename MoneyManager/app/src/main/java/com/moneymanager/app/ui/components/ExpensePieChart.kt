@@ -1,6 +1,7 @@
 package com.moneymanager.app.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,7 +27,8 @@ data class PieChartEntry(
 fun ExpensePieChart(
     entries: List<PieChartEntry>,
     modifier: Modifier = Modifier,
-    currencyFormat: NumberFormat = NumberFormat.getCurrencyInstance(Locale.US)
+    currencyFormat: NumberFormat = NumberFormat.getCurrencyInstance(Locale.US),
+    onCategoryClick: ((PieChartEntry) -> Unit)? = null
 ) {
     if (entries.isEmpty()) {
         EmptyPieChart(modifier)
@@ -97,7 +99,10 @@ fun ExpensePieChart(
                 PieChartLegendItem(
                     entry = entry,
                     percentage = percentage,
-                    currencyFormat = currencyFormat
+                    currencyFormat = currencyFormat,
+                    onClick = if (onCategoryClick != null) {
+                        { onCategoryClick(entry) }
+                    } else null
                 )
             }
             if (entries.size > 5) {
@@ -106,7 +111,8 @@ fun ExpensePieChart(
                 PieChartLegendItem(
                     entry = PieChartEntry("Others", otherTotal, Color.Gray),
                     percentage = otherPercentage,
-                    currencyFormat = currencyFormat
+                    currencyFormat = currencyFormat,
+                    onClick = null
                 )
             }
         }
@@ -117,10 +123,19 @@ fun ExpensePieChart(
 private fun PieChartLegendItem(
     entry: PieChartEntry,
     percentage: Int,
-    currencyFormat: NumberFormat
+    currencyFormat: NumberFormat,
+    onClick: (() -> Unit)?
 ) {
+    val clickModifier = if (onClick != null) {
+        Modifier.clickable { onClick() }
+    } else {
+        Modifier
+    }
+
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(clickModifier),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
