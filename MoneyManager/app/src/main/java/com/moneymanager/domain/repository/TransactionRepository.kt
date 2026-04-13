@@ -11,6 +11,16 @@ interface TransactionRepository {
     fun getTransactionsByDateRange(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
     fun getRecentTransactions(limit: Int): Flow<List<TransactionEntity>>
     fun getTotalByType(type: String): Flow<Double>
+    // Filter methods
+    fun getTransactionsByTag(tagId: Long): Flow<List<TransactionEntity>>
+    fun getTransactionsWithFilters(
+        accountId: Long?,
+        type: String?,
+        categoryId: Long?,
+        tagId: Long?,
+        startDate: Long?,
+        endDate: Long?
+    ): Flow<List<TransactionEntity>>
     suspend fun getTransactionById(id: Long): TransactionEntity?
     suspend fun insertTransaction(transaction: TransactionEntity): Long
     suspend fun updateTransaction(transaction: TransactionEntity)

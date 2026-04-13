@@ -50,4 +50,18 @@ class TransactionRepositoryImpl @Inject constructor(
 
     override suspend fun deleteAllTransactions() =
         transactionDao.deleteAllTransactions()
+
+    // Filter methods
+    override fun getTransactionsByTag(tagId: Long): Flow<List<TransactionEntity>> =
+        transactionDao.getTransactionsByTag(tagId)
+
+    override fun getTransactionsWithFilters(
+        accountId: Long?,
+        type: String?,
+        categoryId: Long?,
+        tagId: Long?,
+        startDate: Long?,
+        endDate: Long?
+    ): Flow<List<TransactionEntity>> =
+        transactionDao.getTransactionsWithFilters(accountId, type, categoryId, tagId, startDate, endDate)
 }
