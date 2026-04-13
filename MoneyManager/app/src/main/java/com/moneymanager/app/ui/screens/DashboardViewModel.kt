@@ -14,6 +14,15 @@ import kotlinx.coroutines.launch
 import java.util.*
 import javax.inject.Inject
 
+enum class TimeFilter(val displayName: String) {
+    DAY("Day"),
+    WEEK("Week"),
+    MONTH("Month"),
+    YEAR("Year"),
+    ALL("All"),
+    CUSTOM("Custom")
+}
+
 data class DashboardUiState(
     val netWorth: Double = 0.0,
     val totalIncome: Double = 0.0,
@@ -22,6 +31,9 @@ data class DashboardUiState(
     val accounts: List<AccountEntity> = emptyList(),
     val expenseBreakdown: List<PieChartEntry> = emptyList(),
     val isLoading: Boolean = true,
+    val selectedFilter: TimeFilter = TimeFilter.MONTH,
+    val customStartDate: Long? = null,
+    val customEndDate: Long? = null,
 )
 
 @HiltViewModel
@@ -29,6 +41,10 @@ class DashboardViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository
 ) : ViewModel() {
+
+    private val selectedFilter = MutableStateFlow(TimeFilter.MONTH)
+    private val customStartDate = MutableStateFlow<Long?>(null)
+    private val customEndDate = MutableStateFlow<Long?>(null)
 
     private val categoryColors = mapOf(
         "food" to Color(0xFFE57373),
@@ -61,13 +77,114 @@ class DashboardViewModel @Inject constructor(
             return calendar.timeInMillis
         }
 
+    private fun getDateRangeForFilter(filter: TimeFilter, customStart: Long?, customEnd: Long?): Pair<Long, Long> {
+        val now = Calendar.getInstance()
+        val startCal = Calendar.getInstance()
+        val endCal = Calendar.getInstance()
+
+        when (filter) {
+            TimeFilter.DAY -> {
+                startCal[Calendar.HOUR_OF_DAY] = 0
+                startCal[Calendar.MINUTE] = 0
+                startCal[Calendar.SECOND] = 0
+                startCal[Calendar.MILLISECOND] = 0
+                endCal[Calendar.HOUR_OF_DAY] = 23
+                endCal[Calendar.MINUTE] = 59
+                endCal[Calendar.SECOND] = 59
+            }
+            TimeFilter.WEEK -> {
+                startCal[Calendar.DAY_OF_WEEK] = now.firstDayOfWeek
+                startCal[Calendar.HOUR_OF_DAY] = 0
+                startCal[Calendar.MINUTE] = 0
+                startCal[Calendar.SECOND] = 0
+                startCal[Calendar.MILLISECOND] = 0
+                endCal.add(Calendar.WEEK_OF_YEAR, 1)
+                endCal.add(Calendar.MILLISECOND, -1)
+            }
+            TimeFilter.MONTH -> {
+                startCal[Calendar.DAY_OF_MONTH] = 1
+                startCal[Calendar.HOUR_OF_DAY] = 0
+                startCal[Calendar.MINUTE] = 0
+                startCal[Calendar.SECOND] = 0
+                startCal[Calendar.MILLISECOND] = 0
+                endCal[Calendar.DAY_OF_MONTH] = endCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+                endCal[Calendar.HOUR_OF_DAY] = 23
+                endCal[Calendar.MINUTE] = 59
+                endCal[Calendar.SECOND] = 59
+            }
+            TimeFilter.YEAR -> {
+                startCal[Calendar.DAY_OF_YEAR] = 1
+                startCal[Calendar.HOUR_OF_DAY] = 0
+                startCal[Calendar.MINUTE] = 0
+                startCal[Calendar.SECOND] = 0
+                startCal[Calendar.MILLISECOND] = 0
+                endCal[Calendar.MONTH] = Calendar.DECEMBER
+                endCal[Calendar.DAY_OF_MONTH] = 31
+                endCal[Calendar.HOUR_OF_DAY] = 23
+                endCal[Calendar.MINUTE] = 59
+                endCal[Calendar.SECOND] = 59
+            }
+            TimeFilter.ALL -> {
+                startCal.set(2000, Calendar.JANUARY, 1, 0, 0, 0)
+                startCal[Calendar.MILLISECOND] = 0
+                endCal.set(2100, Calendar.DECEMBER, 31, 23, 59, 59)
+            }
+            TimeFilter.CUSTOM -> {
+                if (customStart != null && customEnd != null) {
+                    return Pair(customStart, customEnd)
+                }
+                // Fallback to month if custom dates not set
+                startCal[Calendar.DAY_OF_MONTH] = 1
+                startCal[Calendar.HOUR_OF_DAY] = 0
+                startCal[Calendar.MINUTE] = 0
+                startCal[Calendar.SECOND] = 0
+                startCal[Calendar.MILLISECOND] = 0
+                endCal[Calendar.DAY_OF_MONTH] = endCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+                endCal[Calendar.HOUR_OF_DAY] = 23
+                endCal[Calendar.MINUTE] = 59
+                endCal[Calendar.SECOND] = 59
+            }
+        }
+        return Pair(startCal.timeInMillis, endCal.timeInMillis)
+    }
+
+    // Flow that emits the current date range based on filter selection
+    private val filterState = combine(
+        selectedFilter,
+        customStartDate,
+        customEndDate
+    ) { filter, start, end ->
+        Triple(filter, start, end)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = Triple(TimeFilter.MONTH, null, null)
+    )
+
+    // Query transactions based on dynamic date range
+    private val filteredTransactions: Flow<List<TransactionEntity>> = filterState.flatMapLatest { (filter, start, end) ->
+        val (rangeStart, rangeEnd) = getDateRangeForFilter(filter, start, end)
+        transactionRepository.getTransactionsByDateRange(rangeStart, rangeEnd)
+    }
+
     val uiState: StateFlow<DashboardUiState> = combine(
         accountRepository.getTotalAssets(),
         accountRepository.getTotalDebt(),
-        transactionRepository.getTransactionsByDateRange(monthStart, monthEnd),
+        filteredTransactions,
         transactionRepository.getRecentTransactions(10),
-        accountRepository.getAllAccounts()
-    ) { totalAssets, totalDebt, monthTransactions, recentTx, accounts ->
+        accountRepository.getAllAccounts(),
+        filterState
+    ) { values ->
+        val totalAssets = values[0] as Double
+        val totalDebt = values[1] as Double
+        val monthTransactions = values[2] as List<TransactionEntity>
+        val recentTx = values[3] as List<TransactionEntity>
+        val accounts = values[4] as List<AccountEntity>
+        val filterTriple = values[5] as Triple<TimeFilter, Long?, Long?>
+        val filter = filterTriple.first
+        val customStart = filterTriple.second
+        val customEnd = filterTriple.third
+
         val totalIncome = monthTransactions.filter { it.type == "income" }.sumOf { it.amount }
         val totalExpense = monthTransactions.filter { it.type == "expense" }.sumOf { it.amount }
         
@@ -93,12 +210,24 @@ class DashboardViewModel @Inject constructor(
             accounts = accounts,
             expenseBreakdown = expensesByCategory,
             isLoading = false,
+            selectedFilter = filter,
+            customStartDate = customStart,
+            customEndDate = customEnd,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = DashboardUiState()
     )
+
+    fun setTimeFilter(filter: TimeFilter) {
+        selectedFilter.value = filter
+    }
+
+    fun setCustomDateRange(startDate: Long, endDate: Long) {
+        customStartDate.value = startDate
+        customEndDate.value = endDate
+    }
 
     private fun getCategoryName(categoryId: String): String {
         return when (categoryId.lowercase()) {
@@ -121,8 +250,8 @@ class DashboardViewModel @Inject constructor(
                 transactionRepository.insertTransaction(
                     TransactionEntity(
                         accountId = fromAccountId,
-                        type = "expense",
-                        amount = amount,
+                        type = "transfer",
+                        amount = -amount,
                         note = note.ifEmpty { "Transfer to ${toAccount.name}" },
                         categoryId = 4
                     )
@@ -130,7 +259,7 @@ class DashboardViewModel @Inject constructor(
                 transactionRepository.insertTransaction(
                     TransactionEntity(
                         accountId = toAccountId,
-                        type = "income",
+                        type = "transfer",
                         amount = amount,
                         note = note.ifEmpty { "Transfer from ${fromAccount.name}" },
                         categoryId = 4
