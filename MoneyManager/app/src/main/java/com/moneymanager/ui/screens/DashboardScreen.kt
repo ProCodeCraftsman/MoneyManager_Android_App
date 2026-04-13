@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.components.ExpensePieChart
+import com.moneymanager.app.ui.components.TimeFilterBar
 import com.moneymanager.app.ui.components.TransferDialog
 import com.moneymanager.data.entity.TransactionEntity
 import java.text.NumberFormat
@@ -74,6 +75,16 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                item {
+                    TimeFilterBar(
+                        selectedFilter = uiState.selectedFilter,
+                        customStartDate = uiState.customStartDate,
+                        customEndDate = uiState.customEndDate,
+                        onFilterSelected = { viewModel.setTimeFilter(it) },
+                        onCustomDateRangeSelected = { start, end -> viewModel.setCustomDateRange(start, end) }
+                    )
+                }
+
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
