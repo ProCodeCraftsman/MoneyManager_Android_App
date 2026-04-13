@@ -4,8 +4,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.entity.AccountEntity
+import com.moneymanager.data.entity.BudgetEntity
 import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.domain.repository.AccountRepository
+import com.moneymanager.domain.repository.BudgetRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import com.moneymanager.app.ui.components.PieChartEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +25,13 @@ enum class TimeFilter(val displayName: String) {
     CUSTOM("Custom")
 }
 
+data class BudgetWithProgress(
+    val budget: BudgetEntity,
+    val categoryName: String,
+    val spent: Double,
+    val percentage: Float
+)
+
 data class DashboardUiState(
     val netWorth: Double = 0.0,
     val totalIncome: Double = 0.0,
@@ -36,12 +45,14 @@ data class DashboardUiState(
     val customEndDate: Long? = null,
     val selectedCategory: PieChartEntry? = null,
     val categoryTransactions: List<TransactionEntity> = emptyList(),
+    val budgetsWithProgress: List<BudgetWithProgress> = emptyList(),
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val budgetRepository: BudgetRepository
 ) : ViewModel() {
 
     private val selectedFilter = MutableStateFlow(TimeFilter.MONTH)
@@ -171,6 +182,49 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    // Get current month dates for budget calculation
+    private fun getCurrentMonthDates(): Pair<Long, Long> {
+        val calendar = Calendar.getInstance()
+        val startCal = Calendar.getInstance()
+        val endCal = Calendar.getInstance()
+        
+        startCal[Calendar.DAY_OF_MONTH] = 1
+        startCal[Calendar.HOUR_OF_DAY] = 0
+        startCal[Calendar.MINUTE] = 0
+        startCal[Calendar.SECOND] = 0
+        startCal[Calendar.MILLISECOND] = 0
+        
+        endCal[Calendar.DAY_OF_MONTH] = endCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        endCal[Calendar.HOUR_OF_DAY] = 23
+        endCal[Calendar.MINUTE] = 59
+        endCal[Calendar.SECOND] = 59
+        
+        return Pair(startCal.timeInMillis, endCal.timeInMillis)
+    }
+
+    // Query budgets with progress
+    private val budgetsWithProgressFlow: Flow<List<BudgetWithProgress>> = combine(
+        budgetRepository.getActiveBudgets(),
+        filteredTransactions
+    ) { budgets, transactions ->
+        val (monthStart, monthEnd) = getCurrentMonthDates()
+        val monthExpenses = transactions.filter { it.type == "expense" }
+        
+        budgets.map { budget ->
+            val spent = monthExpenses
+                .filter { it.categoryId == budget.categoryId }
+                .sumOf { it.amount }
+            val percentage = if (budget.amount > 0) (spent / budget.amount * 100).toFloat() else 0f
+            
+            BudgetWithProgress(
+                budget = budget,
+                categoryName = getCategoryNameFromId(budget.categoryId.toString()),
+                spent = spent,
+                percentage = percentage
+            )
+        }
+    }
+
     val uiState: StateFlow<DashboardUiState> = combine(
         accountRepository.getTotalAssets(),
         accountRepository.getTotalDebt(),
@@ -179,7 +233,8 @@ class DashboardViewModel @Inject constructor(
         accountRepository.getAllAccounts(),
         filterState,
         selectedCategory,
-        categoryTransactionsFlow
+        categoryTransactionsFlow,
+        budgetsWithProgressFlow
     ) { values ->
         val totalAssets = values[0] as Double
         val totalDebt = values[1] as Double
@@ -192,6 +247,7 @@ class DashboardViewModel @Inject constructor(
         val customEnd = filterTriple.third
         val selectedCat = values[6] as PieChartEntry?
         val catTransactions = values[7] as List<TransactionEntity>
+        val budgets = values[8] as List<BudgetWithProgress>
 
         val totalIncome = monthTransactions.filter { it.type == "income" }.sumOf { it.amount }
         val totalExpense = monthTransactions.filter { it.type == "expense" }.sumOf { it.amount }
@@ -223,6 +279,7 @@ class DashboardViewModel @Inject constructor(
             customEndDate = customEnd,
             selectedCategory = selectedCat,
             categoryTransactions = catTransactions,
+            budgetsWithProgress = budgets,
         )
     }.stateIn(
         scope = viewModelScope,
