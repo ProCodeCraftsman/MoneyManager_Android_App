@@ -12,10 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewModelScope
-import androidx.navigation.compose.NavHostController
+import androidx.navigation.NavController
 import com.moneymanager.data.entity.RecurringEntity
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -24,11 +25,12 @@ import java.util.*
 @Composable
 fun RecurringListScreen(
     viewModel: RecurringViewModel,
-    navController: NavHostController? = null
+    navController: NavController? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+    val coroutineScope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf<RecurringEntity?>(null) }
 
     Scaffold(
@@ -81,7 +83,7 @@ fun RecurringListScreen(
                         currencyFormat = currencyFormat,
                         dateFormat = dateFormat,
                         onToggleActive = {
-                            androidx.lifecycle.viewModelScope.launch {
+                            coroutineScope.launch {
                                 viewModel.toggleActive(recurring)
                             }
                         },
@@ -107,7 +109,7 @@ fun RecurringListScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        androidx.lifecycle.viewModelScope.launch {
+                        coroutineScope.launch {
                             viewModel.deleteRecurring(recurring)
                         }
                         showDeleteDialog = null

@@ -12,12 +12,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.RecurringEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -32,6 +33,7 @@ fun RecurringFormScreen(
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
     
     var amount by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("expense") }
@@ -253,7 +255,7 @@ fun RecurringFormScreen(
                     }
                     
                     isLoading = true
-                    viewModelScope.launch {
+                    coroutineScope.launch {
                         val recurring = RecurringEntity(
                             id = existingRecurring?.id ?: 0,
                             accountId = selectedAccount!!.id,
@@ -282,7 +284,7 @@ fun RecurringFormScreen(
             if (isEditing && existingRecurring != null) {
                 OutlinedButton(
                     onClick = {
-                        viewModelScope.launch {
+                        coroutineScope.launch {
                             existingRecurring?.let { viewModel.deleteRecurring(it) }
                             onNavigateBack()
                         }
