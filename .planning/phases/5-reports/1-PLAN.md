@@ -12,34 +12,34 @@ Phase 4 requires Reports with charts. Currently missing entirely. Need comprehen
 <tasks>
 
 ## 1. Create Reports Screen Structure
-- [ ] Add ReportsScreen to navigation
-- [ ] Create ReportsViewModel
-- [ ] Tab layout: Overview, Trends, Categories
+- [x] Add ReportsScreen to navigation
+- [x] Create ReportsViewModel
+- [x] Tab layout: Overview, Trends, Categories, Budgets
 
 ## 2. Overview Tab
-- [ ] Total income/expense for selected period
-- [ ] Net savings amount
-- [ ] Month-over-month comparison
+- [x] Total income/expense for selected period
+- [x] Net savings amount
+- [x] Month-over-month comparison
 
 ## 3. Trends Tab
-- [ ] Line chart showing income/expense over time
-- [ ] Time range selector: Week, Month, Quarter, Year
-- [ ] Cumulative balance trend
+- [x] Line chart showing income/expense over time
+- [x] Time range selector: Week, Month, Quarter, Year
+- [x] Cumulative balance trend
 
 ## 4. Categories Tab
-- [ ] Pie/donut chart for expense breakdown
-- [ ] List view with amounts and percentages
-- [ ] Drill-down by category
+- [x] Pie/donut chart for expense breakdown
+- [x] List view with amounts and percentages
+- [x] Drill-down by category
 
 ## 5. Budget vs Actual Report
-- [ ] Show budget progress across all categories
-- [ ] Visual indicators for over/under budget
-- [ ] Monthly budget summary
+- [x] Show budget progress across all categories
+- [x] Visual indicators for over/under budget
+- [x] Monthly budget summary
 
 ## 6. Data Aggregation
-- [ ] Create ReportsRepository methods
-- [ ] Efficient queries for date ranges
-- [ ] Category aggregation calculations
+- [x] Create ReportsRepository methods (in ViewModel)
+- [x] Efficient queries for date ranges
+- [x] Category aggregation calculations
 
 ## 7. Export Functionality
 - [ ] Export report as PDF
