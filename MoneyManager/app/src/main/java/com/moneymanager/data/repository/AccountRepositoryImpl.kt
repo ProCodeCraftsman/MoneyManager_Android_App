@@ -42,4 +42,16 @@ class AccountRepositoryImpl @Inject constructor(
 
     override suspend fun deleteAllAccounts() =
         accountDao.deleteAllAccounts()
+
+    override fun getAccountBalance(accountId: Long): Flow<Double> =
+        accountDao.getAccountByIdFlow(accountId).map { it?.balance ?: 0.0 }
+
+    override suspend fun updateAccountBalance(accountId: Long, delta: Double) {
+        accountDao.getAccountById(accountId)?.let { account ->
+            accountDao.updateAccount(account.copy(
+                balance = account.balance + delta,
+                updatedAt = System.currentTimeMillis()
+            ))
+        }
+    }
 }
