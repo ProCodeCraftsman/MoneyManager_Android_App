@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moneymanager.app.ui.components.CategoryBarChart
 import com.moneymanager.app.ui.components.ExpensePieChart
 import com.moneymanager.app.ui.components.TrendLineChart
 import com.moneymanager.app.ui.components.TrendPoint
@@ -296,6 +297,23 @@ private fun CategoriesTab(
                         entries = uiState.categoryBreakdown,
                         currencyFormat = currencyFormat,
                         modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Breakdown",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    CategoryBarChart(
+                        entries = uiState.categoryBreakdown,
+                        currencyFormat = currencyFormat
                     )
                 }
             }
