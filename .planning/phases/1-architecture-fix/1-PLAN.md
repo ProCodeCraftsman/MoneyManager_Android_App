@@ -10,37 +10,37 @@ Repository pattern needed for data abstraction, testability, and Firebase sync p
 <tasks>
 
 ## 1. Create Repository Interfaces in domain layer
-- [ ] `AccountRepository` - CRUD for accounts, balance operations
-- [ ] `TransactionRepository` - CRUD, filtering, search, date range queries
-- [ ] `CategoryRepository` - Category and tag management
-- [ ] `BudgetRepository` - Budget CRUD, progress calculation
-- [ ] `GoalRepository` - Goal CRUD, progress tracking
-- [ ] `RecurringRepository` - Recurring transaction management
-- [ ] `TemplateRepository` - Transaction templates
+- [x] `AccountRepository` - CRUD for accounts, balance operations
+- [x] `TransactionRepository` - CRUD, filtering, search, date range queries
+- [x] `CategoryRepository` - Category and tag management
+- [x] `BudgetRepository` - Budget CRUD, progress calculation
+- [x] `GoalRepository` - Goal CRUD, progress tracking
+- [x] `RecurringRepository` - Recurring transaction management
+- [x] `TemplateRepository` - Transaction templates
 
 ## 2. Implement Repository Classes in data layer
-- [ ] `AccountRepositoryImpl` - wraps AccountDao
-- [ ] `TransactionRepositoryImpl` - wraps TransactionDao with business logic
-- [ ] `CategoryRepositoryImpl` - wraps CategoryDao, TagDao
-- [ ] `BudgetRepositoryImpl` - wraps BudgetDao with progress calc
-- [ ] `GoalRepositoryImpl` - wraps GoalDao with progress tracking
-- [ ] `RecurringRepositoryImpl` - wraps RecurringDao
-- [ ] `TemplateRepositoryImpl` - wraps TemplateDao
+- [x] `AccountRepositoryImpl` - wraps AccountDao
+- [x] `TransactionRepositoryImpl` - wraps TransactionDao with business logic
+- [x] `CategoryRepositoryImpl` - wraps CategoryDao, TagDao
+- [x] `BudgetRepositoryImpl` - wraps BudgetDao with progress calc
+- [x] `GoalRepositoryImpl` - wraps GoalDao with progress tracking
+- [x] `RecurringRepositoryImpl` - wraps RecurringDao
+- [x] `TemplateRepositoryImpl` - wraps TemplateDao
 
 ## 3. Update ViewModels to Use Repositories
-- [ ] Refactor `AccountsViewModel` - use AccountRepository
-- [ ] Refactor `TransactionsViewModel` - use TransactionRepository
-- [ ] Refactor `DashboardViewModel` - use repositories
-- [ ] Refactor `BudgetsViewModel` - use BudgetRepository
-- [ ] Refactor `GoalsViewModel` - use GoalRepository
-- [ ] Refactor `SettingsViewModel` - use repositories for preferences
+- [x] Refactor `AccountsViewModel` - use AccountRepository
+- [x] Refactor `TransactionsViewModel` - use TransactionRepository
+- [x] Refactor `DashboardViewModel` - use repositories
+- [x] Refactor `BudgetsViewModel` - use BudgetRepository
+- [x] Refactor `GoalsViewModel` - use GoalRepository
+- [x] Refactor `SettingsViewModel` - use repositories for preferences (already uses PreferencesManager)
 
 ## 4. Register in Hilt DI
-- [ ] Add repository bindings in DatabaseModule
-- [ ] Verify dependency graph compiles
+- [x] Add repository bindings in RepositoryModule
+- [ ] Verify dependency graph compiles (requires Android Studio)
 
 ## 5. Verify & Test
-- [ ] Build succeeds
+- [ ] Build succeeds (requires Android Studio)
 - [ ] Basic CRUD operations work in each screen
 - [ ] No regression in existing functionality
 
