@@ -13,7 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moneymanager.app.ui.components.BudgetWidget
+import com.moneymanager.app.ui.components.CategoryDrilldownPanel
 import com.moneymanager.app.ui.components.ExpensePieChart
+import com.moneymanager.app.ui.components.RemindersWidget
 import com.moneymanager.app.ui.components.TimeFilterBar
 import com.moneymanager.app.ui.components.TransferDialog
 import com.moneymanager.data.entity.TransactionEntity
@@ -140,10 +143,29 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 ExpensePieChart(
                                     entries = uiState.expenseBreakdown,
-                                    currencyFormat = currencyFormat
+                                    currencyFormat = currencyFormat,
+                                    onCategoryClick = { entry -> viewModel.selectCategory(entry) }
                                 )
                             }
                         }
+                    }
+                }
+
+                if (uiState.budgetsWithProgress.isNotEmpty()) {
+                    item {
+                        BudgetWidget(
+                            budgetsWithProgress = uiState.budgetsWithProgress,
+                            currencyFormat = currencyFormat
+                        )
+                    }
+                }
+
+                if (uiState.upcomingRecurring.isNotEmpty()) {
+                    item {
+                        RemindersWidget(
+                            upcomingRecurring = uiState.upcomingRecurring,
+                            currencyFormat = currencyFormat
+                        )
                     }
                 }
 
@@ -198,6 +220,18 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                 viewModel.transferMoney(fromId, toId, amount, note)
                 showTransferDialog = false
             }
+        )
+    }
+
+    val selectedCategory = uiState.selectedCategory
+    if (selectedCategory != null) {
+        CategoryDrilldownPanel(
+            categoryName = selectedCategory.label,
+            categoryColor = selectedCategory.color,
+            transactions = uiState.categoryTransactions,
+            dateFormat = dateFormat,
+            currencyFormat = currencyFormat,
+            onDismiss = { viewModel.selectCategory(null) }
         )
     }
 }
