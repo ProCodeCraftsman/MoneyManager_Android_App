@@ -34,6 +34,8 @@ data class DashboardUiState(
     val selectedFilter: TimeFilter = TimeFilter.MONTH,
     val customStartDate: Long? = null,
     val customEndDate: Long? = null,
+    val selectedCategory: PieChartEntry? = null,
+    val categoryTransactions: List<TransactionEntity> = emptyList(),
 )
 
 @HiltViewModel
@@ -45,6 +47,7 @@ class DashboardViewModel @Inject constructor(
     private val selectedFilter = MutableStateFlow(TimeFilter.MONTH)
     private val customStartDate = MutableStateFlow<Long?>(null)
     private val customEndDate = MutableStateFlow<Long?>(null)
+    private val selectedCategory = MutableStateFlow<PieChartEntry?>(null)
 
     private val categoryColors = mapOf(
         "food" to Color(0xFFE57373),
@@ -55,27 +58,6 @@ class DashboardViewModel @Inject constructor(
         "health" to Color(0xFFFF8A65),
         "other" to Color(0xFF90A4AE)
     )
-
-    private val calendar = Calendar.getInstance()
-    private val monthStart: Long
-        get() {
-            calendar.time = Date()
-            calendar[Calendar.DAY_OF_MONTH] = 1
-            calendar[Calendar.HOUR_OF_DAY] = 0
-            calendar[Calendar.MINUTE] = 0
-            calendar[Calendar.SECOND] = 0
-            calendar[Calendar.MILLISECOND] = 0
-            return calendar.timeInMillis
-        }
-    private val monthEnd: Long
-        get() {
-            calendar.time = Date()
-            calendar[Calendar.DAY_OF_MONTH] = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-            calendar[Calendar.HOUR_OF_DAY] = 23
-            calendar[Calendar.MINUTE] = 59
-            calendar[Calendar.SECOND] = 59
-            return calendar.timeInMillis
-        }
 
     private fun getDateRangeForFilter(filter: TimeFilter, customStart: Long?, customEnd: Long?): Pair<Long, Long> {
         val now = Calendar.getInstance()
@@ -148,7 +130,7 @@ class DashboardViewModel @Inject constructor(
         return Pair(startCal.timeInMillis, endCal.timeInMillis)
     }
 
-    // Flow that emits the current date range based on filter selection
+    // Flow that emits the current filter state
     private val filterState = combine(
         selectedFilter,
         customStartDate,
@@ -167,13 +149,37 @@ class DashboardViewModel @Inject constructor(
         transactionRepository.getTransactionsByDateRange(rangeStart, rangeEnd)
     }
 
+    // Query category transactions when a category is selected
+    private val categoryTransactionsFlow: Flow<List<TransactionEntity>> = combine(
+        filterState,
+        selectedCategory
+    ) { filterPair, category ->
+        Pair(filterPair, category)
+    }.flatMapLatest { (filterTriple, category) ->
+        if (category == null) {
+            flowOf(emptyList())
+        } else {
+            val (filter, start, end) = filterTriple
+            val (rangeStart, rangeEnd) = getDateRangeForFilter(filter, start, end)
+            transactionRepository.getTransactionsByDateRange(rangeStart, rangeEnd)
+                .map { transactions ->
+                    transactions.filter { tx ->
+                        val categoryName = getCategoryNameFromId(tx.categoryId?.toString() ?: "other")
+                        categoryName == category.label
+                    }
+                }
+        }
+    }
+
     val uiState: StateFlow<DashboardUiState> = combine(
         accountRepository.getTotalAssets(),
         accountRepository.getTotalDebt(),
         filteredTransactions,
         transactionRepository.getRecentTransactions(10),
         accountRepository.getAllAccounts(),
-        filterState
+        filterState,
+        selectedCategory,
+        categoryTransactionsFlow
     ) { values ->
         val totalAssets = values[0] as Double
         val totalDebt = values[1] as Double
@@ -184,6 +190,8 @@ class DashboardViewModel @Inject constructor(
         val filter = filterTriple.first
         val customStart = filterTriple.second
         val customEnd = filterTriple.third
+        val selectedCat = values[6] as PieChartEntry?
+        val catTransactions = values[7] as List<TransactionEntity>
 
         val totalIncome = monthTransactions.filter { it.type == "income" }.sumOf { it.amount }
         val totalExpense = monthTransactions.filter { it.type == "expense" }.sumOf { it.amount }
@@ -192,7 +200,7 @@ class DashboardViewModel @Inject constructor(
             .filter { it.type == "expense" }
             .groupBy { it.categoryId?.toString() ?: "other" }
             .map { (category, transactions) ->
-                val categoryName = getCategoryName(category)
+                val categoryName = getCategoryNameFromId(category)
                 val color = categoryColors[category.lowercase()] ?: categoryColors["other"]!!
                 PieChartEntry(
                     label = categoryName,
@@ -213,6 +221,8 @@ class DashboardViewModel @Inject constructor(
             selectedFilter = filter,
             customStartDate = customStart,
             customEndDate = customEnd,
+            selectedCategory = selectedCat,
+            categoryTransactions = catTransactions,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -229,7 +239,11 @@ class DashboardViewModel @Inject constructor(
         customEndDate.value = endDate
     }
 
-    private fun getCategoryName(categoryId: String): String {
+    fun selectCategory(entry: PieChartEntry?) {
+        selectedCategory.value = entry
+    }
+
+    private fun getCategoryNameFromId(categoryId: String): String {
         return when (categoryId.lowercase()) {
             "1" -> "Food"
             "2" -> "Transport"
