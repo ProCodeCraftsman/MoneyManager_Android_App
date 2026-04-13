@@ -9,9 +9,9 @@
 ## Phase 2: Data Layer
 - [x] Define Room entities (Account, Transaction, Category, Budget, Goal, Recurring, Template, Tag)
 - [x] Create DAOs and database
-- [ ] Implement repositories ⚠️ **IN PROGRESS**
-- [ ] Set up Firebase project for cloud backup ⚠️ **IN PROGRESS**
-- [ ] Implement sync logic ⚠️ **IN PROGRESS**
+- [x] Implement repositories ✅
+- [x] Set up Firebase project for cloud backup ✅
+- [ ] Implement sync logic ⚠️ **PARTIAL**
 
 ## Phase 3: Core UI (Dashboard, Accounts, Transactions)
 - [x] Dashboard screen with net worth, stats, transaction list
