@@ -1,5 +1,6 @@
 package com.moneymanager.app.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.components.ExpensePieChart
 import com.moneymanager.app.ui.components.TrendLineChart
+import com.moneymanager.app.ui.components.TrendPoint
 import java.text.NumberFormat
 import java.util.*
 

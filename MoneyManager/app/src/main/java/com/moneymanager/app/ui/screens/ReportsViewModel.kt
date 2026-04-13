@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.app.ui.components.PieChartEntry
+import com.moneymanager.app.ui.components.TrendPoint
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.BudgetRepository
 import com.moneymanager.domain.repository.TransactionRepository
@@ -19,13 +20,6 @@ enum class TimeRange(val label: String, val days: Int) {
     QUARTER("Quarter", 90),
     YEAR("Year", 365)
 }
-
-data class TrendPoint(
-    val label: String,
-    val income: Double,
-    val expense: Double,
-    val net: Double
-)
 
 data class BudgetProgress(
     val categoryName: String,
