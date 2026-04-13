@@ -29,8 +29,8 @@ Phase 6: Build & Publish (NOT STARTED)
 - [x] Accounts screen with cards
 - [x] Transactions screen with search/filters
 - [x] Add/edit transaction forms
-- [ ] Pie chart - **MISSING**
-- [ ] Transfer modal - **MISSING**
+- [x] Pie chart - **IMPLEMENTED** ✅
+- [x] Transfer modal - **IMPLEMENTED** ✅
 
 ### Phase 4: Features ⚠️ PARTIAL
 - [x] Budgets screen with progress bars
@@ -55,7 +55,7 @@ Phase 6: Build & Publish (NOT STARTED)
 1. ~~Repository layer~~ - **FIXED** ✅
 2. ~~Firebase sync~~ - **PARTIAL** - infrastructure ready, needs testing
 3. **Security features non-functional** - PIN/biometric need implementation
-4. **Dashboard pie chart missing** - Visual requirement
+4. ~~Dashboard pie chart missing~~ - **FIXED** ✅
 5. **No reports screen** - Phase 4 requirement
 
 ## Next Step
