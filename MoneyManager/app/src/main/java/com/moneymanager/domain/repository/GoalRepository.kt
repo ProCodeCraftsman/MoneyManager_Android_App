@@ -1,0 +1,15 @@
+package com.moneymanager.domain.repository
+
+import com.moneymanager.data.entity.GoalEntity
+import kotlinx.coroutines.flow.Flow
+
+interface GoalRepository {
+    fun getAllGoals(): Flow<List<GoalEntity>>
+    fun getActiveGoals(): Flow<List<GoalEntity>>
+    fun getCompletedGoals(): Flow<List<GoalEntity>>
+    suspend fun getGoalById(id: Long): GoalEntity?
+    suspend fun insertGoal(goal: GoalEntity): Long
+    suspend fun updateGoal(goal: GoalEntity)
+    suspend fun deleteGoal(goal: GoalEntity)
+    suspend fun deleteAllGoals()
+}
