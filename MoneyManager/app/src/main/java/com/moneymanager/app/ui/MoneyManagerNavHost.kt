@@ -16,7 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.moneymanager.app.ui.screens.*
 
-sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
+sealed class Screen(val route: String, val title: String, val icon: ImageVector?) {
     data object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
     data object Accounts : Screen("accounts", "Accounts", Icons.Default.AccountBalance)
     data object Transactions : Screen("transactions", "Transactions", Icons.Default.Receipt)
@@ -24,6 +24,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     data object Reports : Screen("reports", "Reports", Icons.Default.BarChart)
     data object Goals : Screen("goals", "Goals", Icons.Default.Flag)
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+    data object Tags : Screen("tags", "Tags", null)
+    data object Categories : Screen("categories", "Categories", null)
+    data object Transfer : Screen("transfer", "Transfer", null)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +80,10 @@ fun MoneyManagerNavHost() {
                 AccountsScreen(viewModel = hiltViewModel())
             }
             composable(Screen.Transactions.route) {
-                TransactionsScreen(viewModel = hiltViewModel())
+                TransactionsScreen(
+                    viewModel = hiltViewModel(),
+                    accountsViewModel = hiltViewModel()
+                )
             }
             composable(Screen.Budgets.route) {
                 BudgetsScreen(viewModel = hiltViewModel())
@@ -90,6 +96,18 @@ fun MoneyManagerNavHost() {
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(viewModel = hiltViewModel())
+            }
+            composable(Screen.Tags.route) {
+                TagsScreen(viewModel = hiltViewModel())
+            }
+            composable(Screen.Categories.route) {
+                CategoriesScreen(viewModel = hiltViewModel())
+            }
+            composable(Screen.Transfer.route) {
+                TransferScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
         }
     }
