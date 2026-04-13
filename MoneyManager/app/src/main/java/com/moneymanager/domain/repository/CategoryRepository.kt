@@ -8,6 +8,9 @@ interface CategoryRepository {
     fun getAllCategories(): Flow<List<CategoryEntity>>
     fun getAllTags(): Flow<List<TagEntity>>
     fun getTagsByCategory(categoryId: Long): Flow<List<TagEntity>>
+    // Sub-category methods
+    fun getParentCategories(): Flow<List<CategoryEntity>>
+    fun getSubCategories(parentId: Long): Flow<List<CategoryEntity>>
     suspend fun getCategoryById(id: Long): CategoryEntity?
     suspend fun getTagById(id: Long): TagEntity?
     suspend fun insertCategory(category: CategoryEntity): Long

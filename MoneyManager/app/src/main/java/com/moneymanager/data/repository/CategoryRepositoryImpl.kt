@@ -47,4 +47,11 @@ class CategoryRepositoryImpl @Inject constructor(
 
     override suspend fun deleteTag(tag: TagEntity) =
         tagDao.deleteTag(tag)
+
+    // Sub-category methods
+    override fun getParentCategories(): Flow<List<CategoryEntity>> =
+        categoryDao.getParentCategories()
+
+    override fun getSubCategories(parentId: Long): Flow<List<CategoryEntity>> =
+        categoryDao.getSubCategories(parentId)
 }
