@@ -24,7 +24,7 @@
 - [ ] Recurring transactions with auto-generate
 - [x] Budgets with progress bars
 - [x] Savings Goals with tracking
-- [ ] Reports with charts ⚠️ **IN PROGRESS**
+- [x] Reports with charts ✅
 - [ ] Tags & Categories management
 - [ ] Templates
 

@@ -35,8 +35,8 @@ Phase 6: Build & Publish (NOT STARTED)
 ### Phase 4: Features ⚠️ PARTIAL
 - [x] Budgets screen with progress bars
 - [x] Goals screen with tracking
+- [x] Reports with charts - **IMPLEMENTED** ✅
 - [ ] Recurring transactions auto-generate - **MISSING**
-- [ ] Reports with charts - **MISSING**
 - [ ] Tags & Categories UI - **MISSING**
 - [ ] Templates UI - **MISSING**
 
@@ -56,7 +56,9 @@ Phase 6: Build & Publish (NOT STARTED)
 2. ~~Firebase sync~~ - **PARTIAL** - infrastructure ready, needs testing
 3. ~~Security features non-functional~~ - **IMPLEMENTED** ✅
 4. ~~Dashboard pie chart missing~~ - **FIXED** ✅
-5. **No reports screen** - Phase 5 requirement
+5. ~~No reports screen~~ - **IMPLEMENTED** ✅
+6. **Recurring transactions** - Need auto-generate logic
+7. **Tags & Categories UI** - Need management screen
 
 ## Next Step
 Fix critical gaps before continuing to Phase 6
