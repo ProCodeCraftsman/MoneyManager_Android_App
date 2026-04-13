@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.BudgetEntity
+import com.moneymanager.data.entity.RecurringEntity
 import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.BudgetRepository
+import com.moneymanager.domain.repository.RecurringRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import com.moneymanager.app.ui.components.PieChartEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,13 +48,15 @@ data class DashboardUiState(
     val selectedCategory: PieChartEntry? = null,
     val categoryTransactions: List<TransactionEntity> = emptyList(),
     val budgetsWithProgress: List<BudgetWithProgress> = emptyList(),
+    val upcomingRecurring: List<RecurringEntity> = emptyList(),
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
-    private val budgetRepository: BudgetRepository
+    private val budgetRepository: BudgetRepository,
+    private val recurringRepository: RecurringRepository
 ) : ViewModel() {
 
     private val selectedFilter = MutableStateFlow(TimeFilter.MONTH)
@@ -225,6 +229,17 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    // Query upcoming recurring transactions (next 7 days)
+    private val upcomingRecurringFlow: Flow<List<RecurringEntity>> = recurringRepository.getActiveRecurring()
+        .map { recurringList ->
+            val now = System.currentTimeMillis()
+            val sevenDaysLater = now + (7 * 24 * 60 * 60 * 1000L)
+            recurringList
+                .filter { it.nextDate in now..sevenDaysLater }
+                .sortedBy { it.nextDate }
+                .take(5)
+        }
+
     val uiState: StateFlow<DashboardUiState> = combine(
         accountRepository.getTotalAssets(),
         accountRepository.getTotalDebt(),
@@ -234,7 +249,8 @@ class DashboardViewModel @Inject constructor(
         filterState,
         selectedCategory,
         categoryTransactionsFlow,
-        budgetsWithProgressFlow
+        budgetsWithProgressFlow,
+        upcomingRecurringFlow
     ) { values ->
         val totalAssets = values[0] as Double
         val totalDebt = values[1] as Double
@@ -248,6 +264,7 @@ class DashboardViewModel @Inject constructor(
         val selectedCat = values[6] as PieChartEntry?
         val catTransactions = values[7] as List<TransactionEntity>
         val budgets = values[8] as List<BudgetWithProgress>
+        val recurring = values[9] as List<RecurringEntity>
 
         val totalIncome = monthTransactions.filter { it.type == "income" }.sumOf { it.amount }
         val totalExpense = monthTransactions.filter { it.type == "expense" }.sumOf { it.amount }
@@ -280,6 +297,7 @@ class DashboardViewModel @Inject constructor(
             selectedCategory = selectedCat,
             categoryTransactions = catTransactions,
             budgetsWithProgress = budgets,
+            upcomingRecurring = recurring,
         )
     }.stateIn(
         scope = viewModelScope,
