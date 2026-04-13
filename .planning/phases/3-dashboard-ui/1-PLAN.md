@@ -10,29 +10,29 @@ Also missing transfer modal for moving money between accounts.
 <tasks>
 
 ## 1. Add Chart Library
-- [ ] Add Compose-compatible chart library (Vico or custom Canvas)
-- [ ] Update build.gradle dependencies
+- [x] Add Compose-compatible chart library (Vico or custom Canvas)
+- [x] Update build.gradle dependencies (MPAndroidChart already present)
 
 ## 2. Expense Pie Chart Component
-- [ ] Create ExpensePieChart composable
-- [ ] Fetch transactions grouped by category (last 30 days)
-- [ ] Display with legend showing category names and percentages
-- [ ] Handle empty state gracefully
+- [x] Create ExpensePieChart composable
+- [x] Fetch transactions grouped by category (last 30 days)
+- [x] Display with legend showing category names and percentages
+- [x] Handle empty state gracefully
 
 ## 3. Integrate Chart into Dashboard
-- [ ] Add chart between stats and recent transactions
-- [ ] Ensure responsive layout
-- [ ] Add loading state during data fetch
+- [x] Add chart between stats and recent transactions
+- [x] Ensure responsive layout
+- [x] Add loading state during data fetch
 
 ## 4. Transfer Modal
-- [ ] Create TransferDialog composable
-- [ ] Fields: From Account, To Account, Amount, Note
-- [ ] Validate sufficient balance
-- [ ] Create two transactions (expense from source, income to destination)
-- [ ] Add "Transfer" button to Accounts screen FAB menu
+- [x] Create TransferDialog composable
+- [x] Fields: From Account, To Account, Amount, Note
+- [x] Validate sufficient balance
+- [x] Create two transactions (expense from source, income to destination)
+- [x] Add "Transfer" button to Accounts screen FAB menu
 
 ## 5. Dashboard FAB Update
-- [ ] Update Dashboard FAB to show menu with:
+- [x] Update Dashboard FAB to show menu with:
   - Add Transaction
   - Transfer Money
   - Quick Add
