@@ -41,6 +41,11 @@
 - [ ] App icons and screenshots
 - [ ] Upload and publish
 
+**Plans:** 1 plan in 1 wave
+
+Plans:
+- [ ] 1-PLAN.md — Import/Export + App Icon + Play Store config
+
 ## Critical Fixes (Active)
 - [ ] Repository layer (Clean Architecture) - `.planning/phases/1-architecture-fix/`
 - [ ] Firebase sync - `.planning/phases/2-firebase-sync/`
