@@ -30,6 +30,7 @@ data class TransactionEntity(
     val type: String, // income, expense, savings, transfer
     val amount: Double,
     val categoryId: Long? = null,
+    val goalId: Long? = null, // Links savings to a goal
     val tagIds: String = "", // comma-separated tag IDs
     val date: Long = System.currentTimeMillis(),
     val note: String = "",
