@@ -29,6 +29,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object Transfer : Screen("transfer", "Transfer", null)
     data object Recurring : Screen("recurring", "Recurring", Icons.Default.Repeat)
     data object RecurringForm : Screen("recurring_form?recurringId={recurringId}", "Recurring Form", null)
+    data object Templates : Screen("templates", "Templates", Icons.Default.Description)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,6 +125,9 @@ fun MoneyManagerNavHost() {
                     recurringId = recurringId,
                     onNavigateBack = { navController.popBackStack() }
                 )
+            }
+            composable(Screen.Templates.route) {
+                TemplatesScreen(viewModel = hiltViewModel())
             }
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,7 +51,7 @@ fun BudgetsScreen(viewModel: BudgetsViewModel) {
                 )
             }
 
-            if (uiState.budgets.isEmpty()) {
+            if (uiState.budgetsWithSpending.isEmpty()) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Box(
@@ -67,8 +68,20 @@ fun BudgetsScreen(viewModel: BudgetsViewModel) {
                     }
                 }
             } else {
-                items(uiState.budgets) { budget ->
-                    val category = uiState.categories.find { it.id == budget.categoryId }
+                items(uiState.budgetsWithSpending) { budgetWithSpending ->
+                    val budget = budgetWithSpending.budget
+                    val category = budgetWithSpending.category
+                    val spent = budgetWithSpending.spent
+
+                    val progress = if (budget.amount > 0) (spent / budget.amount).toFloat().coerceIn(0f, 1f) else 0f
+                    val percentage = if (budget.amount > 0) (spent / budget.amount * 100) else 0.0
+
+                    val color = when {
+                        percentage < 80 -> Color(0xFF4CAF50)  // Green
+                        percentage < 100 -> Color(0xFFFFC107)  // Amber
+                        else -> Color(0xFFF44336)            // Red
+                    }
+
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(
@@ -86,13 +99,19 @@ fun BudgetsScreen(viewModel: BudgetsViewModel) {
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             LinearProgressIndicator(
-                                progress = { 0.5f },
-                                modifier = Modifier.fillMaxWidth()
+                                progress = { progress },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = color,
+                                trackColor = color.copy(alpha = 0.2f)
                             )
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "50% used",
+                                text = when {
+                                    percentage < 100 -> "${percentage.toInt()}% used"
+                                    else -> "${percentage.toInt()}% over budget"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = color
                             )
                         }
                     }

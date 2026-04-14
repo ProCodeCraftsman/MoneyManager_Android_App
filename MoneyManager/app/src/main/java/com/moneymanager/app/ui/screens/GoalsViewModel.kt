@@ -36,4 +36,12 @@ class GoalsViewModel @Inject constructor(
             )
         }
     }
+
+    fun addContribution(goalId: Long, amount: Double) {
+        viewModelScope.launch {
+            val goal = goalRepository.getGoalById(goalId) ?: return@launch
+            val updatedGoal = goal.copy(currentAmount = goal.currentAmount + amount)
+            goalRepository.updateGoal(updatedGoal)
+        }
+    }
 }
