@@ -48,6 +48,11 @@
 - [x] Sub-categories - Categories with sub-categories
 - [x] Transfer Between Accounts - Move money without income/expense
 
+## Phase 11: Budget Filter Fix 🔲 GAP CLOSURE
+- [ ] Fix BudgetsViewModel to include savings and investment categories
+  - Update transaction filter to include type IN ("expense", "savings", "investment")
+  - Update category filter to include savings and investment types
+
 ## Summary
 
 | Phase | Status |
