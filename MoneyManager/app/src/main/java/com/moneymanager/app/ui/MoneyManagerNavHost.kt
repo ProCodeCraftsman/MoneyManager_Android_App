@@ -26,7 +26,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     data object Tags : Screen("tags", "Tags", null)
     data object Categories : Screen("categories", "Categories", null)
-    data object Transfer : Screen("transfer", "Transfer", null)
+    data object Transfer : Screen("transfer", "Transfer", Icons.Default.SwapHoriz)
     data object Recurring : Screen("recurring", "Recurring", Icons.Default.Repeat)
     data object RecurringForm : Screen("recurring_form?recurringId={recurringId}", "Recurring Form", null)
     data object Templates : Screen("templates", "Templates", Icons.Default.Description)
@@ -44,6 +44,7 @@ fun MoneyManagerNavHost() {
         Screen.Reports,
         Screen.Recurring,
         Screen.Goals,
+        Screen.Transfer,
         Screen.Settings
     )
 
