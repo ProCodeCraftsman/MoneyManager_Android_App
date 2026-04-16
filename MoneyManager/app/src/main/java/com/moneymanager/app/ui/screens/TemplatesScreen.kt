@@ -15,12 +15,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.moneymanager.data.entity.TemplateEntity
 import java.text.NumberFormat
 import java.util.*
 
 @Composable
-fun TemplatesScreen(viewModel: TemplatesViewModel) {
+fun TemplatesScreen(
+    viewModel: TemplatesViewModel,
+    onNavigateBack: (() -> Unit)? = null
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val showAddDialog = remember { mutableStateOf(false) }
@@ -28,7 +32,14 @@ fun TemplatesScreen(viewModel: TemplatesViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Templates", fontWeight = FontWeight.Bold) }
+                title = { Text("Templates", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {

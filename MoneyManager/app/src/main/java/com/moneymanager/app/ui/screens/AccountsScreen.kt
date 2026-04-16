@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,17 +19,38 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountsScreen(viewModel: AccountsViewModel) {
+fun AccountsScreen(
+    viewModel: AccountsViewModel,
+    onNavigateBack: (() -> Unit)? = null
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val showAddDialog = remember { mutableStateOf(value = false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is AccountEvent.Success -> snackbarHostState.showSnackbar(event.message)
+                is AccountEvent.Error -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Accounts", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                }
             )
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog.value = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Account")
@@ -182,8 +204,9 @@ fun AddAccountDialog(
             TextButton(
                 onClick = {
                     val bal = balance.toDoubleOrNull() ?: 0.0
-                    if (name.isNotBlank()) onConfirm(name, type, bal)
-                }
+                    onConfirm(name, type, bal)
+                },
+                enabled = name.isNotBlank()
             ) {
                 Text("Add")
             }

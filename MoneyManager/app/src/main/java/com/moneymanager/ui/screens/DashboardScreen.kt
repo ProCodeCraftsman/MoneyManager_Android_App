@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +28,11 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(viewModel: DashboardViewModel) {
+fun DashboardScreen(
+    viewModel: DashboardViewModel,
+    onNavigateToAccounts: () -> Unit,
+    onNavigateToTransactions: () -> Unit,
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val dateFormat = remember { SimpleDateFormat("MMM dd", Locale.getDefault()) }
@@ -42,6 +48,28 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
                 if (showFabMenu) {
+                    SmallFloatingActionButton(
+                        onClick = {
+                            onNavigateToAccounts()
+                            showFabMenu = false
+                        },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Icon(Icons.Default.AccountBalance, contentDescription = "Add Account")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    SmallFloatingActionButton(
+                        onClick = {
+                            onNavigateToTransactions()
+                            showFabMenu = false
+                        },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Icon(Icons.Default.Receipt, contentDescription = "Add Transaction")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     SmallFloatingActionButton(
                         onClick = {
                             showTransferDialog = true

@@ -22,7 +22,16 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel,
+    onNavigateToAccounts: () -> Unit,
+    onNavigateToCategories: () -> Unit,
+    onNavigateToTags: () -> Unit,
+    onNavigateToBudgets: () -> Unit,
+    onNavigateToGoals: () -> Unit,
+    onNavigateToRecurring: () -> Unit,
+    onNavigateToTemplates: () -> Unit,
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showCurrencyDialog by remember { mutableStateOf(false) }
     var showAutoLockDialog by remember { mutableStateOf(false) }
@@ -66,6 +75,71 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                     onSignInClick = { showSignInDialog = true },
                     onSignOutClick = { viewModel.signOut() },
                     onSyncClick = { viewModel.triggerSync() }
+                )
+            }
+
+            item {
+                Text(
+                    text = "Master Data",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            item {
+                SettingsClickableCard(
+                    title = "Accounts",
+                    subtitle = "Manage your bank accounts and cash",
+                    onClick = onNavigateToAccounts
+                )
+            }
+
+            item {
+                SettingsClickableCard(
+                    title = "Categories",
+                    subtitle = "Expense and income categories",
+                    onClick = onNavigateToCategories
+                )
+            }
+
+            item {
+                SettingsClickableCard(
+                    title = "Tags",
+                    subtitle = "Manage labels for transactions",
+                    onClick = onNavigateToTags
+                )
+            }
+
+            item {
+                SettingsClickableCard(
+                    title = "Budgets",
+                    subtitle = "Set monthly spending limits",
+                    onClick = onNavigateToBudgets
+                )
+            }
+
+            item {
+                SettingsClickableCard(
+                    title = "Goals",
+                    subtitle = "Track your savings goals",
+                    onClick = onNavigateToGoals
+                )
+            }
+
+            item {
+                SettingsClickableCard(
+                    title = "Recurring Transactions",
+                    subtitle = "Manage scheduled payments",
+                    onClick = onNavigateToRecurring
+                )
+            }
+
+            item {
+                SettingsClickableCard(
+                    title = "Templates",
+                    subtitle = "Quick transaction entry templates",
+                    onClick = onNavigateToTemplates
                 )
             }
 

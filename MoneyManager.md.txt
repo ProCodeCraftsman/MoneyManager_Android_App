@@ -1,0 +1,704 @@
+**FUNCTIONAL REQUIREMENT DOCUMENT**
+
+**MoneyManager**
+
+Personal Finance Android Application
+
+────────────────────────────────────────
+
+**Android Application Building Guide**
+
+Version 1.0
+
+Generated: April 14, 2026
+
+Platform: Android (Kotlin + WebView)
+
+Architecture: Hybrid (WebView with Native Bridge)
+
+# Table of Contents
+
+# 1\. Introduction
+
+## 1.1 Purpose
+
+This Functional Requirement Document (FRD) serves as the definitive technical and functional guide for building the MoneyManager Android application. It captures every feature, user interaction, data model, and UI specification present in the existing web-based prototype so that an Android development team can produce a native or hybrid application with complete feature parity.
+
+## 1.2 Application Overview
+
+MoneyManager is a comprehensive personal finance management application designed for individuals to track their income, expenses, savings, investments, budgets, and financial goals. The application runs entirely offline with all data persisted locally on the device using localStorage (or an equivalent native storage mechanism).
+
+## 1.3 Target Platform & Architecture
+
+- Platform: Android (minimum SDK to be determined; recommended API 26+)
+- Architecture: Hybrid - Kotlin/Java host wrapping a WebView that loads a self-contained HTML/JS/CSS application
+- Native Bridge: The web app communicates with native Android capabilities via window.AndroidBridge, injected into the WebView using addJavascriptInterface()
+- Storage: All data stored locally in device storage (localStorage in WebView, or Room/SharedPreferences for native modules)
+- Offline-First: No server or internet connection required for core functionality
+
+## 1.4 Technology Stack
+
+| **Component** | **Technology**                                                     |
+| ------------- | ------------------------------------------------------------------ |
+| Android Host  | Kotlin / MainActivity with WebView                                 |
+| UI Layer      | Single-page HTML5 + Vanilla JavaScript + CSS3                      |
+| CSS Framework | Custom CSS variables (design tokens) with responsive media queries |
+| Charts        | Chart.js 4.4.1 (loaded via CDN or bundled locally)                 |
+| Fonts         | DM Serif Display, DM Mono, DM Sans (Google Fonts)                  |
+| Storage       | localStorage (key: mm_v3 for data, mm_sec for security settings)   |
+| Native Bridge | window.AndroidBridge (file save, biometric auth, back button)      |
+
+## 1.5 Android-Specific Integration Points
+
+The web application already contains hooks for Android native functionality. The following AndroidBridge methods must be implemented in the Kotlin host:
+
+| **Bridge Method**                         | **Direction** | **Purpose**                                                                       |
+| ----------------------------------------- | ------------- | --------------------------------------------------------------------------------- |
+| AndroidBridge.saveFile(filename, content) | JS → Native   | Save exported files (JSON/CSV) to device storage via SAF or Downloads             |
+| AndroidBridge.authenticate()              | JS → Native   | Trigger Android BiometricPrompt for fingerprint/face unlock                       |
+| window.onBiometricResult(success)         | Native → JS   | Callback with boolean after biometric authentication completes                    |
+| window.handleAppBack()                    | Native → JS   | Called on hardware/gesture back press; returns true if handled, false to minimize |
+
+# 2\. Navigation & Application Layout
+
+## 2.1 Overall Structure
+
+The application uses a sidebar-based navigation on desktop/tablet and a bottom navigation bar on mobile. The layout consists of:
+
+- Left Sidebar (desktop): 220px wide, dark background, contains logo, navigation items grouped into sections, and a currency badge in the footer
+- Bottom Navigation Bar (mobile): Fixed at the bottom of the screen with 5 items - Home, Txns, Accounts, Budgets, and More (opens sidebar)
+- Top Bar: Sticky header with page title, hamburger menu (mobile), and context-sensitive action buttons
+- Content Area: Scrollable main area that renders the active page
+- Floating Action Button (FAB): Fixed bottom-right, reveals a speed-dial menu for quick-add actions
+
+## 2.2 Navigation Pages
+
+| **Page**     | **Section** | **Description**                                                                                                    |
+| ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| Dashboard    | Overview    | Home screen with stats, charts, recent transactions, budget widget, and recurring reminders                        |
+| Accounts     | Overview    | List of financial accounts with balances, net worth tracker, and CRUD operations                                   |
+| Transactions | Activity    | Full transaction list with search, multi-filter (type, account, category, tag), and inline CRUD                    |
+| Recurring    | Activity    | Manage recurring transactions with frequency settings, reminders, and auto-generation                              |
+| Reports      | Activity    | Date-range financial reports with income/expense/savings totals, trend line chart, and category bar chart          |
+| Budgets      | Planning    | Monthly spending limits per expense category and monthly investment targets per savings category                   |
+| Goals        | Planning    | Savings goals with target amounts, deadlines, progress bars, manual contributions, and linked savings transactions |
+| Templates    | Manage      | Pre-filled transaction forms that can be used as shortcuts for common transactions                                 |
+| Tags         | Manage      | Colored labels that can be attached to transactions for cross-cutting categorization                               |
+| Categories   | Manage      | Hierarchical category management with parent categories and sub-categories                                         |
+| Settings     | Manage      | Appearance, security (PIN/biometric), currency, and data import/export management                                  |
+
+## 2.3 Back Button Handling (Android)
+
+The handleAppBack() function implements a priority-based dismissal chain when the Android back button is pressed:
+
+- Close any open modal overlay
+- Close the sidebar if open on mobile
+- Close the FAB speed-dial menu if open
+- Close the category drill-down panel if open
+- Navigate back through page history stack
+- If on Dashboard with no history, return false to allow Android to minimize the app
+
+## 2.4 Floating Action Button (FAB)
+
+A persistent FAB button ("+") is positioned at the bottom-right corner. Tapping it reveals a speed-dial menu with four options:
+
+- ↑ Income - opens Add Transaction modal with income type pre-selected
+- ↓ Expense - opens Add Transaction modal with expense type pre-selected
+- ✂ Split Transaction - opens Add Transaction modal in split mode
+- ⇌ Transfer - opens the Transfer Between Accounts modal
+
+# 3\. Data Model
+
+## 3.1 Database Schema Overview
+
+All application data is stored as a single JSON object under the localStorage key mm_v3. Security settings are stored separately under mm_sec. The top-level database object has the following structure:
+
+| **Field**    | **Type**                 | **Default**       | **Description**                                             |
+| ------------ | ------------------------ | ----------------- | ----------------------------------------------------------- |
+| accounts     | Array&lt;Account&gt;     | \[\]              | Financial accounts (bank, cash, credit, savings)            |
+| transactions | Array&lt;Transaction&gt; | \[\]              | All financial transactions including splits and transfers   |
+| categories   | Array&lt;Category&gt;    | defaultCategories | Expense, income, and savings categories with sub-categories |
+| tags         | Array&lt;Tag&gt;         | \[\]              | User-created colored labels                                 |
+| templates    | Array&lt;Template&gt;    | \[\]              | Pre-filled transaction templates                            |
+| recurring    | Array&lt;Recurring&gt;   | \[\]              | Recurring transaction schedules                             |
+| budgets      | Array&lt;Budget&gt;      | \[\]              | Monthly budget limits and investment targets                |
+| goals        | Array&lt;Goal&gt;        | \[\]              | Savings goals with targets and progress                     |
+| currency     | String                   | "USD"             | Active display currency code                                |
+| darkMode     | Boolean                  | false             | Dark mode toggle state                                      |
+
+## 3.2 Account Object
+
+| **Field**      | **Type** | **Description**                           |
+| -------------- | -------- | ----------------------------------------- |
+| id             | String   | Unique identifier (e.g., "a" + timestamp) |
+| name           | String   | Display name (e.g., "Chase Checking")     |
+| type           | String   | One of: bank, cash, credit, savings       |
+| initialBalance | Number   | Starting balance when account was created |
+
+Account balance is computed dynamically: initialBalance + all income transactions − all expense transactions + incoming transfers − outgoing transfers.
+
+## 3.3 Transaction Object
+
+| **Field**       | **Type**             | **Required** | **Description**                                                |
+| --------------- | -------------------- | ------------ | -------------------------------------------------------------- |
+| id              | String               | Yes          | Unique identifier                                              |
+| type            | String               | Yes          | income, expense, savings, or transfer                          |
+| amount          | Number               | Yes          | Transaction amount (always positive)                           |
+| date            | String               | Yes          | Date in YYYY-MM-DD format                                      |
+| datetime        | String               | Yes          | Full datetime (YYYY-MM-DDTHH:MM)                               |
+| accountId       | String               | Yes          | Source account ID                                              |
+| categoryId      | String               | No\*         | Category ID (null for transfers)                               |
+| subCategoryId   | String               | No           | Sub-category ID (optional)                                     |
+| description     | String               | No           | User description text                                          |
+| notes           | String               | No           | Additional notes                                               |
+| tags            | Array&lt;String&gt;  | No           | Array of tag IDs                                               |
+| receipts        | Array&lt;Receipt&gt; | No           | Attached receipt images/documents (stored as base64 data URLs) |
+| isTransfer      | Boolean              | No           | True if this is a transfer between accounts                    |
+| toAccountId     | String               | No           | Destination account (transfers only)                           |
+| isSplitParent   | Boolean              | No           | True if this is a parent of split transactions                 |
+| isSplitChild    | Boolean              | No           | True if this is a child of a split                             |
+| parentId        | String               | No           | Parent transaction ID (for split children)                     |
+| splitChildCount | Number               | No           | Number of child splits (parent only)                           |
+| recurringId     | String               | No           | Link to the recurring rule that generated this                 |
+| goalId          | String               | No           | Link to a savings goal (savings type only)                     |
+| investmentApp   | String               | No           | Investment platform name (savings type only)                   |
+
+## 3.4 Category Object
+
+| **Field**     | **Type**                 | **Description**                                 |
+| ------------- | ------------------------ | ----------------------------------------------- |
+| id            | String                   | Unique identifier                               |
+| name          | String                   | Category display name                           |
+| emoji         | String                   | Emoji icon for visual identification            |
+| type          | String                   | One of: expense, income, savings                |
+| custom        | Boolean                  | True if user-created (false for defaults)       |
+| subCategories | Array&lt;SubCategory&gt; | Child sub-categories, each with id, name, emoji |
+
+## 3.5 Other Data Objects
+
+### 3.5.1 Tag
+
+- id (String): Unique identifier
+- name (String): Tag display name
+- color (String): Hex color code for visual theming
+
+### 3.5.2 Template
+
+- id, name, type (income/expense/savings), amount, accountId, categoryId, subCategoryId, description
+
+### 3.5.3 Recurring
+
+- id, name, type, amount, accountId, categoryId, subCategoryId, frequency (daily/weekly/biweekly/monthly/yearly), startDate, nextDate, active (Boolean), reminderDays (Number), investmentApp
+
+### 3.5.4 Budget
+
+- id, categoryId, limit (Number), isSavingsTarget (Boolean)
+
+### 3.5.5 Goal
+
+- id, name, emoji, target (Number), current (Number), targetDate (optional date string)
+
+### 3.5.6 Security Settings (mm_sec)
+
+- pinEnabled (Boolean), pin (String - 4-digit), biometricEnabled (Boolean), autolockMinutes (Number)
+
+# 4\. Default Categories
+
+The app ships with a comprehensive set of pre-configured categories. These cannot be deleted but users can add custom categories.
+
+## 4.1 Expense Categories (10)
+
+| **ID** | **Name**          | **Emoji** | **Sub-Categories**                              |
+| ------ | ----------------- | --------- | ----------------------------------------------- |
+| c1     | Food & Dining     | 🍔        | Restaurants, Online Delivery, Bakery, Groceries |
+| c2     | Transport         | 🚗        | Fuel, Cab/Ride Share, Public Transit            |
+| c3     | Shopping          | 🛍️        | Clothing, Electronics, Home Goods               |
+| c4     | Bills & Utilities | 💡        | Electricity, Internet, Rent, Insurance          |
+| c5     | Health            | 💊        | Doctor, Pharmacy, Health Insurance              |
+| c6     | Entertainment     | 🎬        | Streaming, Movies, Games                        |
+| c7     | Travel            | ✈️        | Flights, Hotel, Activities                      |
+| c8     | Education         | 📚        | (none)                                          |
+| c9     | Home              | 🏠        | (none)                                          |
+| c10    | Personal Care     | ✂️        | (none)                                          |
+| c16    | Other Expense     | 📦        | (none)                                          |
+
+## 4.2 Income Categories (5)
+
+| **ID** | **Name**     | **Emoji** |
+| ------ | ------------ | --------- |
+| c11    | Salary       | 💼        |
+| c12    | Freelance    | 💻        |
+| c13    | Investment   | 📈        |
+| c14    | Gift         | 🎁        |
+| c15    | Other Income | 💰        |
+
+## 4.3 Savings & Investment Categories (11)
+
+| **ID** | **Name**      | **Emoji** | **Sub-Categories**          |
+| ------ | ------------- | --------- | --------------------------- |
+| c17    | Mutual Funds  | 📊        | Equity, Debt, ELSS, Index   |
+| c18    | Fixed Deposit | 🏦        | Bank FD, Corporate FD       |
+| c19    | NPS           | 🏛️        | Tier I, Tier II             |
+| c20    | Stocks        | 📈        | Equity, F&O                 |
+| c21    | Bonds         | 📜        | Govt Bonds, Corporate Bonds |
+| c22    | Gold          | 🥇        | SGB, Physical               |
+| c23    | PPF           | 🏦        | (none)                      |
+| c24    | EPF           | 💼        | (none)                      |
+| c25    | Real Estate   | 🏠        | (none)                      |
+| c26    | Crypto        | ₿         | (none)                      |
+| c27    | Other Savings | 💰        | (none)                      |
+
+# 5\. Feature Specifications
+
+## 5.1 Dashboard (Home Screen)
+
+### 5.1.1 Time Filter Bar
+
+The dashboard provides a pill-style time filter bar at the top with options: Day, Week, Month (default), Year, All, and Custom. Selecting Custom reveals two date-picker inputs (From/To). All stat cards and charts below respond to the selected filter, except the recent transactions list and budget widget.
+
+### 5.1.2 Stat Cards (4-column grid)
+
+- Net Worth - sum of all account balances (always shown regardless of time filter)
+- Income - total income for the selected period
+- Expenses - total expenses for the selected period
+- Net - income minus expenses for the selected period
+
+Each card has a label, a large formatted value, and a sub-label. Cards use accent colors: gold for net worth, green for income, red for expenses.
+
+### 5.1.3 Spending by Category (Doughnut Chart)
+
+A Chart.js doughnut chart showing expense breakdown by category for the filtered period. Clicking/tapping a segment opens a drill-down panel below the chart showing all transactions in that category with their dates, accounts, and amounts. The panel has a close button.
+
+### 5.1.4 Recent Transactions
+
+Shows the last 8 transactions (independent of the time filter), displaying the transaction icon, title, metadata (date, account, category, tags, badges), and the amount with type-specific coloring and sign prefix.
+
+### 5.1.5 Budget Widget
+
+If budgets are configured, a card showing each budget with a progress bar for the current calendar month. Always uses the current month regardless of the dashboard time filter.
+
+### 5.1.6 Recurring Reminders Banner
+
+A gold-highlighted banner at the top of the dashboard showing upcoming recurring transactions that are within their reminder window. Each reminder displays the category emoji, name, amount, days until due, and the next occurrence date.
+
+## 5.2 Account Management
+
+### 5.2.1 Account Types
+
+| **Type**     | **Identifier** | **Top Border Color** | **Emoji** |
+| ------------ | -------------- | -------------------- | --------- |
+| Bank Account | bank           | Green (#2a6049)      | 🏦        |
+| Cash         | cash           | Gold (#b8860b)       | 💵        |
+| Credit Card  | credit         | Red (#c8420a)        | 💳        |
+| Savings      | savings        | Blue (#5b6fb5)       | 💰        |
+
+### 5.2.2 Account Card
+
+Each account is displayed as a card showing the type badge, account name, computed balance (with red color for negative), and action buttons (Edit, Delete). Cards have a colored top border strip indicating the account type.
+
+### 5.2.3 Net Worth Summary
+
+A prominently displayed stat card at the top of the accounts page showing total net worth and a progress bar showing the ratio of net worth to total positive assets.
+
+### 5.2.4 Balance Computation
+
+Account balance is not stored directly but computed on every render: initialBalance + income - expenses + incoming transfers - outgoing transfers. Split parent transactions are excluded from balance calculation; only child transactions count.
+
+### 5.2.5 Account Deletion
+
+Deleting an account also removes all transactions associated with it (both as source and destination). A confirmation dialog is shown before deletion.
+
+## 5.3 Transactions
+
+### 5.3.1 Transaction Types
+
+| **Type** | **Color**       | **Sign** | **Balance Effect**                                                           |
+| -------- | --------------- | -------- | ---------------------------------------------------------------------------- |
+| Income   | Green           | +        | Increases account balance                                                    |
+| Expense  | Red             | −        | Decreases account balance                                                    |
+| Savings  | Brown (#8b5e3c) | 📈       | Treated as expense for balance; tracked separately for goals/budgets         |
+| Transfer | Blue (#5b6fb5)  | ⇌        | Decreases source, increases destination; does not count as income or expense |
+
+### 5.3.2 Add/Edit Transaction Modal
+
+The transaction modal is a wide modal (620px) with the following fields:
+
+- Type Toggle: Three-button toggle bar (Income / Expense / Savings)
+- Amount: Numeric input with step 0.01
+- Date & Time: datetime-local picker, defaults to current time
+- Account: Dropdown populated from user accounts
+- Category: Dropdown filtered by selected transaction type
+- Sub-category: Conditional dropdown that appears only when the selected category has sub-categories
+- Description: Free-text input
+- Goal Link (savings only): Dropdown to link the savings transaction to a goal
+- Investment Platform (savings only): Dropdown with popular Indian investment platforms (Zerodha, Groww, Kite, IndMoney, Paytm Money, ET Money, Coin by Zerodha, Angel One, Upstox, HDFC Securities, ICICI Direct, Other)
+- Split Toggle: Checkbox that enables split-by-category mode
+- Tags: Searchable tag input with dropdown autocomplete and inline create
+- Notes: Multi-line textarea
+- Receipts: File upload accepting images and PDFs, stored as base64 data URLs, with thumbnail previews and full-size preview overlay
+
+The modal footer has three buttons: Cancel, Save & Duplicate (saves and immediately re-opens with same data and current timestamp), and Save Transaction.
+
+### 5.3.3 Split Transactions
+
+When the split toggle is activated:
+
+- The single category and sub-category dropdowns are disabled (greyed out with "overridden by splits below" label)
+- A split section appears with individually configurable split rows
+- Each split row has: category dropdown, sub-category dropdown, description, and amount
+- An "Add Split" button adds new rows; each row has a remove button
+- A running total shows allocated amount and remaining amount (color-coded: green if balanced, red if over)
+
+When saved, the system creates a parent transaction (isSplitParent: true, display-only) and individual child transactions (isSplitChild: true) for each split row. Child amounts must equal the parent total amount.
+
+### 5.3.4 Transaction List & Filtering
+
+The transactions page features a comprehensive filter bar with:
+
+- Free-text search (searches description, category name, account name, date, amount, and tag names)
+- Type filter dropdown (All, Income, Expense, Savings, Transfer)
+- Account filter dropdown
+- Category filter dropdown
+- Tag filter dropdown
+
+Transactions are displayed in reverse chronological order. Each row shows: icon (category emoji or transfer/split icon), title, metadata line (datetime, account, category path, tag chips, badges), formatted amount, duplicate button, and delete button.
+
+### 5.3.5 Transfer Between Accounts
+
+A dedicated modal for recording transfers with: amount, source account (From), destination account (To), date/time, and notes. Transfers create a single transaction record with isTransfer: true, accountId (source), and toAccountId (destination). They are excluded from income/expense calculations but affect account balances.
+
+## 5.4 Recurring Transactions
+
+### 5.4.1 Configuration
+
+- Name, transaction type (income/expense/savings), amount, account, category, sub-category
+- Frequency: daily, weekly, bi-weekly, monthly, yearly
+- Start date and computed next occurrence date
+- Active/paused toggle
+- Reminder days (0 = no reminder; otherwise shows on dashboard N days before)
+- Investment platform (for savings type)
+
+### 5.4.2 Auto-Generation
+
+On app load, the processRecurring() function scans all active recurring rules. For each rule whose nextDate is on or before today, it creates the transaction and advances nextDate to the next occurrence based on the configured frequency. The rule is then marked with its updated nextDate and saved.
+
+### 5.4.3 Next Occurrence Calculation
+
+| **Frequency** | **Logic**                          |
+| ------------- | ---------------------------------- |
+| Daily         | Add 1 day                          |
+| Weekly        | Add 7 days                         |
+| Bi-weekly     | Add 14 days                        |
+| Monthly       | Set to same day of next month      |
+| Yearly        | Set to same day/month of next year |
+
+## 5.5 Budgets
+
+### 5.5.1 Two Budget Modes
+
+The budget system supports two distinct modes:
+
+- Spending Limits (expense categories): Sets a maximum amount. Progress bar turns amber at 80% usage and red when exceeded.
+- Investment Targets (savings categories): Sets a minimum target. Inverted logic - bar is red when below 60%, amber at 60-99%, green when target is met (100%+).
+
+### 5.5.2 Budget Period
+
+All budgets operate on a calendar month basis. Spending/saving is calculated by summing transactions that match the budget category within the current month (YYYY-MM prefix match on transaction date).
+
+### 5.5.3 Budget Constraints
+
+- Only one budget/target can exist per category
+- Attempt to create a duplicate shows an error toast
+
+## 5.6 Savings Goals
+
+### 5.6.1 Goal Properties
+
+- Name, emoji icon, target amount, current saved (manual), optional target date
+
+### 5.6.2 Progress Calculation
+
+Total progress = manual contributions (g.current) + sum of all savings transactions where goalId matches the goal. This allows both manual goal tracking and automatic tracking from linked savings transactions.
+
+### 5.6.3 Goal Features
+
+- Visual progress bar (green gradient, gold when complete)
+- Percentage display and formatted amount (current / target)
+- Days remaining and monthly amount needed if a target date is set
+- Manual contribution modal with amount input
+- Trophy icon and "Goal reached!" message when 100% is met
+- Linked savings amount shown separately in brown text
+
+## 5.7 Transaction Templates
+
+Templates are pre-configured transaction blueprints containing: name, type, amount (optional), account, category, sub-category, and description. Using a template opens the Add Transaction modal pre-filled with all template values and the current timestamp. Templates are displayed in a 3-column grid with category emoji, name, meta info, amount, Use button, and Delete button.
+
+## 5.8 Tags System
+
+Tags are user-created colored labels that provide cross-cutting categorization. Each tag has a name and a hex color. Tags are assigned to transactions via a searchable dropdown that supports inline tag creation. On the Tags management page, each tag shows: colored chip, transaction count, and net financial impact. Deleting a tag removes it from all transactions.
+
+## 5.9 Category Management
+
+Categories are organized in a two-level hierarchy (parent + sub-categories). The management page shows three sections: Expense Categories, Income Categories, and Savings & Investment Categories. Each category row shows: emoji, name, expand button (if sub-categories exist), Add Sub-category button, custom badge, and delete button (custom only). Sub-categories are shown in an expandable list below their parent. Default categories cannot be deleted.
+
+## 5.10 Reports
+
+### 5.10.1 Date Range
+
+Reports use a month-picker range (From month / To month) defaulting to January of the current year through the current month.
+
+### 5.10.2 Summary Cards
+
+- Total Income (green)
+- Total Expenses (red)
+- Total Saved (brown/gold)
+
+### 5.10.3 Charts
+
+Monthly Trend: A dual-line chart (Chart.js) showing income and expense lines over the selected months, with filled areas and smooth tension curves. Category Breakdown: A horizontal bar chart showing the top 8 expense categories by total spending.
+
+## 5.11 Settings
+
+### 5.11.1 Appearance
+
+- Dark Mode toggle - switches all CSS variables to their dark-theme counterparts and persists the preference
+
+### 5.11.2 Privacy Lock
+
+- PIN Lock: Toggle to enable/require a 4-digit PIN on app open. Shows a full-screen lock UI with dot indicators and a numeric keypad
+- Change PIN: Available when PIN is enabled. Uses a three-step flow: enter current PIN, enter new PIN, confirm new PIN
+- Biometric Unlock: Toggle to allow fingerprint/face unlock as an alternative to PIN. Uses AndroidBridge.authenticate() for native biometric prompt or WebAuthn as fallback
+- Auto-lock: Configurable idle timeout (Never, 1, 5, 15, or 30 minutes). After timeout, the app re-locks and requires PIN/biometric
+
+### 5.11.3 Currency
+
+Display currency selector with 10 supported currencies:
+
+| **Code** | **Symbol** | **Code** | **Symbol** | **Code** | **Symbol** |
+| -------- | ---------- | -------- | ---------- | -------- | ---------- |
+| USD      | \$         | EUR      | €          | GBP      | £          |
+| JPY      | ¥          | INR      | ₹          | CAD      | CA\$       |
+| AUD      | A\$        | CHF      | Fr         | CNY      | ¥          |
+| BRL      | R\$        |          |            |          |            |
+
+Currency change updates all displayed monetary values throughout the application using the format: symbol + locale-formatted number with 2 decimal places.
+
+### 5.11.4 Data Management
+
+- Export JSON Backup: Exports the entire database as a formatted JSON file (uses AndroidBridge.saveFile on Android, or browser download)
+- Import JSON Backup: Reads a JSON file, validates it has accounts and transactions arrays, prompts confirmation, then replaces all data
+- Export CSV: Exports all transactions (excluding split parents) as CSV with columns: ID, Date, Time, Type, Amount, Account, Category, Sub-Category, Description, Notes, Tags, Split-Group-ID, Investment-Platform
+- Import CSV: Parses uploaded CSV, shows a preview modal with conflict resolution (update existing by ID, create new, delete unreferenced), supports split group re-linking via Split-Group-ID column
+- Download CSV Template: Provides a sample CSV file with example rows including split transaction examples
+- Clear All Data: Resets all data to defaults (keeps currency and dark mode settings). Requires confirmation
+- Storage Used: Displays current localStorage usage in KB
+
+# 6\. Lock Screen & Security
+
+## 6.1 Lock Screen UI
+
+When PIN is enabled, the app shows a full-screen lock overlay before the main content is accessible. The lock screen contains:
+
+- Application logo and "Personal Finance" subtitle
+- PIN hint text ("Enter your PIN")
+- 4 dot indicators (filled/unfilled to show entry progress)
+- Numeric keypad (1-9, 0, backspace)
+- Error message area (shows "Incorrect PIN. Try again." for 2 seconds)
+- Biometric button (visible only if biometric is enabled): "🔑 Use Biometrics"
+
+## 6.2 Auto-Lock Behavior
+
+When auto-lock is configured with a non-zero value, the app monitors user activity (click, keydown, touchstart events). If no activity occurs for the configured duration, the lock screen is re-displayed. Activity resets the timer.
+
+# 7\. UI/UX Design Specifications
+
+## 7.1 Design Tokens (CSS Variables)
+
+The application uses a comprehensive CSS custom property system for consistent theming. All colors, shadows, and accent values are defined as CSS variables on :root and overridden in body.dark.
+
+### 7.1.1 Light Theme
+
+| **Token**         | **Value** | **Usage**                                        |
+| ----------------- | --------- | ------------------------------------------------ |
+| \--ink            | #0f0e0c   | Primary text color                               |
+| \--paper          | #f5f1ea   | Page background                                  |
+| \--cream          | #ede8df   | Secondary background, input backgrounds          |
+| \--accent         | #c8420a   | Primary accent (CTA buttons, expense color)      |
+| \--accent-2       | #2a6049   | Secondary accent (income color, positive states) |
+| \--gold           | #b8860b   | Tertiary accent (net worth, warnings)            |
+| \--card           | #faf8f4   | Card backgrounds                                 |
+| \--border         | #ddd8ce   | Border color                                     |
+| \--text-muted     | #7a7162   | Secondary/helper text                            |
+| \--sidebar-bg     | #0f0e0c   | Sidebar background (dark)                        |
+| \--transfer-color | #5b6fb5   | Transfer transaction color                       |
+
+### 7.1.2 Dark Theme
+
+When body.dark is active, all CSS variables are overridden to their dark equivalents (e.g., --paper becomes #141210, --card becomes #1a1815, --ink becomes #e8e3da). The dark mode provides a warm, low-contrast dark experience rather than a pure black theme.
+
+## 7.2 Typography
+
+| **Font Family**  | **Usage**                                                          |
+| ---------------- | ------------------------------------------------------------------ |
+| DM Serif Display | Page titles, card titles, stat values, account names, modal titles |
+| DM Mono          | Stat labels, currency amounts, badge text, monospace data          |
+| DM Sans          | Body text, form labels, buttons, descriptions, navigation items    |
+
+## 7.3 Responsive Breakpoints
+
+| **Breakpoint** | **Behavior**                                                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ≤ 768px        | Sidebar collapses to slide-out drawer; bottom nav appears; grids reduce to 2 or 1 column; modals slide up from bottom; FAB moves above bottom nav |
+| ≤ 480px        | Further grid compression; stat values shrink; button text hidden (icon only)                                                                      |
+
+## 7.4 Component Patterns
+
+### 7.4.1 Modals
+
+All modals follow a consistent pattern: semi-transparent backdrop with blur, centered card (or bottom-sheet on mobile) with 18px border radius, animation (scale + fade-in), title, content, and footer with action buttons. Three sizes: narrow (380px), default (500px), wide (620px). Clicking the backdrop closes the modal.
+
+### 7.4.2 Toasts
+
+Non-blocking notification messages appearing at the bottom of the screen. Default style uses dark background; error style uses red (--accent). Auto-dismiss after 2.8 seconds. On mobile, positioned above the bottom nav bar.
+
+### 7.4.3 Button Styles
+
+| **Style** | **Class**     | **Appearance**                            |
+| --------- | ------------- | ----------------------------------------- |
+| Primary   | btn-primary   | Solid accent color background, white text |
+| Secondary | btn-secondary | Cream background with border              |
+| Ghost     | btn-ghost     | Transparent with border                   |
+| Danger    | btn-danger    | Light red background, red text            |
+| Success   | btn-success   | Light green background, green text        |
+| Blue      | btn-blue      | Light blue background, blue text          |
+
+# 8\. Android Build Implementation Guide
+
+## 8.1 Project Structure
+
+The recommended Android project structure for this hybrid WebView app:
+
+- app/src/main/java/.../MainActivity.kt - WebView host, AndroidBridge interface, BiometricPrompt handling, back button dispatch
+- app/src/main/java/.../AndroidBridge.kt - JavaScript interface class with @JavascriptInterface annotated methods
+- app/src/main/assets/index.html - The complete MoneyManager HTML file (self-contained)
+- app/src/main/assets/chart.min.js - Bundled Chart.js for offline use
+- app/src/main/res/ - Standard Android resources (launcher icon, themes, strings)
+
+## 8.2 WebView Configuration
+
+The WebView must be configured with the following settings for full functionality:
+
+- Enable JavaScript: webView.settings.javaScriptEnabled = true
+- Enable DOM Storage: webView.settings.domStorageEnabled = true (critical for localStorage)
+- Enable File Access: webView.settings.allowFileAccess = true
+- Inject JavaScript Interface: webView.addJavascriptInterface(AndroidBridge(), "AndroidBridge")
+- Load from assets: webView.loadUrl("file:///android_asset/index.html")
+- Override back button to call window.handleAppBack() via evaluateJavascript
+- Handle file input for receipt uploads via WebChromeClient.onShowFileChooser()
+
+## 8.3 AndroidBridge Implementation
+
+### 8.3.1 saveFile(filename, content)
+
+Must use Android Storage Access Framework (SAF) or save directly to Downloads directory. Should show a system toast or notification on completion. This is called for JSON backup export, CSV export, and CSV template download.
+
+### 8.3.2 authenticate()
+
+Must use AndroidX BiometricPrompt API to show the system biometric authentication dialog. On result, call webView.evaluateJavascript("onBiometricResult(true/false)", null) to notify the web layer.
+
+## 8.4 Back Button Handling
+
+Override onBackPressed() in MainActivity to call evaluateJavascript on the WebView:
+
+- Call window.handleAppBack() which returns a boolean
+- If it returns true, the web layer handled the back action (closed a modal, navigated, etc.)
+- If it returns false, call super.onBackPressed() or moveTaskToBack(true) to minimize the app
+
+## 8.5 Font Loading
+
+The web app loads fonts from Google Fonts CDN. For offline operation, bundle the font files in assets and update the CSS @font-face declarations to reference local paths.
+
+## 8.6 Chart.js Bundling
+
+Download Chart.js 4.4.1 UMD build and place it in assets/. Update the script tag in the HTML to reference the local file instead of the CDN URL.
+
+## 8.7 Permissions
+
+| **Permission**                  | **Reason**                                   |
+| ------------------------------- | -------------------------------------------- |
+| USE_BIOMETRIC                   | Required for fingerprint/face unlock feature |
+| WRITE_EXTERNAL_STORAGE (legacy) | For saving exports on older Android versions |
+| READ_EXTERNAL_STORAGE (legacy)  | For importing JSON/CSV backups               |
+| CAMERA (optional)               | If receipt photo capture is added in future  |
+
+# 9\. Key Data Flows
+
+## 9.1 Add Transaction Flow
+
+- User taps FAB or Add Transaction button
+- Modal opens with type pre-selected and current datetime
+- User fills in amount, selects account and category, optionally adds tags, notes, receipts
+- If split mode is enabled, user adds category-specific split rows that must total to the main amount
+- User taps Save - validation runs (amount > 0, account exists)
+- For splits: parent transaction created (isSplitParent: true), then child transactions created for each split row
+- For savings with goal link: goalId is set on the transaction
+- Database is saved to localStorage and all visible pages are refreshed
+
+## 9.2 CSV Import Flow
+
+- User selects a CSV file via file input
+- File is parsed into row objects with column mapping
+- Preview modal shows parsed rows with status indicators (new, update, skip)
+- Rows with an ID that matches an existing transaction are marked as updates
+- Rows without IDs are marked as new creates
+- Rows sharing the same Split-Group-ID are grouped and will create a split parent + children
+- Category and account names in CSV are resolved against existing database entries
+- Tags in CSV (semicolon-separated) are resolved or created as needed
+- User reviews the preview and clicks Import; optionally checks "Delete unreferenced transactions"
+- Transactions are created/updated/deleted and a summary toast is shown
+
+## 9.3 Recurring Transaction Processing
+
+- On app initialization, processRecurring() is called
+- For each active recurring rule where nextDate ≤ today:
+- A new transaction is created with the rule's configuration and the rule's nextDate as the transaction date
+- The rule's nextDate is advanced to the next occurrence based on frequency
+- The database is saved after processing all due rules
+
+# 10\. Appendix
+
+## 10.1 ID Generation Convention
+
+All entity IDs in the application follow a prefix + timestamp pattern for uniqueness:
+
+| **Entity**   | **Prefix** | **Example**      |
+| ------------ | ---------- | ---------------- |
+| Account      | a          | a1713100800000   |
+| Transaction  | t          | t1713100800001   |
+| Category     | c          | c1713100800002   |
+| Sub-Category | sc         | sc1713100800003  |
+| Tag          | tag        | tag1713100800004 |
+| Template     | tpl        | tpl1713100800005 |
+| Recurring    | rec        | rec1713100800006 |
+| Budget       | b          | b1713100800007   |
+| Goal         | g          | g1713100800008   |
+| Receipt      | r          | r1713100800009   |
+
+## 10.2 Currency Formatting
+
+The fmt() function formats amounts using the active currency symbol. The sym() function returns just the symbol. Supported currency symbol map: USD=\$, EUR=€, GBP=£, JPY=¥, INR=₹, CAD=CA\$, AUD=A\$, CHF=Fr, CNY=¥, BRL=R\$. All amounts are displayed with toLocaleString() for locale-appropriate number formatting with two decimal places.
+
+## 10.3 Chart Configuration Notes
+
+- All charts use the Chart.js library (v4.4.1)
+- Charts dynamically adapt to light/dark mode by reading CSS class state
+- Doughnut chart on dashboard supports click-to-drill-down interaction
+- Line chart uses tension: 0.4 for smooth curves with filled areas
+- Bar chart uses borderRadius: 6 for rounded bars and horizontal (indexAxis: y) orientation
+- Grid and tick colors change with theme (light: #ddd8ce/#7a7162, dark: #2a2620/#7a7060)
+
+## 10.4 Migration Support
+
+The load() function includes migration logic to add savings categories to existing databases that were created before the savings feature was added. It checks if any category with type "savings" exists, and if not, appends the full set of default savings categories.
+
+_- End of Document -_

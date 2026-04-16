@@ -11,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,15 +33,24 @@ import java.util.*
 @Composable
 fun TransactionsScreen(
     viewModel: TransactionsViewModel,
-    accountsViewModel: AccountsViewModel
+    accountsViewModel: AccountsViewModel,
+    initialType: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accountsState by accountsViewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
-    var showAddDialog by remember { mutableStateOf(value = false) }
+    var showAddDialog by remember { mutableStateOf(initialType != null) }
     var searchText by remember { mutableStateOf(value = "") }
     var showFilterSheet by remember { mutableStateOf(value = false) }
+    var preselectedType by remember { mutableStateOf(initialType) }
+
+    // Reset preselected type after dialog is closed or type is used
+    LaunchedEffect(showAddDialog) {
+        if (!showAddDialog) {
+            preselectedType = null
+        }
+    }
 
     // Calculate active filter count
     val activeFilterCount = listOfNotNull(
@@ -270,6 +278,7 @@ fun TransactionsScreen(
             categories = uiState.allCategories,
             tags = uiState.allTags,
             accounts = accountsState.accounts,
+            initialType = preselectedType,
             onDismiss = { showAddDialog = false }
         ) { transaction ->
             viewModel.addTransaction(transaction)
@@ -396,10 +405,11 @@ fun AddTransactionDialog(
     categories: List<CategoryEntity>,
     tags: List<TagEntity>,
     accounts: List<AccountEntity>,
+    initialType: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (TransactionEntity) -> Unit
 ) {
-    var type by remember { mutableStateOf("expense") }
+    var type by remember { mutableStateOf(initialType ?: "expense") }
     var amount by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var selectedAccountId by remember { mutableStateOf(accounts.firstOrNull()?.id) }
@@ -444,7 +454,7 @@ fun AddTransactionDialog(
                         label = { Text("Account") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showAccountDropdown) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(MenuAnchorType.PrimaryEditable, true)
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -484,7 +494,7 @@ fun AddTransactionDialog(
                         label = { Text("Category") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCategoryDropdown) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(MenuAnchorType.PrimaryEditable, true)
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -595,7 +605,7 @@ fun AddTransactionDialog(
 private fun parseColor(colorString: String): androidx.compose.ui.graphics.Color {
     return try {
         androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(colorString))
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         androidx.compose.ui.graphics.Color.Gray
     }
 }

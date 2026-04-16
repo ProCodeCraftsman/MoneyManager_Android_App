@@ -6,20 +6,29 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CategoryDao {
-    @Query("SELECT * FROM categories ORDER BY name ASC")
+    @Query("SELECT * FROM categories WHERE isArchived = 0 ORDER BY name ASC")
     fun getAllCategories(): Flow<List<CategoryEntity>>
 
-    @Query("SELECT * FROM categories WHERE type = :type ORDER BY name ASC")
+    @Query("SELECT * FROM categories ORDER BY name ASC")
+    fun getAllCategoriesWithArchived(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM categories WHERE type = :type AND isArchived = 0 ORDER BY name ASC")
     fun getCategoriesByType(type: String): Flow<List<CategoryEntity>>
 
-    @Query("SELECT * FROM categories WHERE parentId IS NULL ORDER BY name ASC")
+    @Query("SELECT * FROM categories WHERE parentId IS NULL AND isArchived = 0 ORDER BY name ASC")
     fun getParentCategories(): Flow<List<CategoryEntity>>
 
-    @Query("SELECT * FROM categories WHERE parentId = :parentId ORDER BY name ASC")
+    @Query("SELECT * FROM categories WHERE parentId = :parentId AND isArchived = 0 ORDER BY name ASC")
     fun getSubCategories(parentId: Long): Flow<List<CategoryEntity>>
 
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getCategoryById(id: Long): CategoryEntity?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM categories WHERE name = :name AND type = :type AND isArchived = 0)")
+    suspend fun categoryNameExists(name: String, type: String): Boolean
+
+    @Query("SELECT * FROM categories WHERE name = :name AND type = :type LIMIT 1")
+    suspend fun getCategoryByName(name: String, type: String): CategoryEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategory(category: CategoryEntity): Long

@@ -52,11 +52,12 @@ class BudgetsViewModel @Inject constructor(
             categoryRepository.getAllCategories(),
             transactionDao.getTransactionsByDateRange(startDate, endDate),
         ) { budgets, categories, transactions ->
-            val expenseTransactions = transactions.filter { it.type == "expense" }
+            val budgetableTypes = setOf("expense", "savings", "investment")
+            val budgetableTransactions = transactions.filter { it.type in budgetableTypes }
 
             val budgetsWithSpending = budgets.map { budget ->
                 val category = categories.find { it.id == budget.categoryId }
-                val spent = expenseTransactions
+                val spent = budgetableTransactions
                     .filter { it.categoryId == budget.categoryId }
                     .sumOf { it.amount }
                 BudgetWithSpending(budget, category, spent)
@@ -64,7 +65,7 @@ class BudgetsViewModel @Inject constructor(
 
             BudgetsUiState(
                 budgetsWithSpending = budgetsWithSpending,
-                categories = categories.filter { it.type == "expense" },
+                categories = categories.filter { it.type in budgetableTypes },
                 isLoading = false,
             )
         }.stateIn(
