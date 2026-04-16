@@ -12,13 +12,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.NumberFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BudgetsScreen(viewModel: BudgetsViewModel) {
+fun BudgetsScreen(
+    viewModel: BudgetsViewModel,
+    onNavigateBack: (() -> Unit)? = null
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val showAddDialog = remember { mutableStateOf(false) }
@@ -26,7 +30,14 @@ fun BudgetsScreen(viewModel: BudgetsViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Budgets", fontWeight = FontWeight.Bold) }
+                title = { Text("Budgets", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {

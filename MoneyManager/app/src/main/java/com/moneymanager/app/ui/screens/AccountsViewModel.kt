@@ -24,6 +24,7 @@ class AccountsViewModel @Inject constructor(
         accountRepository.getAllAccounts(),
         accountRepository.getTotalAssets(),
     ) { accounts, totalAssets ->
+        android.util.Log.d("AccountsViewModel", "Emitting state with ${accounts.size} accounts and totalAssets: $totalAssets")
         AccountsUiState(
             accounts = accounts,
             totalAssets = totalAssets,
@@ -35,11 +36,28 @@ class AccountsViewModel @Inject constructor(
         initialValue = AccountsUiState()
     )
 
+    private val _events = MutableSharedFlow<AccountEvent>()
+    val events = _events.asSharedFlow()
+
     fun addAccount(name: String, type: String, balance: Double) {
         viewModelScope.launch {
-            accountRepository.insertAccount(
-                AccountEntity(name = name, type = type, balance = balance)
-            )
+            try {
+                val id = accountRepository.insertAccount(
+                    AccountEntity(name = name, type = type, balance = balance)
+                )
+                if (id > 0) {
+                    _events.emit(AccountEvent.Success("Account added successfully"))
+                } else {
+                    _events.emit(AccountEvent.Error("Failed to add account"))
+                }
+            } catch (e: Exception) {
+                _events.emit(AccountEvent.Error(e.message ?: "Unknown error"))
+            }
         }
     }
+}
+
+sealed class AccountEvent {
+    data class Success(val message: String) : AccountEvent()
+    data class Error(val message: String) : AccountEvent()
 }

@@ -18,6 +18,9 @@ class CategoryRepositoryImpl @Inject constructor(
     override fun getAllCategories(): Flow<List<CategoryEntity>> =
         categoryDao.getAllCategories()
 
+    override fun getAllCategoriesWithArchived(): Flow<List<CategoryEntity>> =
+        categoryDao.getAllCategoriesWithArchived()
+
     override fun getAllTags(): Flow<List<TagEntity>> =
         tagDao.getAllTags()
 
@@ -26,6 +29,12 @@ class CategoryRepositoryImpl @Inject constructor(
 
     override suspend fun getCategoryById(id: Long): CategoryEntity? =
         categoryDao.getCategoryById(id)
+
+    override suspend fun getCategoryByName(name: String, type: String): CategoryEntity? =
+        categoryDao.getCategoryByName(name, type)
+
+    override suspend fun categoryNameExists(name: String, type: String): Boolean =
+        categoryDao.categoryNameExists(name, type)
 
     override suspend fun getTagById(id: Long): TagEntity? =
         tagDao.getTagById(id)

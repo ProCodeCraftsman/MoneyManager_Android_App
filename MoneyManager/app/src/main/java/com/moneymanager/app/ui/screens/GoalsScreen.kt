@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.moneymanager.data.entity.GoalEntity
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -21,7 +22,10 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GoalsScreen(viewModel: GoalsViewModel) {
+fun GoalsScreen(
+    viewModel: GoalsViewModel,
+    onNavigateBack: (() -> Unit)? = null
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
     val showAddDialog = remember { mutableStateOf(value = false) }
@@ -31,6 +35,13 @@ fun GoalsScreen(viewModel: GoalsViewModel) {
         topBar = {
             TopAppBar(
                 title = { Text("Savings Goals", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {

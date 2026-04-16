@@ -16,7 +16,7 @@ import com.moneymanager.data.entity.*
         RecurringEntity::class,
         TemplateEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

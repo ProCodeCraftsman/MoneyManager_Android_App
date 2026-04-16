@@ -73,14 +73,22 @@ data class Category(
 
 ### Architecture Approach
 
-**STATUS: ARCHITECTURE.md research file not found.**
+**Components identified:**
 
-Cannot synthesize architecture patterns. This is a significant gap that needs to be addressed before roadmap creation.
+1. **CategoryRepository** — CRUD with soft-delete, hierarchy queries, archive support
+2. **DefaultCategoriesSeeder** — Seeds ~25 default categories on first launch, checked via PreferencesManager flag
+3. **DashboardViewModel** — Aggregates accounts, transactions, date ranges; needs update to use real category data instead of hardcoded mapping
+4. **TransactionRepository** — With category snapshot for historical accuracy (denormalization)
 
-**Expected components (inferred from feature research):**
-1. **CategoryRepository** — CRUD with soft-delete, hierarchy queries
-2. **DashboardViewModel** — Aggregates accounts, transactions, date ranges
-3. **TransactionRepository** — With category snapshot for historical accuracy
+**Data flow:**
+1. **First Launch:** PreferencesManager checks flag → DefaultCategoriesSeeder seeds Room
+2. **Category Access:** CategoriesViewModel → CategoryRepository + archive support
+3. **Dashboard:** DashboardViewModel → TransactionRepository + CategoryRepository (real data)
+
+**Build order:**
+1. DefaultCategoriesSeeder + PreferencesManager first-launch check (data layer)
+2. CategoriesViewModel triggers seeding on init (UI ↔ data boundary)
+3. DashboardViewModel replaces hardcoded category names with real CategoryRepository queries (integration fix)
 
 ### Critical Pitfalls
 
@@ -154,10 +162,10 @@ Based on research, suggested phase structure:
 |------|------------|-------|
 | Stack | HIGH | Technologies already in use, version-compatible |
 | Features | HIGH | Clear competitor analysis, well-researched MVP |
-| Architecture | **MISSING** | ARCHITECTURE.md not found |
+| Architecture | HIGH | Verified existing schema supports subcategories, identified seeder as new component |
 | Pitfalls | MEDIUM | Comprehensive pitfalls list, some inference on solutions |
 
-**Overall confidence:** MEDIUM — Architecture research missing is a significant gap.
+**Overall confidence:** HIGH — All research areas complete
 
 ### Gaps to Address
 
@@ -188,4 +196,4 @@ Based on research, suggested phase structure:
 ---
 
 *Research completed: April 14, 2026*
-*Ready for roadmap: PARTIAL — Architecture research needed*
+*Ready for roadmap: YES*

@@ -8,22 +8,19 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.entity.CategoryEntity
+import com.moneymanager.data.seed.CategorySeeder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -33,6 +30,8 @@ data class CategoriesUiState(
     val categories: List<CategoryEntity> = emptyList(),
     val isLoading: Boolean = true,
     val expandedCategories: Set<Long> = emptySet(),
+    val showArchived: Boolean = false,
+    val error: String? = null,
 )
 
 @HiltViewModel
@@ -41,21 +40,38 @@ class CategoriesViewModel @Inject constructor(
 ) : androidx.lifecycle.ViewModel() {
 
     private val _expandedCategories = MutableStateFlow<Set<Long>>(emptySet())
+    private val _showArchived = MutableStateFlow(value = false)
+    private val _error = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<CategoriesUiState> = combine(
-        categoryRepository.getAllCategories(),
-        _expandedCategories
-    ) { categories, expanded ->
+        categoryRepository.getAllCategoriesWithArchived(),
+        _expandedCategories,
+        _showArchived,
+        _error
+    ) { categories, expanded, showArchived, error ->
+        val filtered = if (showArchived) categories else categories.filter { !it.isArchived }
         CategoriesUiState(
-            categories = categories,
+            categories = filtered,
             isLoading = false,
-            expandedCategories = expanded
+            expandedCategories = expanded,
+            showArchived = showArchived,
+            error = error
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = CategoriesUiState()
     )
+
+    init {
+        viewModelScope.launch {
+            categoryRepository.getAllCategoriesWithArchived().first().let {
+                if (it.isEmpty()) {
+                    CategorySeeder.seed(categoryRepository)
+                }
+            }
+        }
+    }
 
     fun toggleExpanded(categoryId: Long) {
         _expandedCategories.update { current ->
@@ -69,12 +85,18 @@ class CategoriesViewModel @Inject constructor(
 
     fun addCategory(name: String, emoji: String, type: String, parentId: Long?) {
         viewModelScope.launch {
+            if (categoryRepository.categoryNameExists(name, type)) {
+                _error.value = "Category name must be unique"
+                return@launch
+            }
+            _error.value = null
             categoryRepository.insertCategory(
                 CategoryEntity(
                     name = name,
                     emoji = emoji,
                     type = type,
-                    parentId = parentId
+                    parentId = parentId,
+                    isCustom = true
                 )
             )
         }
@@ -82,24 +104,64 @@ class CategoriesViewModel @Inject constructor(
 
     fun updateCategory(category: CategoryEntity) {
         viewModelScope.launch {
+            val existing = categoryRepository.getCategoryByName(category.name, category.type)
+            if (existing != null && (existing.id != category.id)) {
+                _error.value = "Category name must be unique"
+                return@launch
+            }
+            _error.value = null
             categoryRepository.updateCategory(category)
         }
     }
 
+    fun archiveCategory(category: CategoryEntity) {
+        viewModelScope.launch {
+            categoryRepository.updateCategory(category.copy(isArchived = true))
+        }
+    }
+
     fun deleteCategory(category: CategoryEntity) {
+        if (!category.isCustom) return // Pre-configured categories cannot be deleted
         viewModelScope.launch {
             categoryRepository.deleteCategory(category)
+        }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+
+    fun toggleShowArchived() {
+        _showArchived.update { !it }
+    }
+
+    fun unarchiveCategory(category: CategoryEntity) {
+        viewModelScope.launch {
+            categoryRepository.updateCategory(category.copy(isArchived = false))
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategoriesScreen(viewModel: CategoriesViewModel) {
+fun CategoriesScreen(
+    viewModel: CategoriesViewModel,
+    onNavigateBack: (() -> Unit)? = null
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     var editingCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var deleteConfirmCategory by remember { mutableStateOf<CategoryEntity?>(null) }
+    var archiveConfirmCategory by remember { mutableStateOf<CategoryEntity?>(null) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
 
     // Group categories by type
     val expenseCategories = uiState.categories.filter { it.type == "expense" }
@@ -107,9 +169,25 @@ fun CategoriesScreen(viewModel: CategoriesViewModel) {
     val savingsCategories = uiState.categories.filter { it.type == "savings" }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Categories", fontWeight = FontWeight.Bold) }
+                title = { Text("Categories", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.toggleShowArchived() }) {
+                        Icon(
+                            if (uiState.showArchived) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (uiState.showArchived) "Hide Archived" else "Show Archived"
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -157,7 +235,9 @@ fun CategoriesScreen(viewModel: CategoriesViewModel) {
                         expandedCategories = uiState.expandedCategories,
                         onToggleExpand = { viewModel.toggleExpanded(it) },
                         onEdit = { editingCategory = it },
-                        onDelete = { deleteConfirmCategory = it }
+                        onDelete = { deleteConfirmCategory = it },
+                        onArchive = { archiveConfirmCategory = it },
+                        onUnarchive = { viewModel.unarchiveCategory(it) }
                     )
                 }
 
@@ -169,7 +249,9 @@ fun CategoriesScreen(viewModel: CategoriesViewModel) {
                         expandedCategories = uiState.expandedCategories,
                         onToggleExpand = { viewModel.toggleExpanded(it) },
                         onEdit = { editingCategory = it },
-                        onDelete = { deleteConfirmCategory = it }
+                        onDelete = { deleteConfirmCategory = it },
+                        onArchive = { archiveConfirmCategory = it },
+                        onUnarchive = { viewModel.unarchiveCategory(it) }
                     )
                 }
 
@@ -181,7 +263,9 @@ fun CategoriesScreen(viewModel: CategoriesViewModel) {
                         expandedCategories = uiState.expandedCategories,
                         onToggleExpand = { viewModel.toggleExpanded(it) },
                         onEdit = { editingCategory = it },
-                        onDelete = { deleteConfirmCategory = it }
+                        onDelete = { deleteConfirmCategory = it },
+                        onArchive = { archiveConfirmCategory = it },
+                        onUnarchive = { viewModel.unarchiveCategory(it) }
                     )
                 }
 
@@ -212,6 +296,30 @@ fun CategoriesScreen(viewModel: CategoriesViewModel) {
             onSave = { name, emoji, type, parentId ->
                 viewModel.updateCategory(category.copy(name = name, emoji = emoji, type = type, parentId = parentId))
                 editingCategory = null
+            }
+        )
+    }
+
+    // Archive confirmation
+    archiveConfirmCategory?.let { category ->
+        AlertDialog(
+            onDismissRequest = { archiveConfirmCategory = null },
+            title = { Text("Archive Category") },
+            text = { Text("Are you sure you want to archive \"${category.name}\"? It will no longer appear in selection lists.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.archiveCategory(category)
+                        archiveConfirmCategory = null
+                    }
+                ) {
+                    Text("Archive")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { archiveConfirmCategory = null }) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -255,7 +363,9 @@ fun CategorySection(
     expandedCategories: Set<Long>,
     onToggleExpand: (Long) -> Unit,
     onEdit: (CategoryEntity) -> Unit,
-    onDelete: (CategoryEntity) -> Unit
+    onDelete: (CategoryEntity) -> Unit,
+    onArchive: (CategoryEntity) -> Unit,
+    onUnarchive: (CategoryEntity) -> Unit = {}
 ) {
     val parentCategories = categories.filter { it.parentId == null }
     
@@ -275,7 +385,8 @@ fun CategorySection(
             val hasSubCategories = subCategories.isNotEmpty()
 
             Card(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = if (parent.isArchived) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) else CardDefaults.cardColors()
             ) {
                 Column {
                     Row(
@@ -296,16 +407,34 @@ fun CategorySection(
                             )
                             Column {
                                 Text(
-                                    text = parent.name,
+                                    text = parent.name + if (parent.isArchived) " (Archived)" else "",
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium
                                 )
-                                if (hasSubCategories) {
-                                    Text(
-                                        text = "${subCategories.size} sub-categories",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (hasSubCategories) {
+                                        Text(
+                                            text = "${subCategories.size} sub-categories",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (!parent.isCustom) {
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                            shape = CircleShape
+                                        ) {
+                                            Text(
+                                                text = "System",
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -321,19 +450,38 @@ fun CategorySection(
                             IconButton(onClick = { onEdit(parent) }) {
                                 Icon(Icons.Default.Edit, contentDescription = "Edit")
                             }
-                            IconButton(onClick = { onDelete(parent) }) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
+                            if (parent.isArchived) {
+                                IconButton(onClick = { onUnarchive(parent) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Unarchive,
+                                        contentDescription = "Unarchive",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            } else {
+                                IconButton(onClick = { onArchive(parent) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Archive,
+                                        contentDescription = "Archive",
+                                        tint = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+                            if (parent.isCustom) {
+                                IconButton(onClick = { onDelete(parent) }) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
                         }
                     }
 
                     // Sub-categories
                     if (isExpanded && hasSubCategories) {
-                        Divider()
+                        HorizontalDivider()
                         subCategories.forEach { subCategory ->
                             Row(
                                 modifier = Modifier
@@ -352,7 +500,7 @@ fun CategorySection(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(
-                                        text = subCategory.name,
+                                        text = subCategory.name + if (subCategory.isArchived) " (Archived)" else "",
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
@@ -367,16 +515,43 @@ fun CategorySection(
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
-                                    IconButton(
-                                        onClick = { onDelete(subCategory) },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                    if (subCategory.isArchived) {
+                                        IconButton(
+                                            onClick = { onUnarchive(subCategory) },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Unarchive,
+                                                contentDescription = "Unarchive",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    } else {
+                                        IconButton(
+                                            onClick = { onArchive(subCategory) },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Archive,
+                                                contentDescription = "Archive",
+                                                tint = MaterialTheme.colorScheme.outline,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                    if (subCategory.isCustom) {
+                                        IconButton(
+                                            onClick = { onDelete(subCategory) },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Delete",
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -400,7 +575,6 @@ fun CategoryDialog(
     var emoji by remember { mutableStateOf(category?.emoji ?: "📁") }
     var type by remember { mutableStateOf(category?.type ?: "expense") }
     var parentId by remember { mutableStateOf(category?.parentId) }
-    var showEmojiPicker by remember { mutableStateOf(false) }
     var showParentDropdown by remember { mutableStateOf(false) }
 
     // Get parent categories of the same type (for sub-categories)
@@ -492,7 +666,7 @@ fun CategoryDialog(
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showParentDropdown) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(MenuAnchorType.PrimaryEditable, true)
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(

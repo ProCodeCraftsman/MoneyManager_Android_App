@@ -21,7 +21,7 @@ import javax.inject.Singleton
 data class ExportResult(
     val success: Boolean,
     val message: String,
-    val filePath: String? = null
+    val filePath: String? = null,
 )
 
 data class ImportResult(
@@ -32,18 +32,19 @@ data class ImportResult(
     val categoriesImported: Int = 0,
     val budgetsImported: Int = 0,
     val goalsImported: Int = 0,
-    val tagsImported: Int = 0
+    val tagsImported: Int = 0,
 )
 
 @Singleton
+@Suppress("unused")
 class ExportRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val accountDao: AccountDao,
     private val transactionDao: TransactionDao,
     private val categoryDao: CategoryDao,
     private val budgetDao: BudgetDao,
     private val goalDao: GoalDao,
-    private val tagDao: TagDao
+    private val tagDao: TagDao,
 ) {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
@@ -68,9 +69,9 @@ class ExportRepository @Inject constructor(
                 }
             }
             
-            ExportResult(true, "Data exported successfully")
+            ExportResult(success = true, message = "Data exported successfully")
         } catch (e: Exception) {
-            ExportResult(false, "Export failed: ${e.message}")
+            ExportResult(success = false, message = "Export failed: ${e.message}")
         }
     }
 
@@ -92,9 +93,9 @@ class ExportRepository @Inject constructor(
                 }
             }
             
-            ExportResult(true, "${type.name} exported successfully")
+            ExportResult(success = true, message = "${type.name} exported successfully")
         } catch (e: Exception) {
-            ExportResult(false, "Export failed: ${e.message}")
+            ExportResult(success = false, message = "Export failed: ${e.message}")
         }
     }
 
@@ -104,10 +105,9 @@ class ExportRepository @Inject constructor(
                 BufferedReader(InputStreamReader(inputStream)).use { reader ->
                     reader.readText()
                 }
-            } ?: return@withContext ImportResult(false, "Could not read file")
+            } ?: return@withContext ImportResult(success = false, message = "Could not read file")
 
             val jsonObject = JSONObject(json)
-            val result = ImportResult(true, "Import completed")
             
             var accountsImported = 0
             var transactionsImported = 0
@@ -124,9 +124,6 @@ class ExportRepository @Inject constructor(
             }
             if (jsonObject.has("tags")) {
                 tagsImported = importTags(jsonObject.getJSONArray("tags"))
-            }
-            if (jsonObject.has("accounts")) {
-                accountsImported = importAccounts(jsonObject.getJSONArray("accounts"))
             }
             if (jsonObject.has("transactions")) {
                 transactionsImported = importTransactions(jsonObject.getJSONArray("transactions"))
@@ -146,10 +143,10 @@ class ExportRepository @Inject constructor(
                 categoriesImported = categoriesImported,
                 budgetsImported = budgetsImported,
                 goalsImported = goalsImported,
-                tagsImported = tagsImported
+                tagsImported = tagsImported,
             )
         } catch (e: Exception) {
-            ImportResult(false, "Import failed: ${e.message}")
+            ImportResult(success = false, message = "Import failed: ${e.message}")
         }
     }
 
@@ -159,29 +156,29 @@ class ExportRepository @Inject constructor(
                 BufferedReader(InputStreamReader(inputStream)).use { reader ->
                     reader.readText()
                 }
-            } ?: return@withContext ImportResult(false, "Could not read file")
+            } ?: return@withContext ImportResult(success = false, message = "Could not read file")
 
             when (type) {
                 ExportType.TRANSACTIONS -> {
                     val count = importTransactionsFromCsv(csv)
-                    ImportResult(true, "$count transactions imported", transactionsImported = count)
+                    ImportResult(success = true, message = "$count transactions imported", transactionsImported = count)
                 }
                 ExportType.ACCOUNTS -> {
                     val count = importAccountsFromCsv(csv)
-                    ImportResult(true, "$count accounts imported", accountsImported = count)
+                    ImportResult(success = true, message = "$count accounts imported", accountsImported = count)
                 }
                 ExportType.CATEGORIES -> {
                     val count = importCategoriesFromCsv(csv)
-                    ImportResult(true, "$count categories imported", categoriesImported = count)
+                    ImportResult(success = true, message = "$count categories imported", categoriesImported = count)
                 }
                 ExportType.TAGS -> {
                     val count = importTagsFromCsv(csv)
-                    ImportResult(true, "$count tags imported", tagsImported = count)
+                    ImportResult(success = true, message = "$count tags imported", tagsImported = count)
                 }
-                else -> ImportResult(false, "CSV import not supported for ${type.name}")
+                else -> ImportResult(success = false, message = "CSV import not supported for ${type.name}")
             }
         } catch (e: Exception) {
-            ImportResult(false, "Import failed: ${e.message}")
+            ImportResult(success = false, message = "Import failed: ${e.message}")
         }
     }
 
@@ -309,7 +306,7 @@ class ExportRepository @Inject constructor(
         val sb = StringBuilder()
         sb.appendLine("name,type,emoji,parent_id,is_custom")
         categories.forEach { cat ->
-            sb.appendLine("${cat.name},${cat.type},${cat.emoji ?: ""},${cat.parentId ?: ""},${cat.isCustom}")
+            sb.appendLine("${cat.name},${cat.type},${cat.emoji},${cat.parentId ?: ""},${cat.isCustom}")
         }
         return sb.toString()
     }
@@ -376,7 +373,7 @@ class ExportRepository @Inject constructor(
                 type = obj.getString("type"),
                 balance = obj.getDouble("balance"),
                 currency = obj.optString("currency", "USD"),
-                color = obj.optString("color", "#2a6049")
+                color = obj.optString("color", "#2a6049"),
             )
             accountDao.insertAccount(account)
             count++
@@ -397,7 +394,7 @@ class ExportRepository @Inject constructor(
                 tagIds = obj.optString("tagIds", ""),
                 date = obj.optLong("date", System.currentTimeMillis()),
                 note = obj.optString("note", ""),
-                isRecurring = obj.optBoolean("isRecurring", false)
+                isRecurring = obj.optBoolean("isRecurring", false),
             )
             transactionDao.insertTransaction(transaction)
             count++
@@ -415,7 +412,7 @@ class ExportRepository @Inject constructor(
                 emoji = obj.optString("emoji", "📁"),
                 type = obj.getString("type"),
                 parentId = if (obj.has("parentId") && !obj.isNull("parentId")) obj.getLong("parentId") else null,
-                isCustom = obj.optBoolean("isCustom", false)
+                isCustom = obj.optBoolean("isCustom", false),
             )
             categoryDao.insertCategory(category)
             count++
@@ -431,7 +428,7 @@ class ExportRepository @Inject constructor(
                 id = obj.optLong("id", 0),
                 categoryId = obj.getLong("categoryId"),
                 amount = obj.getDouble("amount"),
-                month = obj.optString("month", "2024-01")
+                month = obj.optString("month", "2024-01"),
             )
             budgetDao.insertBudget(budget)
             count++
@@ -450,7 +447,7 @@ class ExportRepository @Inject constructor(
                 targetAmount = obj.getDouble("targetAmount"),
                 currentAmount = obj.optDouble("currentAmount", 0.0),
                 deadline = if (obj.has("deadline") && !obj.isNull("deadline")) obj.getLong("deadline") else null,
-                isCompleted = obj.optBoolean("isCompleted", false)
+                isCompleted = obj.optBoolean("isCompleted", false),
             )
             goalDao.insertGoal(goal)
             count++
@@ -465,7 +462,7 @@ class ExportRepository @Inject constructor(
             val tag = TagEntity(
                 id = obj.optLong("id", 0),
                 name = obj.getString("name"),
-                color = obj.optString("color", "#c8420a")
+                color = obj.optString("color", "#c8420a"),
             )
             tagDao.insertTag(tag)
             count++
@@ -486,7 +483,7 @@ class ExportRepository @Inject constructor(
                     amount = parts[1].toDoubleOrNull() ?: continue,
                     categoryId = parts.getOrNull(3)?.toLongOrNull(),
                     note = parts.getOrNull(4)?.removeSurrounding("\"") ?: "",
-                    isRecurring = parts.getOrNull(6)?.toBooleanStrictOrNull() ?: false
+                    isRecurring = parts.getOrNull(6)?.toBooleanStrictOrNull() ?: false,
                 )
                 transactionDao.insertTransaction(transaction)
                 count++
@@ -506,7 +503,7 @@ class ExportRepository @Inject constructor(
                     name = parts[0],
                     type = parts[1],
                     balance = parts[2].toDoubleOrNull() ?: 0.0,
-                    currency = parts.getOrNull(3) ?: "USD"
+                    currency = parts.getOrNull(3) ?: "USD",
                 )
                 accountDao.insertAccount(account)
                 count++
@@ -524,7 +521,7 @@ class ExportRepository @Inject constructor(
             if (parts.isNotEmpty()) {
                 val category = CategoryEntity(
                     name = parts[0],
-                    type = parts.getOrNull(1) ?: "expense"
+                    type = parts.getOrNull(1) ?: "expense",
                 )
                 categoryDao.insertCategory(category)
                 count++
@@ -542,7 +539,7 @@ class ExportRepository @Inject constructor(
             if (parts.isNotEmpty()) {
                 val tag = TagEntity(
                     name = parts[0],
-                    color = parts.getOrNull(1) ?: "#c8420a"
+                    color = parts.getOrNull(1) ?: "#c8420a",
                 )
                 tagDao.insertTag(tag)
                 count++
@@ -559,7 +556,7 @@ class ExportRepository @Inject constructor(
         for (char in line) {
             when {
                 char == '"' -> inQuotes = !inQuotes
-                char == ',' && !inQuotes -> {
+                (char == ',') && !inQuotes -> {
                     result.add(current.toString())
                     current = StringBuilder()
                 }

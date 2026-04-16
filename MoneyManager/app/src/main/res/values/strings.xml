@@ -48,4 +48,9 @@
     <string name="export_data">Export Data</string>
     <string name="import_data">Import Data</string>
     <string name="clear_data">Clear All Data</string>
+    <string name="add_expense">Add Expense</string>
+    <string name="add_income">Add Income</string>
+    <string name="expense_label">Expense</string>
+    <string name="income_label">Income</string>
+    <string name="transfer_label">Transfer</string>
 </resources>

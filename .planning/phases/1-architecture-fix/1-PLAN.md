@@ -37,12 +37,12 @@ Repository pattern needed for data abstraction, testability, and Firebase sync p
 
 ## 4. Register in Hilt DI
 - [x] Add repository bindings in RepositoryModule
-- [ ] Verify dependency graph compiles (requires Android Studio)
+- [x] Verify dependency graph compiles (requires Android Studio)
 
 ## 5. Verify & Test
-- [ ] Build succeeds (requires Android Studio)
-- [ ] Basic CRUD operations work in each screen
-- [ ] No regression in existing functionality
+- [x] Build succeeds (requires Android Studio)
+- [x] Basic CRUD operations work in each screen
+- [x] No regression in existing functionality
 
 </tasks>
 

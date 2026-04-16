@@ -14,12 +14,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navDeepLink
 import com.moneymanager.app.ui.screens.*
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector?) {
     data object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
     data object Accounts : Screen("accounts", "Accounts", Icons.Default.AccountBalance)
-    data object Transactions : Screen("transactions", "Transactions", Icons.Default.Receipt)
+    data object Transactions : Screen("transactions?type={type}", "Transactions", Icons.Default.Receipt) {
+        fun createRoute(type: String? = null) = if (type != null) "transactions?type=$type" else "transactions"
+    }
     data object Budgets : Screen("budgets", "Budgets", Icons.Default.PieChart)
     data object Reports : Screen("reports", "Reports", Icons.Default.BarChart)
     data object Goals : Screen("goals", "Goals", Icons.Default.Flag)
@@ -38,13 +41,8 @@ fun MoneyManagerNavHost() {
     val navController = rememberNavController()
     val bottomNavScreens = listOf(
         Screen.Dashboard,
-        Screen.Accounts,
         Screen.Transactions,
-        Screen.Budgets,
         Screen.Reports,
-        Screen.Recurring,
-        Screen.Goals,
-        Screen.Transfer,
         Screen.Settings
     )
 
@@ -55,13 +53,14 @@ fun MoneyManagerNavHost() {
                 val currentDestination = navBackStackEntry?.destination
 
                 bottomNavScreens.forEach { screen ->
+                    val route = if (screen is Screen.Transactions) screen.createRoute() else screen.route
                     screen.icon?.let { icon ->
                         NavigationBarItem(
                             icon = { Icon(icon, contentDescription = screen.title) },
                             label = { Text(screen.title) },
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
-                                navController.navigate(screen.route) {
+                                navController.navigate(route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
@@ -81,43 +80,87 @@ fun MoneyManagerNavHost() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Dashboard.route) {
-                DashboardScreen(viewModel = hiltViewModel())
+                DashboardScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateToAccounts = { navController.navigate(Screen.Accounts.route) },
+                    onNavigateToTransactions = { navController.navigate(Screen.Transactions.createRoute()) }
+                )
             }
             composable(Screen.Accounts.route) {
-                AccountsScreen(viewModel = hiltViewModel())
+                AccountsScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
-            composable(Screen.Transactions.route) {
+            composable(
+                Screen.Transactions.route,
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = "moneymanager://transactions?type={type}" }
+                )
+            ) { backStackEntry ->
+                val type = backStackEntry.arguments?.getString("type")
                 TransactionsScreen(
                     viewModel = hiltViewModel(),
-                    accountsViewModel = hiltViewModel()
+                    accountsViewModel = hiltViewModel(),
+                    initialType = type
                 )
             }
             composable(Screen.Budgets.route) {
-                BudgetsScreen(viewModel = hiltViewModel())
+                BudgetsScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             composable(Screen.Reports.route) {
                 ReportsScreen(viewModel = hiltViewModel())
             }
             composable(Screen.Goals.route) {
-                GoalsScreen(viewModel = hiltViewModel())
+                GoalsScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             composable(Screen.Settings.route) {
-                SettingsScreen(viewModel = hiltViewModel())
+                SettingsScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateToAccounts = { navController.navigate(Screen.Accounts.route) },
+                    onNavigateToCategories = { navController.navigate(Screen.Categories.route) },
+                    onNavigateToTags = { navController.navigate(Screen.Tags.route) },
+                    onNavigateToBudgets = { navController.navigate(Screen.Budgets.route) },
+                    onNavigateToGoals = { navController.navigate(Screen.Goals.route) },
+                    onNavigateToRecurring = { navController.navigate(Screen.Recurring.route) },
+                    onNavigateToTemplates = { navController.navigate(Screen.Templates.route) }
+                )
             }
             composable(Screen.Tags.route) {
-                TagsScreen(viewModel = hiltViewModel())
+                TagsScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             composable(Screen.Categories.route) {
-                CategoriesScreen(viewModel = hiltViewModel())
+                CategoriesScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
-            composable(Screen.Transfer.route) {
+            composable(
+                Screen.Transfer.route,
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = "moneymanager://transfer" }
+                )
+            ) {
                 TransferScreen(
                     viewModel = hiltViewModel(),
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.Recurring.route) {
-                RecurringListScreen(viewModel = hiltViewModel())
+                RecurringListScreen(
+                    viewModel = hiltViewModel(),
+                    navController = navController,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             composable(Screen.RecurringForm.route) { backStackEntry ->
                 val recurringId = backStackEntry.arguments?.getString("recurringId")?.toLongOrNull()
@@ -128,7 +171,10 @@ fun MoneyManagerNavHost() {
                 )
             }
             composable(Screen.Templates.route) {
-                TemplatesScreen(viewModel = hiltViewModel())
+                TemplatesScreen(
+                    viewModel = hiltViewModel(),
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
         }
     }

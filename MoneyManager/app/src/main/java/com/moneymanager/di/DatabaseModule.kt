@@ -22,7 +22,7 @@ object DatabaseModule {
             context,
             MoneyManagerDatabase::class.java,
             "moneymanager.db"
-        ).build()
+        ).fallbackToDestructiveMigration(true).build()
     }
 
     @Provides

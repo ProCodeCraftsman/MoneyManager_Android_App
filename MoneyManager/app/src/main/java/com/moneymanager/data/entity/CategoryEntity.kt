@@ -12,5 +12,6 @@ data class CategoryEntity(
     val type: String, // expense, income, savings
     val parentId: Long? = null,
     val isCustom: Boolean = false,
+    val isArchived: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )

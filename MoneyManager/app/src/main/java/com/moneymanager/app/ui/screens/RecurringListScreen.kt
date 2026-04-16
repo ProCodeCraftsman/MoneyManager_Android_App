@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.moneymanager.data.entity.RecurringEntity
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -25,7 +26,8 @@ import java.util.*
 @Composable
 fun RecurringListScreen(
     viewModel: RecurringViewModel,
-    navController: NavController? = null
+    navController: NavController? = null,
+    onNavigateBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
@@ -36,7 +38,14 @@ fun RecurringListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Recurring Transactions", fontWeight = FontWeight.Bold) }
+                title = { Text("Recurring Transactions", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onNavigateBack != null) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {
