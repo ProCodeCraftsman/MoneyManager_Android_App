@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moneymanager.app.ui.util.CurrencyUtils
 import java.text.NumberFormat
 import java.util.*
 
@@ -24,7 +25,9 @@ fun BudgetsScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val currencyFormat = remember(uiState.currencyCode) { 
+        CurrencyUtils.getCurrencyFormat(uiState.currencyCode) 
+    }
     val showAddDialog = remember { mutableStateOf(false) }
 
     Scaffold(

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.dao.TransactionDao
 import com.moneymanager.data.entity.BudgetEntity
 import com.moneymanager.data.entity.CategoryEntity
+import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.repository.BudgetRepository
 import com.moneymanager.domain.repository.CategoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,6 +23,7 @@ data class BudgetWithSpending(
 data class BudgetsUiState(
     val budgetsWithSpending: List<BudgetWithSpending> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
+    val currencyCode: String = "USD",
     val isLoading: Boolean = true,
     val currentMonth: String = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date()),
 )
@@ -31,6 +33,7 @@ class BudgetsViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
     private val categoryRepository: CategoryRepository,
     private val transactionDao: TransactionDao,
+    private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     private val monthDateFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
@@ -51,7 +54,8 @@ class BudgetsViewModel @Inject constructor(
             budgetRepository.getAllBudgets(),
             categoryRepository.getAllCategories(),
             transactionDao.getTransactionsByDateRange(startDate, endDate),
-        ) { budgets, categories, transactions ->
+            preferencesManager.currency,
+        ) { budgets, categories, transactions, currencyCode ->
             val budgetableTypes = setOf("expense", "savings", "investment")
             val budgetableTransactions = transactions.filter { it.type in budgetableTypes }
 
@@ -66,6 +70,7 @@ class BudgetsViewModel @Inject constructor(
             BudgetsUiState(
                 budgetsWithSpending = budgetsWithSpending,
                 categories = categories.filter { it.type in budgetableTypes },
+                currencyCode = currencyCode,
                 isLoading = false,
             )
         }.stateIn(

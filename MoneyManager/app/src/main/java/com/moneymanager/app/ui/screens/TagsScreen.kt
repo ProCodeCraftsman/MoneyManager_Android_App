@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.entity.TagEntity
+import com.moneymanager.app.ui.util.parseColor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -345,12 +346,4 @@ fun TagDialog(
             }
         }
     )
-}
-
-private fun parseColor(colorString: String): Color {
-    return try {
-        Color(android.graphics.Color.parseColor(colorString))
-    } catch (e: Exception) {
-        Color.Gray
-    }
 }

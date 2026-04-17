@@ -43,7 +43,7 @@ class TransactionRepositoryImpl @Inject constructor(
         transactionDao.insertTransaction(transaction)
 
     override suspend fun updateTransaction(transaction: TransactionEntity) =
-        transactionDao.updateTransaction(transaction.copy(date = System.currentTimeMillis()))
+        transactionDao.updateTransaction(transaction)
 
     override suspend fun deleteTransaction(transaction: TransactionEntity) =
         transactionDao.deleteTransaction(transaction)

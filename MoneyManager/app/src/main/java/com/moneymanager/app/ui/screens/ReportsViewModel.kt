@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.app.ui.components.PieChartEntry
 import com.moneymanager.app.ui.components.TrendPoint
+import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.BudgetRepository
 import com.moneymanager.domain.repository.TransactionRepository
@@ -41,6 +42,7 @@ data class ReportsUiState(
     val trendData: List<TrendPoint> = emptyList(),
     val categoryBreakdown: List<PieChartEntry> = emptyList(),
     val budgetProgress: List<BudgetProgress> = emptyList(),
+    val currencyCode: String = "USD",
     val isLoading: Boolean = true,
 )
 
@@ -48,7 +50,8 @@ data class ReportsUiState(
 class ReportsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val accountRepository: AccountRepository,
-    private val budgetRepository: BudgetRepository
+    private val budgetRepository: BudgetRepository,
+    private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     private val _selectedTimeRange = MutableStateFlow(TimeRange.MONTH)
@@ -66,18 +69,23 @@ class ReportsViewModel @Inject constructor(
     val uiState: StateFlow<ReportsUiState> = combine(
         _selectedTimeRange,
         transactionRepository.getAllTransactions(),
-        budgetRepository.getAllBudgets()
-    ) { timeRange, allTransactions, budgets ->
+        budgetRepository.getAllBudgets(),
+        preferencesManager.currency,
+    ) { timeRange, allTransactions, budgets, currencyCode ->
         val (startDate, endDate) = getDateRange(timeRange)
         val (prevStart, prevEnd) = getPreviousPeriod(timeRange)
         
         val currentPeriod = allTransactions.filter { it.date in startDate..endDate }
         val previousPeriod = allTransactions.filter { it.date in prevStart..prevEnd }
         
-        val totalIncome = currentPeriod.filter { it.type == "income" }.sumOf { it.amount }
-        val totalExpense = currentPeriod.filter { it.type == "expense" }.sumOf { it.amount }
-        val previousIncome = previousPeriod.filter { it.type == "income" }.sumOf { it.amount }
-        val previousExpense = previousPeriod.filter { it.type == "expense" }.sumOf { it.amount }
+        // Simpler approach: filter out split parents and use all other transactions (including split children)
+        val reportingTransactions = currentPeriod.filter { !it.isSplitParent }
+        val prevReportingTransactions = previousPeriod.filter { !it.isSplitParent }
+
+        val totalIncome = reportingTransactions.filter { it.type == "income" }.sumOf { it.amount }
+        val totalExpense = reportingTransactions.filter { it.type == "expense" }.sumOf { it.amount }
+        val previousIncome = prevReportingTransactions.filter { it.type == "income" }.sumOf { it.amount }
+        val previousExpense = prevReportingTransactions.filter { it.type == "expense" }.sumOf { it.amount }
         
         val incomeChange = if (previousIncome > 0) {
             ((totalIncome - previousIncome) / previousIncome * 100).toFloat()
@@ -87,9 +95,9 @@ class ReportsViewModel @Inject constructor(
             ((totalExpense - previousExpense) / previousExpense * 100).toFloat()
         } else 0f
         
-        val trendData = generateTrendData(currentPeriod, timeRange)
-        val categoryBreakdown = generateCategoryBreakdown(currentPeriod)
-        val budgetProgress = generateBudgetProgress(currentPeriod, budgets)
+        val trendData = generateTrendData(reportingTransactions, timeRange)
+        val categoryBreakdown = generateCategoryBreakdown(reportingTransactions)
+        val budgetProgress = generateBudgetProgress(reportingTransactions, budgets)
         
         ReportsUiState(
             selectedTimeRange = timeRange,
@@ -103,6 +111,7 @@ class ReportsViewModel @Inject constructor(
             trendData = trendData,
             categoryBreakdown = categoryBreakdown,
             budgetProgress = budgetProgress,
+            currencyCode = currencyCode,
             isLoading = false,
         )
     }.stateIn(

@@ -1,5 +1,6 @@
 package com.moneymanager.app.ui.screens
 
+import com.moneymanager.app.ui.util.CurrencyUtils
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,7 +35,9 @@ fun DashboardScreen(
     onNavigateToTransactions: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val currencyFormat = remember(uiState.currency) {
+        CurrencyUtils.getCurrencyFormat(uiState.currency)
+    }
     val dateFormat = remember { SimpleDateFormat("MMM dd", Locale.getDefault()) }
     var showFabMenu by remember { mutableStateOf(false) }
     var showTransferDialog by remember { mutableStateOf(false) }
@@ -244,8 +247,8 @@ fun DashboardScreen(
         TransferDialog(
             accounts = uiState.accounts,
             onDismiss = { showTransferDialog = false },
-            onTransfer = { fromId, toId, amount, note ->
-                viewModel.transferMoney(fromId, toId, amount, note)
+            onTransfer = { fromId, toId, amount, note, date ->
+                viewModel.transferMoney(fromId, toId, amount, note, date)
                 showTransferDialog = false
             }
         )

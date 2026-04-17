@@ -2,8 +2,21 @@ package com.moneymanager.data
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.moneymanager.data.dao.*
 import com.moneymanager.data.entity.*
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE transactions ADD COLUMN isSplitParent INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE transactions ADD COLUMN isSplitChild INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE transactions ADD COLUMN parentTransactionId INTEGER")
+        db.execSQL("ALTER TABLE transactions ADD COLUMN isTransfer INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE transactions ADD COLUMN toAccountId INTEGER")
+        db.execSQL("ALTER TABLE transactions ADD COLUMN investmentPlatform TEXT")
+    }
+}
 
 @Database(
     entities = [
@@ -16,7 +29,7 @@ import com.moneymanager.data.entity.*
         RecurringEntity::class,
         TemplateEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {
