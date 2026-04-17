@@ -49,6 +49,7 @@ data class DashboardUiState(
     val categoryTransactions: List<TransactionEntity> = emptyList(),
     val budgetsWithProgress: List<BudgetWithProgress> = emptyList(),
     val upcomingRecurring: List<RecurringEntity> = emptyList(),
+    val currency: String = "USD",
 )
 
 @HiltViewModel
@@ -56,7 +57,8 @@ class DashboardViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
     private val budgetRepository: BudgetRepository,
-    private val recurringRepository: RecurringRepository
+    private val recurringRepository: RecurringRepository,
+    private val preferencesManager: com.moneymanager.data.preferences.PreferencesManager
 ) : ViewModel() {
 
     private val selectedFilter = MutableStateFlow(TimeFilter.MONTH)
@@ -250,12 +252,19 @@ class DashboardViewModel @Inject constructor(
         selectedCategory,
         categoryTransactionsFlow,
         budgetsWithProgressFlow,
-        upcomingRecurringFlow
+        upcomingRecurringFlow,
+        preferencesManager.currency
     ) { values ->
         val totalAssets = values[0] as Double
         val totalDebt = values[1] as Double
-        val monthTransactions = values[2] as List<TransactionEntity>
-        val recentTx = values[3] as List<TransactionEntity>
+        val monthTransactionsRaw = values[2] as List<TransactionEntity>
+        // Filter out split parents and split children from simple dashboard totals to avoid double counting 
+        // if the dashboard is meant to be a simple view. 
+        // Actually, to be accurate, we should include either parents OR children. 
+        // Usually, parents have the total amount, so we include parents and exclude children for high-level totals.
+        val monthTransactions = monthTransactionsRaw.filter { !it.isSplitChild }
+
+        val recentTx = (values[3] as List<TransactionEntity>).filter { !it.isSplitChild }
         val accounts = values[4] as List<AccountEntity>
         val filterTriple = values[5] as Triple<TimeFilter, Long?, Long?>
         val filter = filterTriple.first
@@ -265,6 +274,7 @@ class DashboardViewModel @Inject constructor(
         val catTransactions = values[7] as List<TransactionEntity>
         val budgets = values[8] as List<BudgetWithProgress>
         val recurring = values[9] as List<RecurringEntity>
+        val curr = values[10] as String
 
         val totalIncome = monthTransactions.filter { it.type == "income" }.sumOf { it.amount }
         val totalExpense = monthTransactions.filter { it.type == "expense" }.sumOf { it.amount }
@@ -298,6 +308,7 @@ class DashboardViewModel @Inject constructor(
             categoryTransactions = catTransactions,
             budgetsWithProgress = budgets,
             upcomingRecurring = recurring,
+            currency = curr
         )
     }.stateIn(
         scope = viewModelScope,
@@ -330,7 +341,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun transferMoney(fromAccountId: Long, toAccountId: Long, amount: Double, note: String) {
+    fun transferMoney(fromAccountId: Long, toAccountId: Long, amount: Double, note: String, date: Long) {
         viewModelScope.launch {
             val fromAccount = accountRepository.getAccountById(fromAccountId)
             val toAccount = accountRepository.getAccountById(toAccountId)
@@ -342,7 +353,8 @@ class DashboardViewModel @Inject constructor(
                         type = "transfer",
                         amount = -amount,
                         note = note.ifEmpty { "Transfer to ${toAccount.name}" },
-                        categoryId = 4
+                        categoryId = 4,
+                        date = date
                     )
                 )
                 transactionRepository.insertTransaction(
@@ -351,7 +363,8 @@ class DashboardViewModel @Inject constructor(
                         type = "transfer",
                         amount = amount,
                         note = note.ifEmpty { "Transfer from ${fromAccount.name}" },
-                        categoryId = 4
+                        categoryId = 4,
+                        date = date
                     )
                 )
                 accountRepository.updateBalance(fromAccountId, fromAccount.balance - amount)

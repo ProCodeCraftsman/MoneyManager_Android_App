@@ -15,6 +15,7 @@ import com.moneymanager.app.ui.components.CategoryBarChart
 import com.moneymanager.app.ui.components.ExpensePieChart
 import com.moneymanager.app.ui.components.TrendLineChart
 import com.moneymanager.app.ui.components.TrendPoint
+import com.moneymanager.app.ui.util.CurrencyUtils
 import java.text.NumberFormat
 import java.util.*
 
@@ -22,7 +23,9 @@ import java.util.*
 @Composable
 fun ReportsScreen(viewModel: ReportsViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val currencyFormat = remember(uiState.currencyCode) { 
+        CurrencyUtils.getCurrencyFormat(uiState.currencyCode) 
+    }
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Overview", "Trends", "Categories", "Budgets")
 

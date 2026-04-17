@@ -101,7 +101,6 @@ fun MoneyManagerNavHost() {
                 val type = backStackEntry.arguments?.getString("type")
                 TransactionsScreen(
                     viewModel = hiltViewModel(),
-                    accountsViewModel = hiltViewModel(),
                     initialType = type
                 )
             }

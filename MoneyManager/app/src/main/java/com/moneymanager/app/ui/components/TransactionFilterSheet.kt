@@ -1,5 +1,6 @@
 package com.moneymanager.app.ui.components
 
+import com.moneymanager.app.ui.util.parseColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -390,12 +391,4 @@ private fun DatePickerDialog(
 private fun formatDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     return sdf.format(Date(timestamp))
-}
-
-private fun parseColor(colorString: String): Color {
-    return try {
-        Color(android.graphics.Color.parseColor(colorString))
-    } catch (e: Exception) {
-        Color.Gray
-    }
 }

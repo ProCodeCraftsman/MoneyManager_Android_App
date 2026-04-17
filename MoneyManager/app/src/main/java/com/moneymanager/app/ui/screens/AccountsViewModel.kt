@@ -3,6 +3,7 @@ package com.moneymanager.app.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.entity.AccountEntity
+import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.repository.AccountRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -12,22 +13,26 @@ import javax.inject.Inject
 data class AccountsUiState(
     val accounts: List<AccountEntity> = emptyList(),
     val totalAssets: Double = 0.0,
+    val currencyCode: String = "USD",
     val isLoading: Boolean = true,
 )
 
 @HiltViewModel
 class AccountsViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
+    private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
     val uiState: StateFlow<AccountsUiState> = combine(
         accountRepository.getAllAccounts(),
         accountRepository.getTotalAssets(),
-    ) { accounts, totalAssets ->
+        preferencesManager.currency,
+    ) { accounts, totalAssets, currencyCode ->
         android.util.Log.d("AccountsViewModel", "Emitting state with ${accounts.size} accounts and totalAssets: $totalAssets")
         AccountsUiState(
             accounts = accounts,
             totalAssets = totalAssets,
+            currencyCode = currencyCode,
             isLoading = false,
         )
     }.stateIn(

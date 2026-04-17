@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.data.entity.AccountEntity
 import java.text.NumberFormat
 import java.util.*
@@ -24,7 +25,9 @@ fun AccountsScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val currencyFormat = remember(uiState.currencyCode) { 
+        CurrencyUtils.getCurrencyFormat(uiState.currencyCode) 
+    }
     val showAddDialog = remember { mutableStateOf(value = false) }
     val snackbarHostState = remember { SnackbarHostState() }
 

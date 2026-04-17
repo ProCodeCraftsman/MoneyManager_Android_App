@@ -28,15 +28,21 @@ data class TransactionEntity(
     val id: Long = 0,
     val accountId: Long,
     val type: String, // income, expense, savings, transfer
-    val amount: Double,
+    val amount: Double, // always positive; sign derived from type
     val categoryId: Long? = null,
-    val goalId: Long? = null, // Links savings to a goal
+    val goalId: Long? = null,
     val tagIds: String = "", // comma-separated tag IDs
     val date: Long = System.currentTimeMillis(),
     val note: String = "",
-    val receiptPath: String? = null,
+    val receiptPath: String? = null, // base64 data URL
     val isRecurring: Boolean = false,
     val recurringId: Long? = null,
-    val splitData: String? = null, // JSON for split transactions
+    val splitData: String? = null, // kept for backward compat
+    val isSplitParent: Boolean = false,
+    val isSplitChild: Boolean = false,
+    val parentTransactionId: Long? = null,
+    val isTransfer: Boolean = false,
+    val toAccountId: Long? = null,
+    val investmentPlatform: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
