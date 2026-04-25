@@ -762,17 +762,18 @@ fun TransactionCardDense(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        // emoji icon from master list
-                        Text(
-                            text = subcategory.emoji,
-                            fontSize = 13.sp
+                        Icon(
+                            imageVector = Icons.Default.LocalOffer,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
 
                         // subcategory name
                         Text(
                             text = subcategory.name,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

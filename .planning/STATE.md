@@ -6,20 +6,20 @@ status: In Progress
 last_updated: "2026-04-25"
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
 
 ## Current Milestone: v2.1 Multiple Themes
 
-Phase: 15 - Complete Theme System
+Phase: 16 - Theme Settings UI
 Plan: Not started
 Status: Ready to plan
 
-Last activity: 2026-04-25 — Phase 14 completed
+Last activity: 2026-04-25 — Phase 15 completed
 
 ## Milestone Goal
 
