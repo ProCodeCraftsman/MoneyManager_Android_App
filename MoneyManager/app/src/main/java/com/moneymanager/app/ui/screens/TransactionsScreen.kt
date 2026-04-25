@@ -1030,6 +1030,115 @@ fun TransactionCardDense(
 
 
 @Composable
+fun SplitTransactionCard(
+    parentTransaction: TransactionEntity,
+    splitChildren: List<TransactionEntity>,
+    accounts: List<AccountEntity>,
+    categories: List<CategoryEntity>,
+    peers: List<PeerContact> = emptyList(),
+    currencyFormat: NumberFormat,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onEdit: (TransactionEntity) -> Unit,
+    onDelete: (TransactionEntity) -> Unit,
+) {
+    val isCurrentlyExpanded = isExpanded
+
+    Column {
+        // Parent transaction with expand/collapse indicator
+        Surface(
+            onClick = onToggleExpand,
+            shape = RoundedCornerShape(TILE_CORNER_RADIUS),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = TILE_ELEVATION,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = TILE_PADDING_HORIZONTAL)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(TILE_PADDING_INNER),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icon with expand indicator
+                Box(
+                    Modifier
+                        .size(TILE_ICON_SIZE)
+                        .clip(RoundedCornerShape(TILE_ICON_CORNER_RADIUS))
+                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)),
+                    Alignment.Center
+                ) {
+                    Text(ICON_SPLIT, fontSize = 20.sp)
+                }
+
+                Spacer(Modifier.width(12.dp))
+
+                // Middle Column: Title + child count
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "Split Transaction",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${splitChildren.size} items",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                // Right Column: Amount + expand icon
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = currencyFormat.format(parentTransaction.amount),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = when (parentTransaction.type) {
+                            "income", "receive" -> MaterialTheme.colorScheme.secondary
+                            "expense", "lend" -> COLOR_EXPENSE
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                    Icon(
+                        imageVector = if (isCurrentlyExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isCurrentlyExpanded) "Collapse" else "Expand",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // Expanded: Show child transactions indented below parent
+        if (isCurrentlyExpanded) {
+            Column(
+                modifier = Modifier.padding(start = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(TILE_SPACING_VERTICAL)
+            ) {
+                splitChildren.forEach { child ->
+                    TransactionCardDense(
+                        transaction = child,
+                        accounts = accounts,
+                        categories = categories,
+                        peers = peers,
+                        currencyFormat = currencyFormat,
+                        onClick = { onEdit(child) }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(TILE_SPACING_VERTICAL))
+    }
+}
+
+
+@Composable
 fun AccountBadge(account: AccountEntity?, modifier: Modifier = Modifier) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Box(
