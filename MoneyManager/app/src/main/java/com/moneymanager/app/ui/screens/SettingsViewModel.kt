@@ -2,6 +2,7 @@ package com.moneymanager.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moneymanager.app.ui.theme.AppTheme
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.data.security.SecurityManager
 import com.moneymanager.data.sync.AuthManager
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
+    val selectedTheme: AppTheme = AppTheme.SOFT_NEUTRAL,
     val darkMode: Boolean = false,
     val currency: String = "INR",
     val pinEnabled: Boolean = false,
@@ -58,6 +60,7 @@ class SettingsViewModel @Inject constructor(
 
     @OptIn(kotlinx.coroutines.FlowPreview::class)
     val uiState: StateFlow<SettingsUiState> = combine(
+        preferencesManager.selectedTheme,
         preferencesManager.darkMode,
         preferencesManager.currency,
         preferencesManager.pinEnabled,
@@ -70,23 +73,25 @@ class SettingsViewModel @Inject constructor(
         importResult,
         exportResult,
     ) { values ->
-val darkMode = values[0] as Boolean
-        val currency = values[1] as String
-        val pinEnabled = values[2] as Boolean
-        val pinHash = values[3] as String?
-        val biometricEnabled = values[4] as Boolean
-        val autoLockMinutes = values[5] as Int
-        val lastSyncTime = values[6] as Long?
-        val authState = values[7] as AuthState
-        val syncState = values[8] as com.moneymanager.data.sync.SyncState
-        val impResult = values[9] as ImportResult?
-        val expResult = values[10] as ExportResult?
+        val selectedTheme = values[0] as AppTheme
+        val darkMode = values[1] as Boolean
+        val currency = values[2] as String
+        val pinEnabled = values[3] as Boolean
+        val pinHash = values[4] as String?
+        val biometricEnabled = values[5] as Boolean
+        val autoLockMinutes = values[6] as Int
+        val lastSyncTime = values[7] as Long?
+        val authState = values[8] as AuthState
+        val syncState = values[9] as com.moneymanager.data.sync.SyncState
+        val impResult = values[10] as ImportResult?
+        val expResult = values[11] as ExportResult?
 
         val isSignedIn = authState is AuthState.SignedIn
         val user = (authState as? AuthState.SignedIn)?.user
         val pinSetupRequired = pinEnabled && pinHash == null
 
         SettingsUiState(
+            selectedTheme = selectedTheme,
             darkMode = darkMode,
             currency = currency,
             pinEnabled = pinEnabled,
@@ -112,6 +117,13 @@ val darkMode = values[0] as Boolean
     fun setDarkMode(enabled: Boolean) {
         viewModelScope.launch {
             preferencesManager.setDarkMode(enabled)
+            preferencesManager.setUserHasSetTheme()
+        }
+    }
+
+    fun setSelectedTheme(theme: AppTheme) {
+        viewModelScope.launch {
+            preferencesManager.setSelectedTheme(theme)
         }
     }
 
