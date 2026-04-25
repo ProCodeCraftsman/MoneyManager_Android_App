@@ -119,7 +119,7 @@ fun CategoryDrilldownPanel(
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = when (transaction.type) {
-                                        "income" -> androidx.compose.ui.graphics.Color(0xFF00C853)
+                                        "income" -> MaterialTheme.colorScheme.secondary
                                         "expense" -> MaterialTheme.colorScheme.error
                                         else -> MaterialTheme.colorScheme.onSurface
                                     }

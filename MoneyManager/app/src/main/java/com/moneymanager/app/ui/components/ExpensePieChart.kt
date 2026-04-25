@@ -91,7 +91,7 @@ fun ExpensePieChart(
                     fontWeight = FontWeight.Bold,
                     color = when (centerLabel.lowercase()) {
                         "expense", "expenses" -> MaterialTheme.colorScheme.error
-                        "income", "incomes" -> Color(0xFF00C853)
+                        "income", "incomes" -> MaterialTheme.colorScheme.secondary
                         else -> MaterialTheme.colorScheme.onSurface
                     }
                 )

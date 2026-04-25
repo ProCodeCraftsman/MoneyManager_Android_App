@@ -251,13 +251,13 @@ fun DashboardScreen(
                                 KPIItem(
                                     label = "INCOME",
                                     value = currencyFormat.format(uiState.totalIncome),
-                                    color = Color(0xFF00C853),
+                                    color = MaterialTheme.colorScheme.secondary,
                                     modifier = Modifier.weight(1f)
                                 )
                                 KPIItem(
                                     label = "BALANCE",
                                     value = currencyFormat.format(uiState.periodBalance),
-                                    color = if (uiState.periodBalance >= 0) Color(0xFF00C853) else MaterialTheme.colorScheme.error,
+                                    color = if (uiState.periodBalance >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -700,9 +700,9 @@ fun SummaryTile(
             
             val isIncrease = summary.percentChange >= 0
             val color = if (isIncrease) {
-                if (isPositiveGood) Color(0xFF00C853) else MaterialTheme.colorScheme.error
+                if (isPositiveGood) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
             } else {
-                if (isPositiveGood) MaterialTheme.colorScheme.error else Color(0xFF00C853)
+                if (isPositiveGood) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
             }
             
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -874,7 +874,7 @@ fun IncomeHeader(
                     text = currencyFormat.format(totalIncome),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF00C853) // Emerald Green
+                    color = MaterialTheme.colorScheme.secondary // Emerald Green
                 )
                 Text(
                     text = "for $period",
@@ -954,7 +954,7 @@ fun CategoryProgressItem(
                     text = if (isExpense) "-${currencyFormat.format(entry.value)}" else "+${currencyFormat.format(entry.value)}",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (isExpense) MaterialTheme.colorScheme.error else Color(0xFF00C853)
+                    color = if (isExpense) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
                 )
                 if (showPercentage) {
                     Text(
@@ -1007,7 +1007,7 @@ fun AccountsHeader(
                 text = currencyFormat.format(netBalance),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (netBalance >= 0) Color(0xFF00C853) else MaterialTheme.colorScheme.error
+                color = if (netBalance >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
             )
             Text(
                 text = "for $period",
@@ -1031,7 +1031,7 @@ fun AccountsHeader(
                         text = currencyFormat.format(totalInflow),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF00C853)
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -1094,14 +1094,14 @@ fun SavingsHeader(
                             imageVector = if (savingsGrowth >= 0) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = if (savingsGrowth >= 0) Color(0xFF00C853) else MaterialTheme.colorScheme.error
+                            tint = if (savingsGrowth >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "${if (savingsGrowth >= 0) "+" else ""}${String.format(Locale.getDefault(), "%.1f", savingsGrowth)}%",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (savingsGrowth >= 0) Color(0xFF00C853) else MaterialTheme.colorScheme.error
+                            color = if (savingsGrowth >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -1295,7 +1295,7 @@ fun AccountListItem(
                     text = if (net >= 0) "+${currencyFormat.format(net)}" else currencyFormat.format(net),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (net >= 0) Color(0xFF00C853) else MaterialTheme.colorScheme.error
+                    color = if (net >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -1320,7 +1320,7 @@ fun AccountListItem(
                         modifier = Modifier
                             .fillMaxHeight()
                             .weight(inflowWeight)
-                            .background(Color(0xFF00C853))
+                            .background(MaterialTheme.colorScheme.secondary)
                     )
                 }
                 if (outflowWeight > 0) {
@@ -1449,7 +1449,7 @@ fun BudgetSummaryKPIs(
                     text = currencyFormat.format(summary.balance),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF00C853)
+                    color = MaterialTheme.colorScheme.secondary
                 )
             }
         }
@@ -1565,7 +1565,7 @@ fun BudgetListItem(
                         text = "Balance: ${currencyFormat.format(balance)}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF00C853)
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
                 
@@ -1589,20 +1589,20 @@ fun LendingSummaryKPIs(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = if (summary.netPosition >= 0) Color(0xFF00C853).copy(alpha = 0.1f) else MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                containerColor = if (summary.netPosition >= 0) MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
             )
         ) {
             Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = if (summary.netPosition >= 0) "Net Owed to You" else "Net You Owe",
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (summary.netPosition >= 0) Color(0xFF00C853) else MaterialTheme.colorScheme.error
+                    color = if (summary.netPosition >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                 )
                 Text(
                     text = currencyFormat.format(kotlin.math.abs(summary.netPosition)),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (summary.netPosition >= 0) Color(0xFF00C853) else MaterialTheme.colorScheme.error
+                    color = if (summary.netPosition >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                 )
             }
         }
@@ -1615,7 +1615,7 @@ fun LendingSummaryKPIs(
             Card(
                 modifier = Modifier.weight(1f),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF00C853).copy(alpha = 0.05f)
+                    containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f)
                 )
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -1628,7 +1628,7 @@ fun LendingSummaryKPIs(
                         text = currencyFormat.format(summary.totalOwedToMe),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF00C853)
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
             }
@@ -1759,7 +1759,7 @@ fun PartnerTile(
                         text = currencyFormat.format(partner.remainingBalance),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (partner.isOwedToMe) Color(0xFF00C853) else MaterialTheme.colorScheme.error
+                        color = if (partner.isOwedToMe) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -1774,7 +1774,7 @@ fun PartnerTile(
                         .weight(1f)
                         .height(6.dp)
                         .clip(CircleShape),
-                    color = if (partner.isOwedToMe) Color(0xFF00C853) else MaterialTheme.colorScheme.error,
+                    color = if (partner.isOwedToMe) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1847,7 +1847,7 @@ fun TransactionItem(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = when (transaction.type) {
-                    "income" -> Color(0xFF00C853)
+                    "income" -> MaterialTheme.colorScheme.secondary
                     "expense" -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurface
                 }
