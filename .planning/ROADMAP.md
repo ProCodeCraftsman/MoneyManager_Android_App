@@ -26,7 +26,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 - [x] **Phase 15: Complete Theme System** - All 5 themes with light and dark mode variants ✅
 - [x] **Phase 16: Theme Settings UI** - Theme selector dropdown, dark mode toggle, immediate updates ✅
 - [x] **Phase 17: Income/Expense Coloring** - Consistent color usage throughout app ✅
-- [ ] **Phase 18: Split Transaction Expandable View** - Expandable split transactions with child items visible on demand ✅
+- [ ] **Phase 18: Split Transaction Expandable View** - Expandable split transactions with child items visible on demand 🔴 GAP
 
 ## Phase Details
 
