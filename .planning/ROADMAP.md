@@ -5,69 +5,101 @@
 | Version | Status | Date |
 |---------|-------|------|
 | [v1.0](milestones/v1.0-ROADMAP.md) | ✅ Shipped | 2026-04-14 |
-| [v2.0](milestones/v2.0-ROADMAP.md) | In Progress | 2026-04-14 |
+| [v2.0](milestones/v2.0-ROADMAP.md) | ✅ Shipped | 2026-04-25 |
+| [v2.1](milestones/v2.1-ROADMAP.md) | In Progress | 2026-04-25 |
 
 ## Next Milestone
 
-v2.0: Categories + Dashboard — 37 requirements across 2 phases
+v2.1: Multiple Themes — 25 requirements across 4 phases
 
 ---
 
-<!-- START: v2.0.milestone -->
-# Milestone v2.0: Categories + Dashboard
+<!-- START: v2.1.milestone -->
+# Milestone v2.1: Multiple Themes
 
-**Started:** 2026-04-14
-**Goal:** Add comprehensive default categories with sub-categories and build the complete dashboard with time filters, stat cards, charts, budget widget, and recurring reminders.
+**Started:** 2026-04-25
+**Goal:** Add 5 selectable themes with light/dark variants, theme selection UI in settings, and consistent income/expense colors throughout the app.
 
 ## Phases
 
-- [ ] **Phase 12: Category Foundation** - Category schema, default categories with subcategories, archive functionality
-- [ ] **Phase 13: Dashboard Core** - Time filters, stat cards, charts, recent transactions, budget widget, recurring reminders
+- [ ] **Phase 14: Theme Infrastructure** - Material 3 theming, DataStore persistence, dark mode support
+- [ ] **Phase 15: Complete Theme System** - All 5 themes with light and dark mode variants
+- [ ] **Phase 16: Settings UI** - Theme selector dropdown, dark mode toggle, immediate updates
+- [ ] **Phase 17: Income/Expense Coloring** - Consistent color usage throughout app
 
 ## Phase Details
 
-### Phase 12: Category Foundation
-**Goal**: Users can access hierarchical categories with proper archive and CRUD management
+### Phase 14: Theme Infrastructure
+**Goal**: Users experience consistent theming with Material 3, their preferences persist across sessions
 
-**Depends on**: Phase 11 (v1.0 completion)
+**Depends on**: Phase 13 (v2.0 completion)
 
-**Requirements**: CAT-01, CAT-02, CAT-03, CAT-04, CAT-05, CAT-06, CAT-07, CAT-08, SUB-01, SUB-02, SUB-03, SUB-04, SUB-05, SUB-06, SUB-07, SUB-08, SUB-09, SUB-10, SUB-11, ARCH-01, ARCH-02, ARCH-03, ARCH-04
+**Requirements**: THEM-01, THEM-02, THEM-03, THEM-04, THEM-05
 
 **Success Criteria** (what must be TRUE):
-  1. App displays 11 pre-configured expense categories in category picker
-  2. App displays 5 pre-configured income categories in category picker
-  3. App displays 2 savings & investment categories with expandable subcategories
-  4. User can archive any default category and it disappears from picker
-  5. User can unarchive archived categories and they reappear in picker
-  6. User can create custom category with name, emoji, and type selection
-  7. User can edit custom category name and emoji
-  8. User can delete custom category and transactions remain intact
-  9. User can add subcategories to any parent category
-  10. Subcategories inherit parent category type correctly
+  1. App uses Jetpack Compose Material 3 dynamic color theming system
+  2. Theme colors defined in Theme.kt with ColorScheme extension
+  3. User preference (theme selection + dark mode) persisted to DataStore
+  4. Dark mode toggle applies to currently selected theme
+  5. App applies theme colors on startup before first frame
 
 **Plans**: TBD
 
 **UI hint**: yes
 
-### Phase 13: Dashboard Core
-**Goal**: Users see comprehensive financial overview with time filters, metrics, and actionable widgets
+### Phase 15: Complete Theme System
+**Goal**: Users can select from 5 complete themes with both light and dark variants
 
-**Depends on**: Phase 12
+**Depends on**: Phase 14
 
-**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07, DASH-08, DASH-09, DASH-10, DASH-11, DASH-12, DASH-13, DASH-14, DASH-15, DASH-16, DASH-17, DASH-18, DASH-19, DASH-20, DASH-21, DASH-22, DASH-23
+**Requirements**: THEM-06, THEM-07, THEM-08, THEM-09, THEM-10, THEM-11, THEM-12, THEM-13, THEM-14, THEM-15
 
 **Success Criteria** (what must be TRUE):
-  1. User can select time filter and all metrics update accordingly (Day, Week, Month, Year, All, Custom)
-  2. Selecting Custom reveals From/To date pickers
-  3. Net Worth card shows sum of all account balances (ignores filter)
-  4. Income card shows total income for selected period
-  5. Expenses card shows total expenses for selected period
-  6. Net card shows income minus expenses (color indicates positive/negative)
-  7. Spending by category doughnut chart displays expense breakdown
-  8. Tapping chart segment opens drill-down with all category transactions
-  9. Recent transactions shows last 8 transactions with full details
-  10. Budget widget shows progress bars for configured budgets (current month)
-  11. Recurring reminder banner displays upcoming transactions with due dates
+  1. Soft Neutral (Default) theme available in light mode
+  2. Soft Neutral theme available in dark mode
+  3. Warm Finance theme available in light mode
+  4. Warm Finance theme available in dark mode
+  5. Cool Blue Finance theme available in light mode
+  6. Cool Blue Finance theme available in dark mode
+  7. Minimal Green Ledger theme available in light mode
+  8. Minimal Green Ledger theme available in dark mode
+  9. Modern Muted theme available in light mode
+  10. Modern Muted theme available in dark mode
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+### Phase 16: Theme Settings UI
+**Goal**: Users can easily select their preferred theme and dark mode in settings
+
+**Depends on**: Phase 15
+
+**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05
+
+**Success Criteria** (what must be TRUE):
+  1. Settings screen shows theme selection dropdown with 5 theme options
+  2. Settings screen shows dark mode toggle below theme selection
+  3. Theme selection displays current theme name highlighted
+  4. Changing theme immediately updates the UI
+  5. Default theme is Soft Neutral for new users
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+### Phase 17: Income/Expense Coloring
+**Goal**: Users see consistent color coding for income and expense throughout the app
+
+**Depends on**: Phase 16
+
+**Requirements**: COL-01, COL-02, COL-03, COL-04
+
+**Success Criteria** (what must be TRUE):
+  1. All income amounts display in theme's income color throughout the app
+  2. All expense amounts display in theme's expense color throughout the app
+  3. All income labels/icons use theme's income color
+  4. All expense labels/icons use theme's expense color
 
 **Plans**: TBD
 
@@ -77,13 +109,15 @@ v2.0: Categories + Dashboard — 37 requirements across 2 phases
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Category Foundation | 0/1 | Not started | - |
-| 13. Dashboard Core | 0/1 | Not started | - |
+| 14. Theme Infrastructure | 0/1 | Not started | - |
+| 15. Complete Theme System | 0/1 | Not started | - |
+| 16. Theme Settings UI | 0/1 | Not started | - |
+| 17. Income/Expense Coloring | 0/1 | Not started | - |
 
 ---
 
-## Milestone v2.0 Progress
+## Milestone v2.1 Progress
 
-**Requirements:** 37 total | **Phases:** 2 | **Mapped:** 37/37 ✓
+**Requirements:** 25 total | **Phases:** 4 | **Mapped:** 25/25 ✓
 
-<!-- END: v2.0.milestone -->
+<!-- END: v2.1.milestone -->
