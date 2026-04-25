@@ -23,7 +23,9 @@ data class TemplateEntity(
     val name: String,
     val type: String, // income, expense, savings
     val amount: Double = 0.0,
+    val accountId: Long? = null,
     val categoryId: Long? = null,
+    val subCategoryId: Long? = null,
     val note: String = "",
     val createdAt: Long = System.currentTimeMillis()
 )

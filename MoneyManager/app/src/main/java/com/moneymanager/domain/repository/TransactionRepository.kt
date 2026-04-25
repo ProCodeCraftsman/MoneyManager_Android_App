@@ -10,6 +10,7 @@ interface TransactionRepository {
     fun searchTransactions(query: String): Flow<List<TransactionEntity>>
     fun getTransactionsByDateRange(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
     fun getRecentTransactions(limit: Int): Flow<List<TransactionEntity>>
+    fun getTransactionsByGoal(goalId: Long): Flow<List<TransactionEntity>>
     fun getTotalByType(type: String): Flow<Double>
     // Filter methods
     fun getTransactionsByTag(tagId: Long): Flow<List<TransactionEntity>>
@@ -17,10 +18,13 @@ interface TransactionRepository {
         accountId: Long?,
         type: String?,
         categoryId: Long?,
+        goalId: Long?,
         tagId: Long?,
         startDate: Long?,
         endDate: Long?
     ): Flow<List<TransactionEntity>>
+    fun getSplitChildren(parentId: Long): Flow<List<TransactionEntity>>
+    suspend fun deleteSplitChildren(parentId: Long)
     suspend fun getTransactionById(id: Long): TransactionEntity?
     suspend fun insertTransaction(transaction: TransactionEntity): Long
     suspend fun updateTransaction(transaction: TransactionEntity)

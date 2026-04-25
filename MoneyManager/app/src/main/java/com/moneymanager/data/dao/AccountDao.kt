@@ -15,10 +15,13 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE id = :id")
     fun getAccountByIdFlow(id: Long): Flow<AccountEntity?>
 
-    @Query("SELECT SUM(balance) FROM accounts WHERE type IN ('bank', 'cash', 'savings', 'investment')")
+    @Query("SELECT SUM(balance) FROM accounts")
+    fun getTotalBalance(): Flow<Double?>
+
+    @Query("SELECT SUM(balance) FROM accounts WHERE balance > 0")
     fun getTotalAssets(): Flow<Double?>
 
-    @Query("SELECT ABS(SUM(balance)) FROM accounts WHERE type = 'credit'")
+    @Query("SELECT ABS(SUM(balance)) FROM accounts WHERE balance < 0")
     fun getTotalDebt(): Flow<Double?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

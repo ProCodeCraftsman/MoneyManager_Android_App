@@ -34,7 +34,7 @@
     <string name="edit">Edit</string>
     <string name="search">Search…</string>
     <string name="amount">Amount</string>
-    <string name="note">Note</string>
+    <string name="note">Description</string>
     <string name="date">Date</string>
     <string name="category">Category</string>
     <string name="account">Account</string>
@@ -53,4 +53,21 @@
     <string name="expense_label">Expense</string>
     <string name="income_label">Income</string>
     <string name="transfer_label">Transfer</string>
+    <string name="lend">Lend</string>
+    <string name="borrow">Borrow</string>
+    <string name="lending">Lending</string>
+    <string name="overall_lent">Overall Lent</string>
+    <string name="overall_borrowed">Overall Borrowed</string>
+    <string name="total_outstanding_lending">Total Outstanding Lending</string>
+    <string name="you_are_owed">You are owed this amount in total</string>
+    <string name="you_owe">You owe this amount in total</string>
+    <string name="all_settled">All settled up!</string>
+    <string name="by_partner">By Partner</string>
+    <string name="no_lending_data">No lending data</string>
+    <string name="lend_borrow_hint">Lend or borrow money to see summary</string>
+    <string name="given">Given</string>
+    <string name="received">Received</string>
+    <string name="they_owe_you">They owe you %s</string>
+    <string name="you_owe_them">You owe them %s</string>
+    <string name="select_peer">Select Partner</string>
 </resources>

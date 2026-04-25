@@ -9,6 +9,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import com.moneymanager.app.R
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.components.CategoryBarChart
@@ -18,6 +20,9 @@ import com.moneymanager.app.ui.components.TrendPoint
 import com.moneymanager.app.ui.util.CurrencyUtils
 import java.text.NumberFormat
 import java.util.*
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,13 +31,48 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
     val currencyFormat = remember(uiState.currencyCode) { 
         CurrencyUtils.getCurrencyFormat(uiState.currencyCode) 
     }
-    var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Overview", "Trends", "Categories", "Budgets")
+    var selectedTab by remember { mutableStateOf(1) }
+    val tabs = listOf("Overview", "Trends", "Categories", "Budgets", "Lending")
+    var expanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Reports", fontWeight = FontWeight.Bold) }
+            CenterAlignedTopAppBar(
+                title = {
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .clickable { expanded = true }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = tabs[selectedTab],
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select Report"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            tabs.forEachIndexed { index, title ->
+                                DropdownMenuItem(
+                                    text = { Text(title) },
+                                    onClick = {
+                                        selectedTab = index
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             )
         }
     ) { padding ->
@@ -41,13 +81,22 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) }
-                    )
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                TimeRange.entries.forEachIndexed { index, range ->
+                    SegmentedButton(
+                        selected = uiState.selectedTimeRange == range,
+                        onClick = { viewModel.setTimeRange(range) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = TimeRange.entries.size
+                        )
+                    ) {
+                        Text(range.label)
+                    }
                 }
             }
 
@@ -61,9 +110,10 @@ fun ReportsScreen(viewModel: ReportsViewModel) {
             } else {
                 when (selectedTab) {
                     0 -> OverviewTab(uiState, currencyFormat)
-                    1 -> TrendsTab(uiState, currencyFormat, viewModel)
+                    1 -> TrendsTab(uiState, currencyFormat)
                     2 -> CategoriesTab(uiState, currencyFormat)
                     3 -> BudgetsTab(uiState, currencyFormat)
+                    4 -> LendingTab(uiState, currencyFormat)
                 }
             }
         }
@@ -81,13 +131,6 @@ private fun OverviewTab(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Text(
-                text = "Summary",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
 
         item {
             Row(
@@ -174,8 +217,7 @@ private fun OverviewTab(
 @Composable
 private fun TrendsTab(
     uiState: ReportsUiState,
-    currencyFormat: NumberFormat,
-    viewModel: ReportsViewModel
+    currencyFormat: NumberFormat
 ) {
     LazyColumn(
         modifier = Modifier
@@ -183,30 +225,6 @@ private fun TrendsTab(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Text(
-                text = "Trends",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        item {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                TimeRange.entries.forEachIndexed { index, range ->
-                    SegmentedButton(
-                        selected = uiState.selectedTimeRange == range,
-                        onClick = { viewModel.setTimeRange(range) },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = TimeRange.entries.size
-                        )
-                    ) {
-                        Text(range.label)
-                    }
-                }
-            }
-        }
 
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -273,13 +291,6 @@ private fun CategoriesTab(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Text(
-                text = "Category Breakdown",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
 
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -371,13 +382,6 @@ private fun BudgetsTab(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            Text(
-                text = "Budget vs Actual",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
 
         if (uiState.budgetProgress.isEmpty()) {
             item {
@@ -541,6 +545,187 @@ private fun ComparisonRow(
                     else
                         MaterialTheme.colorScheme.error
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LendingTab(
+    uiState: ReportsUiState,
+    currencyFormat: NumberFormat
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatCard(
+                    title = stringResource(R.string.overall_lent),
+                    value = currencyFormat.format(uiState.totalLent),
+                    change = 0f,
+                    changeLabel = "",
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    title = stringResource(R.string.overall_borrowed),
+                    value = currencyFormat.format(uiState.totalBorrowed),
+                    change = 0f,
+                    changeLabel = "",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.total_outstanding_lending),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = currencyFormat.format(uiState.totalOutstandingLending),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (uiState.totalOutstandingLending >= 0)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (uiState.totalOutstandingLending > 0) 
+                            stringResource(R.string.you_are_owed) 
+                        else if (uiState.totalOutstandingLending < 0) 
+                            stringResource(R.string.you_owe)
+                        else 
+                            stringResource(R.string.all_settled),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = stringResource(R.string.by_partner),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (uiState.lendingSummary.isEmpty()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = stringResource(R.string.no_lending_data),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = stringResource(R.string.lend_borrow_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        items(uiState.lendingSummary) { lending ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = lending.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = currencyFormat.format(lending.outstanding),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                lending.outstanding > 0 -> MaterialTheme.colorScheme.primary
+                                lending.outstanding < 0 -> MaterialTheme.colorScheme.error
+                                else -> MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.given),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = currencyFormat.format(lending.totalGiven),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = stringResource(R.string.received),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = currencyFormat.format(lending.totalReceived),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    if (lending.outstanding > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.they_owe_you, currencyFormat.format(lending.outstanding)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else if (lending.outstanding < 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.you_owe_them, currencyFormat.format(-lending.outstanding)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
         }
     }

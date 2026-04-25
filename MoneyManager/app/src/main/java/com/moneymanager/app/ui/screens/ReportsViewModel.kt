@@ -8,6 +8,7 @@ import com.moneymanager.app.ui.components.TrendPoint
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.BudgetRepository
+import com.moneymanager.domain.repository.PeerContactRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -30,6 +31,14 @@ data class BudgetProgress(
     val color: Color
 )
 
+data class LendingSummary(
+    val peerId: Long,
+    val name: String,
+    val totalGiven: Double,
+    val totalReceived: Double,
+    val outstanding: Double
+)
+
 data class ReportsUiState(
     val selectedTimeRange: TimeRange = TimeRange.MONTH,
     val totalIncome: Double = 0.0,
@@ -42,7 +51,11 @@ data class ReportsUiState(
     val trendData: List<TrendPoint> = emptyList(),
     val categoryBreakdown: List<PieChartEntry> = emptyList(),
     val budgetProgress: List<BudgetProgress> = emptyList(),
-    val currencyCode: String = "USD",
+    val lendingSummary: List<LendingSummary> = emptyList(),
+    val totalLent: Double = 0.0,
+    val totalBorrowed: Double = 0.0,
+    val totalOutstandingLending: Double = 0.0,
+    val currencyCode: String = "INR",
     val isLoading: Boolean = true,
 )
 
@@ -51,6 +64,7 @@ class ReportsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val accountRepository: AccountRepository,
     private val budgetRepository: BudgetRepository,
+    private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
@@ -70,8 +84,9 @@ class ReportsViewModel @Inject constructor(
         _selectedTimeRange,
         transactionRepository.getAllTransactions(),
         budgetRepository.getAllBudgets(),
+        peerContactRepository.getAllPeers(),
         preferencesManager.currency,
-    ) { timeRange, allTransactions, budgets, currencyCode ->
+    ) { timeRange, allTransactions, budgets, peers, currencyCode ->
         val (startDate, endDate) = getDateRange(timeRange)
         val (prevStart, prevEnd) = getPreviousPeriod(timeRange)
         
@@ -95,9 +110,24 @@ class ReportsViewModel @Inject constructor(
             ((totalExpense - previousExpense) / previousExpense * 100).toFloat()
         } else 0f
         
-        val trendData = generateTrendData(reportingTransactions, timeRange)
+        val trendData = generateTrendData(allTransactions.filter { !it.isSplitParent }, timeRange)
         val categoryBreakdown = generateCategoryBreakdown(reportingTransactions)
         val budgetProgress = generateBudgetProgress(reportingTransactions, budgets)
+
+        val totalLent = peers.sumOf { it.totalGiven }
+        val totalBorrowed = peers.sumOf { it.totalReceived }
+        
+        val lendingSummary = peers.filter { it.totalGiven > 0 || it.totalReceived > 0 }.map { peer ->
+            LendingSummary(
+                peerId = peer.id,
+                name = peer.displayName,
+                totalGiven = peer.totalGiven,
+                totalReceived = peer.totalReceived,
+                outstanding = peer.outstandingBalance
+            )
+        }.sortedByDescending { it.outstanding }
+        
+        val totalOutstandingLending = lendingSummary.sumOf { it.outstanding }
         
         ReportsUiState(
             selectedTimeRange = timeRange,
@@ -111,6 +141,10 @@ class ReportsViewModel @Inject constructor(
             trendData = trendData,
             categoryBreakdown = categoryBreakdown,
             budgetProgress = budgetProgress,
+            lendingSummary = lendingSummary,
+            totalLent = totalLent,
+            totalBorrowed = totalBorrowed,
+            totalOutstandingLending = totalOutstandingLending,
             currencyCode = currencyCode,
             isLoading = false,
         )
@@ -161,37 +195,42 @@ class ReportsViewModel @Inject constructor(
     ): List<TrendPoint> {
         val points = mutableListOf<TrendPoint>()
         val calendar = Calendar.getInstance()
-        val groupByDays = when (timeRange) {
-            TimeRange.WEEK -> 1
-            TimeRange.MONTH -> 7
-            TimeRange.QUARTER -> 14
-            TimeRange.YEAR -> 30
+        
+        // Determine number of points and duration of each point based on time range
+        val (numPoints, daysPerPoint) = when (timeRange) {
+            TimeRange.WEEK -> 7 to 1      // 7 days, 1 point per day
+            TimeRange.MONTH -> 8 to 7     // 8 weeks (~2 months) to see the trend
+            TimeRange.QUARTER -> 6 to 15  // 3 months, point every 15 days
+            TimeRange.YEAR -> 12 to 30    // 1 year, 1 point per month
         }
         
-        var currentDate = calendar.timeInMillis
-        while (points.size < 8) {
-            val dayStart = getDayStart(currentDate)
-            val dayEnd = getDayEnd(currentDate)
+        var currentEndTime = calendar.timeInMillis
+        
+        repeat(numPoints) {
+            val periodEnd = getDayEnd(currentEndTime)
+            calendar.timeInMillis = currentEndTime
+            calendar.add(Calendar.DAY_OF_YEAR, -daysPerPoint + 1)
+            val periodStart = getDayStart(calendar.timeInMillis)
             
-            val dayTransactions = transactions.filter { it.date in dayStart..dayEnd }
-            val income = dayTransactions.filter { it.type == "income" }.sumOf { it.amount }
-            val expense = dayTransactions.filter { it.type == "expense" }.sumOf { it.amount }
+            val periodTransactions = transactions.filter { it.date in periodStart..periodEnd }
+            val income = periodTransactions.filter { it.type == "income" }.sumOf { it.amount }
+            val expense = periodTransactions.filter { it.type == "expense" }.sumOf { it.amount }
             
             val label = when (timeRange) {
-                TimeRange.WEEK -> java.text.SimpleDateFormat("EEE", Locale.getDefault()).format(Date(dayStart))
-                TimeRange.MONTH -> java.text.SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(dayStart))
-                TimeRange.QUARTER -> java.text.SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(dayStart))
-                TimeRange.YEAR -> java.text.SimpleDateFormat("MMM", Locale.getDefault()).format(Date(dayStart))
+                TimeRange.WEEK -> java.text.SimpleDateFormat("EEE", Locale.getDefault()).format(Date(periodStart))
+                TimeRange.MONTH, TimeRange.QUARTER -> java.text.SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(periodStart))
+                TimeRange.YEAR -> java.text.SimpleDateFormat("MMM", Locale.getDefault()).format(Date(periodStart))
             }
             
             points.add(0, TrendPoint(label, income, expense, income - expense))
             
-            calendar.timeInMillis = currentDate
-            calendar.add(Calendar.DAY_OF_YEAR, -groupByDays)
-            currentDate = calendar.timeInMillis
+            // Move to the day before this period started
+            calendar.timeInMillis = periodStart
+            calendar.add(Calendar.DAY_OF_YEAR, -1)
+            currentEndTime = calendar.timeInMillis
         }
         
-        return points.reversed()
+        return points
     }
 
     private fun getDayStart(timestamp: Long): Long {

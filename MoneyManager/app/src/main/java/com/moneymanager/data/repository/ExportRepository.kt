@@ -33,6 +33,7 @@ data class ImportResult(
     val budgetsImported: Int = 0,
     val goalsImported: Int = 0,
     val tagsImported: Int = 0,
+    val totalProcessed: Int = 0,
 )
 
 @Singleton
@@ -45,6 +46,7 @@ class ExportRepository @Inject constructor(
     private val budgetDao: BudgetDao,
     private val goalDao: GoalDao,
     private val tagDao: TagDao,
+    private val peerContactDao: com.moneymanager.data.dao.PeerContactDao,
 ) {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
@@ -85,6 +87,7 @@ class ExportRepository @Inject constructor(
                 ExportType.GOALS -> exportGoalsCsv()
                 ExportType.ALL -> exportAllCsv()
                 ExportType.TAGS -> exportTagsCsv()
+                ExportType.PEERS -> exportPeersCsv()
             }
             
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -161,19 +164,23 @@ class ExportRepository @Inject constructor(
             when (type) {
                 ExportType.TRANSACTIONS -> {
                     val count = importTransactionsFromCsv(csv)
-                    ImportResult(success = true, message = "$count transactions imported", transactionsImported = count)
+                    val total = csv.lines().size - 1
+                    ImportResult(success = true, message = "$count transactions imported (total: $total)", transactionsImported = count, totalProcessed = total)
                 }
                 ExportType.ACCOUNTS -> {
                     val count = importAccountsFromCsv(csv)
-                    ImportResult(success = true, message = "$count accounts imported", accountsImported = count)
+                    val total = csv.lines().size - 1
+                    ImportResult(success = true, message = "$count accounts imported (total: $total)", accountsImported = count, totalProcessed = total)
                 }
                 ExportType.CATEGORIES -> {
                     val count = importCategoriesFromCsv(csv)
-                    ImportResult(success = true, message = "$count categories imported", categoriesImported = count)
+                    val total = csv.lines().size - 1
+                    ImportResult(success = true, message = "$count categories imported (total: $total)", categoriesImported = count, totalProcessed = total)
                 }
                 ExportType.TAGS -> {
                     val count = importTagsFromCsv(csv)
-                    ImportResult(success = true, message = "$count tags imported", tagsImported = count)
+                    val total = csv.lines().size - 1
+                    ImportResult(success = true, message = "$count tags imported (total: $total)", tagsImported = count, totalProcessed = total)
                 }
                 else -> ImportResult(success = false, message = "CSV import not supported for ${type.name}")
             }
@@ -283,10 +290,17 @@ class ExportRepository @Inject constructor(
 
     private suspend fun exportTransactionsCsv(): String {
         val transactions = transactionDao.getAllTransactions().first()
+        val accounts = accountDao.getAllAccounts().first().associateBy { it.id }
+        val categories = categoryDao.getAllCategories().first().associateBy { it.id }
+        
         val sb = StringBuilder()
-        sb.appendLine("date,amount,type,category_id,note,account_id,is_recurring")
+        sb.appendLine("id,account_id,category_id,date,amount,type,note,is_recurring,is_split_parent,is_split_child,parent_transaction_id")
+        
         transactions.forEach { tx ->
-            sb.appendLine("${dateFormat.format(Date(tx.date))},${tx.amount},${tx.type},${tx.categoryId ?: ""},\"${tx.note.replace("\"", "\"\"")}\",${tx.accountId},${tx.isRecurring}")
+            val accountName = accounts[tx.accountId]?.name ?: ""
+            val categoryName = categories[tx.categoryId]?.name ?: ""
+            
+            sb.appendLine("${tx.id},${tx.accountId},${tx.categoryId ?: ""},${dateFormat.format(Date(tx.date))},${tx.amount},${tx.type},\"${tx.note.replace("\"", "\"\"")}\",${tx.isRecurring},${tx.isSplitParent},${tx.isSplitChild},${tx.parentTransactionId ?: ""}")
         }
         return sb.toString()
     }
@@ -331,6 +345,16 @@ class ExportRepository @Inject constructor(
         return sb.toString()
     }
 
+    private suspend fun exportPeersCsv(): String {
+        val peers = peerContactDao.getAllPeers().first()
+        return buildString {
+            appendLine("displayName,phoneNumber,totalGiven,totalReceived,outstandingBalance")
+            peers.forEach { peer ->
+                appendLine("${peer.displayName},${peer.phoneNumber},${peer.totalGiven},${peer.totalReceived},${peer.outstandingBalance}")
+            }
+        }
+    }
+
     private suspend fun exportAllCsv(): String {
         return buildString {
             appendLine("# ACCOUNTS")
@@ -340,7 +364,8 @@ class ExportRepository @Inject constructor(
             appendLine(exportCategoriesCsv())
             appendLine()
             appendLine("# TRANSACTIONS")
-            appendLine(exportTransactionsCsv())
+            appendLine(generateCsvHeader())
+            appendLine(generateCsvData())
             appendLine()
             appendLine("# BUDGETS")
             appendLine(exportBudgetsCsv())
@@ -352,15 +377,34 @@ class ExportRepository @Inject constructor(
             appendLine(exportTagsCsv())
         }
     }
+    
+    private fun generateCsvHeader(): String = "id,account_id,category_id,date,amount,type,note,is_recurring,is_split_parent,is_split_child,parent_transaction_id"
+    
+    private suspend fun generateCsvData(): String {
+        val transactions = transactionDao.getAllTransactions().first()
+        val accounts = accountDao.getAllAccounts().first().associateBy { it.id }
+        val categories = categoryDao.getAllCategories().first().associateBy { it.id }
+        
+        return buildString {
+            transactions.forEach { tx ->
+                appendLine("${tx.id},${tx.accountId},${tx.categoryId ?: ""},${dateFormat.format(Date(tx.date))},${tx.amount},${tx.type},\"${tx.note.replace("\"", "\"\"")}\",${tx.isRecurring},${tx.isSplitParent},${tx.isSplitChild},${tx.parentTransactionId ?: ""}")
+            }
+        }
+    }
 
-    private suspend fun exportTagsCsv(): String {
+private suspend fun exportTagsCsv(): String {
         val tags = tagDao.getAllTags().first()
         val sb = StringBuilder()
-        sb.appendLine("name,color")
+        sb.appendLine("id,name,color")
         tags.forEach { tag ->
-            sb.appendLine("${tag.name},${tag.color}")
+            sb.appendLine("${tag.id},${tag.name},${tag.color}")
         }
         return sb.toString()
+    }
+
+    fun getStorageUsedKb(): Long {
+        val dbFile = context.getDatabasePath("MoneyManager.db")
+        return if (dbFile.exists()) dbFile.length() / 1024 else 0
     }
 
     private suspend fun importAccounts(array: JSONArray): Int {
@@ -372,7 +416,7 @@ class ExportRepository @Inject constructor(
                 name = obj.getString("name"),
                 type = obj.getString("type"),
                 balance = obj.getDouble("balance"),
-                currency = obj.optString("currency", "USD"),
+                currency = obj.optString("currency", "INR"),
                 color = obj.optString("color", "#2a6049"),
             )
             accountDao.insertAccount(account)
@@ -473,21 +517,83 @@ class ExportRepository @Inject constructor(
     private suspend fun importTransactionsFromCsv(csv: String): Int {
         var count = 0
         val lines = csv.lines().drop(1)
+
+        // Build name→id lookup maps so the CSV can use names instead of numeric IDs
+        val accountsByName = accountDao.getAllAccounts().first().associateBy { it.name }
+        val categoriesByName = categoryDao.getAllCategories().first().associateBy { it.name }
+
         for (line in lines) {
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
-            if (parts.size >= 5) {
-                val transaction = TransactionEntity(
-                    accountId = parts.getOrNull(5)?.toLongOrNull() ?: 0,
-                    type = parts[2],
-                    amount = parts[1].toDoubleOrNull() ?: continue,
-                    categoryId = parts.getOrNull(3)?.toLongOrNull(),
-                    note = parts.getOrNull(4)?.removeSurrounding("\"") ?: "",
-                    isRecurring = parts.getOrNull(6)?.toBooleanStrictOrNull() ?: false,
-                )
-                transactionDao.insertTransaction(transaction)
-                count++
+            if (parts.size < 8) continue
+
+            val id = parts[0].toLongOrNull() ?: 0
+
+            // Accept either a numeric ID or an account name
+            val accountId = parts[1].toLongOrNull()
+                ?: accountsByName[parts[1]]?.id
+                ?: continue
+
+            // Accept either a numeric ID, a category name, or blank (null category)
+            val categoryId = parts[2].toLongOrNull()
+                ?: categoriesByName[parts[2]]?.id
+
+            val dateStr = parts[3]
+            val amount = parts[4].toDoubleOrNull() ?: 0.0
+            val type = parts[5]
+            val note = parts[6].removeSurrounding("\"")
+            val isRecurring = parts[7].toBooleanStrictOrNull() ?: false
+            val isSplitParent = parts.getOrNull(8)?.toBooleanStrictOrNull() ?: false
+            val isSplitChild = parts.getOrNull(9)?.toBooleanStrictOrNull() ?: false
+            val parentTransactionId = parts.getOrNull(10)?.toLongOrNull()
+
+            // Accept either a numeric ID or an account name for transfer destination
+            val toAccountIdRaw = parts.getOrNull(11)?.trim()
+            val toAccountId = toAccountIdRaw?.toLongOrNull()
+                ?: accountsByName[toAccountIdRaw]?.id
+
+            val date = try {
+                dateFormat.parse(dateStr.trim())?.time ?: System.currentTimeMillis()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
             }
+
+            val isTransfer = type == "transfer"
+
+            val existing = if (id != 0L) transactionDao.getTransactionById(id) else null
+            if (existing != null) {
+                transactionDao.updateTransaction(existing.copy(
+                    accountId = accountId,
+                    type = type,
+                    amount = amount,
+                    categoryId = categoryId,
+                    note = note,
+                    date = date,
+                    isRecurring = isRecurring,
+                    isSplitParent = isSplitParent,
+                    isSplitChild = isSplitChild,
+                    parentTransactionId = parentTransactionId,
+                    isTransfer = isTransfer,
+                    toAccountId = toAccountId,
+                ))
+            } else {
+                transactionDao.insertTransaction(TransactionEntity(
+                    id = id,
+                    accountId = accountId,
+                    type = type,
+                    amount = amount,
+                    categoryId = categoryId,
+                    note = note,
+                    date = date,
+                    isRecurring = isRecurring,
+                    isSplitParent = isSplitParent,
+                    isSplitChild = isSplitChild,
+                    parentTransactionId = parentTransactionId,
+                    isTransfer = isTransfer,
+                    toAccountId = toAccountId,
+                ))
+            }
+            count++
         }
         return count
     }
@@ -495,17 +601,21 @@ class ExportRepository @Inject constructor(
     private suspend fun importAccountsFromCsv(csv: String): Int {
         var count = 0
         val lines = csv.lines().drop(1)
+        val existingNames = accountDao.getAllAccounts().first().map { it.name }.toHashSet()
         for (line in lines) {
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
             if (parts.size >= 3) {
+                val name = parts[0]
+                if (existingNames.contains(name)) continue  // skip duplicates
                 val account = AccountEntity(
-                    name = parts[0],
+                    name = name,
                     type = parts[1],
                     balance = parts[2].toDoubleOrNull() ?: 0.0,
-                    currency = parts.getOrNull(3) ?: "USD",
+                    currency = parts.getOrNull(3) ?: "INR",
                 )
                 accountDao.insertAccount(account)
+                existingNames.add(name)
                 count++
             }
         }
@@ -519,9 +629,12 @@ class ExportRepository @Inject constructor(
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
             if (parts.isNotEmpty()) {
+                val name = parts[0]
+                val type = parts.getOrNull(1) ?: "expense"
+                if (categoryDao.getCategoryByName(name, type) != null) continue  // skip duplicates
                 val category = CategoryEntity(
-                    name = parts[0],
-                    type = parts.getOrNull(1) ?: "expense",
+                    name = name,
+                    type = type,
                 )
                 categoryDao.insertCategory(category)
                 count++
@@ -569,5 +682,5 @@ class ExportRepository @Inject constructor(
 }
 
 enum class ExportType {
-    TRANSACTIONS, ACCOUNTS, CATEGORIES, BUDGETS, GOALS, ALL, TAGS
+    TRANSACTIONS, ACCOUNTS, CATEGORIES, BUDGETS, GOALS, ALL, TAGS, PEERS
 }

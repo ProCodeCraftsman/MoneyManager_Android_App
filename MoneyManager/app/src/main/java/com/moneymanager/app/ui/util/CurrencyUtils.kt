@@ -5,15 +5,20 @@ import java.util.*
 
 object CurrencyUtils {
     fun getCurrencyFormat(currencyCode: String): NumberFormat {
-        val locale = when (currencyCode) {
-            "INR" -> Locale("en", "IN")
-            "GBP" -> Locale.UK
-            "EUR" -> Locale.GERMANY
-            "JPY" -> Locale.JAPAN
-            "CAD" -> Locale.CANADA
-            "AUD" -> Locale("en", "AU")
-            else -> Locale.US
+        val format = NumberFormat.getCurrencyInstance(Locale.getDefault())
+        try {
+            format.currency = Currency.getInstance(currencyCode)
+        } catch (e: Exception) {
+            // Fallback to default if currency code is invalid
         }
-        return NumberFormat.getCurrencyInstance(locale)
+        return format
+    }
+
+    fun getCurrencySymbol(currencyCode: String): String {
+        return try {
+            Currency.getInstance(currencyCode).getSymbol(Locale.getDefault())
+        } catch (e: Exception) {
+            currencyCode
+        }
     }
 }

@@ -573,6 +573,8 @@ fun CategoryDialog(
 ) {
     var name by remember { mutableStateOf(category?.name ?: "") }
     var emoji by remember { mutableStateOf(category?.emoji ?: "📁") }
+    var customEmoji by remember { mutableStateOf("") }
+    var showCustomEmojiInput by remember { mutableStateOf(false) }
     var type by remember { mutableStateOf(category?.type ?: "expense") }
     var parentId by remember { mutableStateOf(category?.parentId) }
     var showParentDropdown by remember { mutableStateOf(false) }
@@ -609,27 +611,73 @@ fun CategoryDialog(
                     text = "Icon",
                     style = MaterialTheme.typography.labelLarge
                 )
-                LazyRow(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(emojiOptions) { e ->
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .then(
-                                    if (emoji == e) {
-                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
-                                    } else {
-                                        Modifier
-                                    }
-                                )
-                                .clickable { emoji = e },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = e, style = MaterialTheme.typography.titleMedium)
+                    LazyRow(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(emojiOptions) { e ->
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .then(
+                                        if (emoji == e && !showCustomEmojiInput) {
+                                            Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .clickable {
+                                        emoji = e
+                                        showCustomEmojiInput = false
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = e, style = MaterialTheme.typography.titleMedium)
+                            }
                         }
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .then(
+                                if (showCustomEmojiInput || (!emojiOptions.contains(emoji) && emoji.isNotBlank())) {
+                                    Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                                } else {
+                                    Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                                }
+                            )
+                            .clickable { showCustomEmojiInput = !showCustomEmojiInput },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (showCustomEmojiInput) Icons.Default.Close else Icons.Default.Add,
+                            contentDescription = "Custom Emoji"
+                        )
+                    }
+                }
+
+                if (showCustomEmojiInput) {
+                    OutlinedTextField(
+                        value = customEmoji,
+                        onValueChange = {
+                            if (it.length <= 2) { // Allow for compound emojis
+                                customEmoji = it
+                                if (it.isNotBlank()) {
+                                    emoji = it
+                                }
+                            }
+                        },
+                        label = { Text("Enter Emoji") },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Paste an emoji here") }
+                    )
                 }
 
                 // Type selector

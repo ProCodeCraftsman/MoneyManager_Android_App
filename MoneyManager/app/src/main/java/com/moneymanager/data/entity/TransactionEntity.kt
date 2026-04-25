@@ -19,20 +19,29 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["categoryId"],
             onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = TransactionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["parentTransactionId"],
+            onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("accountId"), Index("categoryId"), Index("date"), Index("note"), Index("tagIds")]
+    indices = [Index("accountId"), Index("categoryId"), Index("subCategoryId"), Index("date"), Index("note"), Index("tagIds"), Index("parentTransactionId")]
 )
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val accountId: Long,
-    val type: String, // income, expense, savings, transfer
+    val type: String, // income, expense, savings, transfer, lend, receive, borrow, repay
     val amount: Double, // always positive; sign derived from type
     val categoryId: Long? = null,
+    val subCategoryId: Long? = null,
     val goalId: Long? = null,
+    val peerContactId: Long? = null, // link to peer if type = lend/receive, borrow/repay
     val tagIds: String = "", // comma-separated tag IDs
     val date: Long = System.currentTimeMillis(),
+    val description: String = "",
     val note: String = "",
     val receiptPath: String? = null, // base64 data URL
     val isRecurring: Boolean = false,
@@ -44,5 +53,10 @@ data class TransactionEntity(
     val isTransfer: Boolean = false,
     val toAccountId: Long? = null,
     val investmentPlatform: String? = null,
+    val expectedReturnDate: Long? = null,
     val createdAt: Long = System.currentTimeMillis()
-)
+) {
+    companion object {
+        val VALID_TYPES = listOf("income", "expense", "savings", "transfer", "lend", "receive", "borrow", "repay")
+    }
+}

@@ -1,8 +1,15 @@
 package com.moneymanager.app.ui.screens
 
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -10,13 +17,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.data.entity.AccountEntity
 import java.text.NumberFormat
 import java.util.*
+
+private val COMMON_ACCOUNT_EMOJIS = listOf(
+    "🏦", "💰", "💳", "💵", "💸", "🏦", "🏦", "🏦", 
+    "📈", "📉", "📊", "💎", "🏠", "🚗", "🚲", "📱",
+    "💼", "👛", "🛍️", "🎁", "🍕", "🍺", "☕", "🎮"
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +44,7 @@ fun AccountsScreen(
         CurrencyUtils.getCurrencyFormat(uiState.currencyCode) 
     }
     val showAddDialog = remember { mutableStateOf(value = false) }
+    var editingAccount by remember { mutableStateOf<AccountEntity?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -88,8 +104,25 @@ fun AccountsScreen(
                 }
             }
 
+            if (uiState.accountComparisonData.isNotEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        com.moneymanager.app.ui.components.AccountComparisonChart(
+                            data = uiState.accountComparisonData,
+                            currencyCode = uiState.currencyCode
+                        )
+                    }
+                }
+            }
+
             items(uiState.accounts) { account ->
-                AccountCard(account = account, currencyFormat = currencyFormat)
+                AccountCard(
+                    account = account, 
+                    currencyFormat = currencyFormat,
+                    onClick = { editingAccount = account }
+                )
             }
 
             item {
@@ -99,31 +132,54 @@ fun AccountsScreen(
     }
 
     if (showAddDialog.value) {
-        AddAccountDialog(
-            onDismiss = { showAddDialog.value = false }
-        ) { name, type, balance ->
-            viewModel.addAccount(name, type, balance)
-            showAddDialog.value = false
-        }
+        AddEditAccountDialog(
+            onDismiss = { showAddDialog.value = false },
+            onConfirm = { name, type, emoji, balance ->
+                viewModel.addAccount(name, type, emoji, balance)
+                showAddDialog.value = false
+            }
+        )
+    }
+
+    editingAccount?.let { account ->
+        AddEditAccountDialog(
+            account = account,
+            onDismiss = { editingAccount = null },
+            onConfirm = { name, type, emoji, balance ->
+                viewModel.updateAccount(account.copy(name = name, type = type, emoji = emoji, balance = balance))
+                editingAccount = null
+            }
+        )
     }
 }
 
 @Composable
 fun AccountCard(
     account: AccountEntity,
-    currencyFormat: NumberFormat
+    currencyFormat: NumberFormat,
+    onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = account.emoji, style = MaterialTheme.typography.titleLarge)
+            }
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = account.name,
                     style = MaterialTheme.typography.titleMedium,
@@ -145,28 +201,89 @@ fun AccountCard(
     }
 }
 
+@Composable
+fun EmojiPicker(
+    onEmojiSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Icon") },
+        text = {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 48.dp),
+                modifier = Modifier.height(250.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(COMMON_ACCOUNT_EMOJIS) { emoji ->
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onEmojiSelected(emoji) }
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = emoji, style = MaterialTheme.typography.headlineSmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddAccountDialog(
+fun AddEditAccountDialog(
+    account: AccountEntity? = null,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, type: String, balance: Double) -> Unit
+    onConfirm: (name: String, type: String, emoji: String, balance: Double) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var type by remember { mutableStateOf("bank") }
-    var balance by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(account?.name ?: "") }
+    var type by remember { mutableStateOf(account?.type ?: "bank") }
+    var emoji by remember { mutableStateOf(account?.emoji ?: "🏦") }
+    var balance by remember { mutableStateOf(account?.balance?.toString() ?: "") }
+    var showEmojiPicker by remember { mutableStateOf(false) }
     val types = listOf("bank", "cash", "credit", "savings", "investment")
+
+    if (showEmojiPicker) {
+        EmojiPicker(
+            onEmojiSelected = { 
+                emoji = it
+                showEmojiPicker = false
+            },
+            onDismiss = { showEmojiPicker = false }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Account") },
+        title = { Text(if (account == null) "Add Account" else "Edit Account") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Account Name") },
-                    singleLine = true
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { showEmojiPicker = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = emoji, style = MaterialTheme.typography.headlineMedium)
+                    }
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Account Name") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
                 var expanded by remember { mutableStateOf(value = false) }
                 ExposedDropdownMenuBox(
                     expanded = expanded,
@@ -178,7 +295,7 @@ fun AddAccountDialog(
                         readOnly = true,
                         label = { Text("Type") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
@@ -198,8 +315,9 @@ fun AddAccountDialog(
                 OutlinedTextField(
                     value = balance,
                     onValueChange = { balance = it },
-                    label = { Text("Initial Balance") },
-                    singleLine = true
+                    label = { Text("Balance") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
                 )
             }
         },
@@ -207,11 +325,11 @@ fun AddAccountDialog(
             TextButton(
                 onClick = {
                     val bal = balance.toDoubleOrNull() ?: 0.0
-                    onConfirm(name, type, bal)
+                    onConfirm(name, type, emoji, bal)
                 },
                 enabled = name.isNotBlank()
             ) {
-                Text("Add")
+                Text(if (account == null) "Add" else "Update")
             }
         },
         dismissButton = {

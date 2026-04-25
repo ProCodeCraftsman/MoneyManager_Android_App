@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.data.entity.TemplateEntity
 import java.text.NumberFormat
 import java.util.*
@@ -26,7 +27,9 @@ fun TemplatesScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val currencyFormat = remember(uiState.currencyCode) { 
+        CurrencyUtils.getCurrencyFormat(uiState.currencyCode)
+    }
     val showAddDialog = remember { mutableStateOf(false) }
 
     Scaffold(
@@ -187,7 +190,7 @@ fun AddTemplateDialog(onDismiss: () -> Unit, onConfirm: (String, String, Double,
                         readOnly = true,
                         label = { Text("Type") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
-                        modifier = Modifier.menuAnchor()
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable)
                     )
                     ExposedDropdownMenu(
                         expanded = typeExpanded,

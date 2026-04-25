@@ -2,6 +2,7 @@ package com.moneymanager.app.ui.util
 
 import android.content.Context
 import android.net.Uri
+import com.moneymanager.data.entity.TransactionEntity
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -37,5 +38,9 @@ object FileHelper {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    fun deleteReceiptsForTransaction(transaction: TransactionEntity) {
+        deleteReceipt(transaction.receiptPath)
     }
 }

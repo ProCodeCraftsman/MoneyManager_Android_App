@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.data.entity.RecurringEntity
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -30,7 +31,9 @@ fun RecurringListScreen(
     onNavigateBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.US) }
+    val currencyFormat = remember(uiState.currencyCode) { 
+        CurrencyUtils.getCurrencyFormat(uiState.currencyCode)
+    }
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     val coroutineScope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf<RecurringEntity?>(null) }

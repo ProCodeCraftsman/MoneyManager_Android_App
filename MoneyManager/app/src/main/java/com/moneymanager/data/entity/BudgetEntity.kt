@@ -23,5 +23,6 @@ data class BudgetEntity(
     val categoryId: Long,
     val amount: Double,
     val month: String, // "2024-01" format
+    val isSavingsTarget: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )

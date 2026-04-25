@@ -1,8 +1,13 @@
 package com.moneymanager.app.ui.screens
 
+import android.app.Application
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -10,8 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.domain.repository.AccountRepository
@@ -19,6 +26,8 @@ import com.moneymanager.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 import javax.inject.Inject
 
 data class TransferUiState(
@@ -31,9 +40,10 @@ data class TransferUiState(
 
 @HiltViewModel
 class TransferViewModel @Inject constructor(
+    application: Application,
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
-) : androidx.lifecycle.ViewModel() {
+) : AndroidViewModel(application) {
 
     val uiState: StateFlow<TransferUiState> = accountRepository.getAllAccounts()
         .map { accounts ->
@@ -50,6 +60,7 @@ class TransferViewModel @Inject constructor(
         toAccountId: Long,
         amount: Double,
         note: String,
+        date: Long = System.currentTimeMillis(),
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
@@ -67,9 +78,9 @@ class TransferViewModel @Inject constructor(
                     return@launch
                 }
 
-                val timestamp = System.currentTimeMillis()
-                val fromNote = "Transfer to ${toAccount.name}"
-                val toNote = "Transfer from ${fromAccount.name}"
+                val timestamp = date
+                val fromNote = if (note.isBlank()) "Transfer to ${toAccount.name}" else "Transfer to ${toAccount.name}: $note"
+                val toNote = if (note.isBlank()) "Transfer from ${fromAccount.name}" else "Transfer from ${fromAccount.name}: $note"
 
                 // Create two transactions
                 val fromTransaction = TransactionEntity(
@@ -77,14 +88,16 @@ class TransferViewModel @Inject constructor(
                     type = "transfer",
                     amount = -amount,
                     note = fromNote,
-                    date = timestamp
+                    date = timestamp,
+                    isTransfer = true
                 )
                 val toTransaction = TransactionEntity(
                     accountId = toAccountId,
                     type = "transfer",
                     amount = amount,
                     note = toNote,
-                    date = timestamp
+                    date = timestamp,
+                    isTransfer = true
                 )
 
                 // Insert transactions
@@ -115,9 +128,15 @@ fun TransferScreen(
     var toAccountId by remember { mutableStateOf<Long?>(null) }
     var amount by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
     var showFromDropdown by remember { mutableStateOf(false) }
     var showToDropdown by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
+
+    val dateDisplayFmt = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+    val timeFmt = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
 
     val transferAmount = amount.toDoubleOrNull() ?: 0.0
     val fromAccount = uiState.accounts.find { it.id == fromAccountId }
@@ -125,13 +144,53 @@ fun TransferScreen(
             fromAccountId != toAccountId && transferAmount > 0 &&
             (fromAccount?.balance ?: 0.0) >= transferAmount
 
+    if (showDatePicker) {
+        val dpState = rememberDatePickerState(initialSelectedDateMillis = selectedDate)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dpState.selectedDateMillis?.let { millis ->
+                        val cal = Calendar.getInstance().apply { timeInMillis = millis }
+                        val timeCal = Calendar.getInstance().apply { timeInMillis = selectedDate }
+                        cal.set(Calendar.HOUR_OF_DAY, timeCal.get(Calendar.HOUR_OF_DAY))
+                        cal.set(Calendar.MINUTE, timeCal.get(Calendar.MINUTE))
+                        selectedDate = cal.timeInMillis
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = dpState) }
+    }
+
+    if (showTimePicker) {
+        val cal = Calendar.getInstance().apply { timeInMillis = selectedDate }
+        val tpState = rememberTimePickerState(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Select Time") },
+            text = { TimePicker(state = tpState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val c = Calendar.getInstance().apply { timeInMillis = selectedDate }
+                    c.set(Calendar.HOUR_OF_DAY, tpState.hour)
+                    c.set(Calendar.MINUTE, tpState.minute)
+                    selectedDate = c.timeInMillis
+                    showTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Transfer", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowForward, contentDescription = "Back") // RTL will flip
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -160,7 +219,7 @@ fun TransferScreen(
                     readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showFromDropdown) },
                     modifier = Modifier
-                        .menuAnchor()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                         .fillMaxWidth()
                 )
                 ExposedDropdownMenu(
@@ -173,7 +232,7 @@ fun TransferScreen(
                                 Column {
                                     Text(account.name)
                                     Text(
-                                        "Balance: $${String.format("%.2f", account.balance)}",
+                                        "Balance: ${CurrencyUtils.getCurrencySymbol(account.currency)}${String.format("%.2f", account.balance)}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -208,7 +267,7 @@ fun TransferScreen(
                     readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showToDropdown) },
                     modifier = Modifier
-                        .menuAnchor()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                         .fillMaxWidth()
                 )
                 ExposedDropdownMenu(
@@ -232,16 +291,40 @@ fun TransferScreen(
                 value = amount,
                 onValueChange = { if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) amount = it },
                 label = { Text("Amount") },
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Note (optional)
+            // Date & Time
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = dateDisplayFmt.format(Date(selectedDate)),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Date") },
+                    trailingIcon = { Icon(Icons.Default.DateRange, null) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showDatePicker = true }
+                )
+                OutlinedTextField(
+                    value = timeFmt.format(Date(selectedDate)),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Time") },
+                    trailingIcon = { Icon(Icons.Default.Schedule, null) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showTimePicker = true }
+                )
+            }
+
+                // Description (optional)
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text("Note (Optional)") },
+                label = { Text("Description (Optional)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -268,7 +351,8 @@ fun TransferScreen(
                         fromAccountId = fromAccountId!!,
                         toAccountId = toAccountId!!,
                         amount = transferAmount,
-                        note = note
+                        note = note,
+                        date = selectedDate
                     ) {
                         showSuccessDialog = true
                     }
@@ -304,7 +388,7 @@ fun TransferScreen(
                 onNavigateBack()
             },
             title = { Text("Transfer Successful") },
-            text = { Text("Successfully transferred $${String.format("%.2f", transferAmount)}") },
+            text = { Text("Successfully transferred ${CurrencyUtils.getCurrencySymbol(fromAccount?.currency ?: "INR")}${String.format("%.2f", transferAmount)}") },
             confirmButton = {
                 TextButton(onClick = {
                     showSuccessDialog = false

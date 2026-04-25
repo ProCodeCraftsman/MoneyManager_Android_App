@@ -28,7 +28,7 @@ data class BorrowLendUiState(
     val expectedReturnDate: Long? = null,
     val isSaving: Boolean = false,
     val error: String? = null,
-    val currencyCode: String = "USD"
+    val currencyCode: String = "INR"
 )
 
 @HiltViewModel
@@ -99,8 +99,8 @@ class BorrowLendViewModel @Inject constructor(
             _uiState.update { it.copy(error = "Please select an account") }
             return
         }
-        if (state.peerName.isBlank() && state.selectedPeerId == null) {
-            _uiState.update { it.copy(error = "Please enter or select a person") }
+        if (state.selectedPeerId == null) {
+            _uiState.update { it.copy(error = "Please select a person") }
             return
         }
         if (state.amount <= 0) {
@@ -111,13 +111,11 @@ class BorrowLendViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
             try {
-                val peerId = state.selectedPeerId ?: getOrCreatePeerId(state.peerName)
-                
                 val transaction = TransactionEntity(
                     accountId = state.selectedAccountId,
                     type = if (type == TransactionType.LEND) "lend" else "receive",
                     amount = state.amount,
-                    peerContactId = peerId,
+                    peerContactId = state.selectedPeerId,
                     date = state.date,
                     note = state.note,
                     expectedReturnDate = state.expectedReturnDate,
@@ -133,13 +131,6 @@ class BorrowLendViewModel @Inject constructor(
                 _uiState.update { it.copy(error = e.message ?: "Failed to save transaction", isSaving = false) }
             }
         }
-    }
-
-    private suspend fun getOrCreatePeerId(name: String): Long {
-        val existing = peerContactRepository.getPeerByName(name.trim())
-        return existing?.id ?: peerContactRepository.insertPeer(
-            PeerContact(displayName = name.trim())
-        )
     }
 
     private suspend fun adjustBalance(transaction: TransactionEntity) {

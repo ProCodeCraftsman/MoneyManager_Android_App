@@ -32,7 +32,6 @@ fun AccountComparisonChart(
     if (data.isEmpty()) return
 
     val maxVal = data.flatMap { listOf(it.inflow, it.outflow) }.maxOrNull()?.coerceAtLeast(1.0) ?: 1.0
-    val currencyFormat = CurrencyUtils.getCurrencyFormat(currencyCode)
 
     Column(
         modifier = modifier

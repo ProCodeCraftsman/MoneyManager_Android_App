@@ -1,8 +1,14 @@
 package com.moneymanager.app.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
@@ -16,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moneymanager.data.repository.ExportType
 import com.moneymanager.data.sync.SyncStatus
 import java.text.SimpleDateFormat
 import java.util.*
@@ -27,19 +34,85 @@ fun SettingsScreen(
     onNavigateToAccounts: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onNavigateToTags: () -> Unit,
+    onNavigateToPeers: () -> Unit,
     onNavigateToBudgets: () -> Unit,
     onNavigateToGoals: () -> Unit,
     onNavigateToRecurring: () -> Unit,
     onNavigateToTemplates: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val showPinSetupDialog by viewModel.showPinSetupDialog.collectAsStateWithLifecycle()
     var showCurrencyDialog by remember { mutableStateOf(false) }
     var showAutoLockDialog by remember { mutableStateOf(false) }
     var showSignInDialog by remember { mutableStateOf(false) }
+    var showCsvTypeDialog by remember { mutableStateOf(false) }
+    var pendingCsvAction by remember { mutableStateOf<String?>(null) }
+    var selectedCsvType by remember { mutableStateOf<ExportType?>(null) }
+    var enteredPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var isConfirmingPin by remember { mutableStateOf(false) }
+    var pinError by remember { mutableStateOf<String?>(null) }
 
-    val currencies = listOf("USD", "EUR", "GBP", "JPY", "INR", "CAD", "AUD", "CHF", "CNY", "BRL")
+    val currencies = listOf("INR", "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "BRL")
     val autoLockOptions = listOf("Never" to 0, "1 minute" to 1, "5 minutes" to 5, "15 minutes" to 15, "30 minutes" to 30)
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()) }
+
+    val csvTypes = listOf(
+        "Accounts" to ExportType.ACCOUNTS,
+        "Transactions" to ExportType.TRANSACTIONS,
+        "Categories" to ExportType.CATEGORIES,
+        "Budgets" to ExportType.BUDGETS,
+        "Goals" to ExportType.GOALS,
+        "Tags" to ExportType.TAGS,
+        "All Data" to ExportType.ALL
+    )
+
+    val jsonPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let { viewModel.importFromJson(it) }
+    }
+
+    val csvPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let { selectedCsvType?.let { type -> viewModel.importFromCsv(type, it) } }
+    }
+
+    val createCsvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri: Uri? ->
+        uri?.let { selectedCsvType?.let { type -> viewModel.exportToCsv(type, it) } }
+    }
+
+    val createJsonLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+        uri?.let { viewModel.exportToJson(it) }
+    }
+
+    LaunchedEffect(uiState.importResult, uiState.exportResult) {
+        if (uiState.importResult != null || uiState.exportResult != null) {
+            // Show result dialog
+        }
+    }
+
+    fun onCsvExportClick() {
+        showCsvTypeDialog = true
+        pendingCsvAction = "export"
+    }
+
+    fun onCsvImportClick() {
+        showCsvTypeDialog = true
+        pendingCsvAction = "import"
+    }
+
+    fun onCsvTypeSelected(type: ExportType) {
+        selectedCsvType = type
+        showCsvTypeDialog = false
+        if (pendingCsvAction == "export") {
+            createCsvLauncher.launch("money_manager_${type.name.lowercase()}.csv")
+        } else {
+            csvPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "application/csv", "text/plain"))
+        }
+        pendingCsvAction = null
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { viewModel.clearResults() }
+    }
 
     Scaffold(
         topBar = {
@@ -108,6 +181,14 @@ fun SettingsScreen(
                     title = "Tags",
                     subtitle = "Manage labels for transactions",
                     onClick = onNavigateToTags
+                )
+            }
+
+            item {
+                SettingsClickableCard(
+                    title = "Peers",
+                    subtitle = "Manage lending/borrowing partners",
+                    onClick = onNavigateToPeers
                 )
             }
 
@@ -243,7 +324,7 @@ fun SettingsScreen(
                     title = "Export JSON Backup",
                     subtitle = "Save your data to a file",
                     trailing = {
-                        IconButton(onClick = { /* TODO: Export */ }) {
+                        IconButton(onClick = { createJsonLauncher.launch("money_manager_backup.json") }) {
                             Icon(Icons.Default.ChevronRight, contentDescription = null)
                         }
                     }
@@ -255,7 +336,7 @@ fun SettingsScreen(
                     title = "Import JSON Backup",
                     subtitle = "Restore from a backup file",
                     trailing = {
-                        IconButton(onClick = { /* TODO: Import */ }) {
+                        IconButton(onClick = { jsonPicker.launch(arrayOf("application/json", "text/plain")) }) {
                             Icon(Icons.Default.ChevronRight, contentDescription = null)
                         }
                     }
@@ -265,9 +346,21 @@ fun SettingsScreen(
             item {
                 SettingsCard(
                     title = "Export CSV",
-                    subtitle = "For spreadsheet analysis",
+                    subtitle = "Export to CSV by type",
                     trailing = {
-                        IconButton(onClick = { /* TODO: Export CSV */ }) {
+                        IconButton(onClick = { onCsvExportClick() }) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = null)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SettingsCard(
+                    title = "Import CSV",
+                    subtitle = "Import from CSV by type",
+                    trailing = {
+                        IconButton(onClick = { onCsvImportClick() }) {
                             Icon(Icons.Default.ChevronRight, contentDescription = null)
                         }
                     }
@@ -352,6 +445,85 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    if (showCsvTypeDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showCsvTypeDialog = false
+                pendingCsvAction = null
+            },
+            title = { Text(if (pendingCsvAction == "export") "Select Export Type" else "Select Import Type") },
+            text = {
+                Column {
+                    csvTypes.forEach { (label, type) ->
+                        TextButton(
+                            onClick = { onCsvTypeSelected(type) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(label, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = {
+                    showCsvTypeDialog = false
+                    pendingCsvAction = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showPinSetupDialog) {
+        if (isConfirmingPin) {
+            PinSetupDialog(
+                enteredPin = confirmPin,
+                onEnteredPinChange = { confirmPin = it },
+                isConfirming = true,
+                error = pinError,
+                onConfirm = {
+                    if (confirmPin == enteredPin) {
+                        viewModel.onPinSetupComplete(confirmPin)
+                        enteredPin = ""
+                        confirmPin = ""
+                        isConfirmingPin = false
+                    } else {
+                        pinError = "PINs don't match. Try again."
+                        confirmPin = ""
+                    }
+                },
+                onDismiss = {
+                    viewModel.dismissPinSetupDialog()
+                    enteredPin = ""
+                    confirmPin = ""
+                    isConfirmingPin = false
+                    pinError = null
+                }
+            )
+        } else {
+            PinSetupDialog(
+                enteredPin = enteredPin,
+                onEnteredPinChange = { enteredPin = it },
+                isConfirming = false,
+                error = pinError,
+                onConfirm = {
+                    if (enteredPin.length == 4) {
+                        isConfirmingPin = true
+                        pinError = null
+                    }
+                },
+                onDismiss = {
+                    viewModel.dismissPinSetupDialog()
+                    enteredPin = ""
+                    isConfirmingPin = false
+                    pinError = null
+                }
+            )
+        }
     }
 }
 
@@ -529,4 +701,82 @@ fun SettingsClickableCard(
             Icon(Icons.Default.ChevronRight, contentDescription = null)
         }
     }
+}
+
+@Composable
+private fun PinSetupDialog(
+    enteredPin: String,
+    onEnteredPinChange: (String) -> Unit,
+    isConfirming: Boolean,
+    error: String?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (isConfirming) "Confirm PIN" else "Create PIN")
+        },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = if (isConfirming) "Re-enter your PIN to confirm"
+                           else "Create a 4-digit PIN to secure your app",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = enteredPin,
+                    onValueChange = { if (it.length <= 4) onEnteredPinChange(it) },
+                    placeholder = { Text("----") },
+                    singleLine = true,
+                    isError = error != null
+                )
+                error?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = enteredPin.length == 4
+            ) {
+                Text(if (isConfirming) "Confirm" else "Next")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun BiometricSetupDialog(
+    onDismiss: () -> Unit,
+    onSetupPin: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("PIN Required") },
+        text = {
+            Text("Biometric unlock requires a PIN to be set up first. Would you like to set up PIN now?")
+        },
+        confirmButton = {
+            TextButton(onClick = onSetupPin) {
+                Text("Set Up PIN")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
