@@ -27,7 +27,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 - [x] **Phase 16: Theme Settings UI** - Theme selector dropdown, dark mode toggle, immediate updates ✅
 - [x] **Phase 17: Income/Expense Coloring** - Consistent color usage throughout app ✅
 - [x] **Phase 18: Split Transaction Expandable View** - Expandable split transactions with child items visible on demand ✅
-- [ ] **Phase 19: Transactions UI Fixes** - Visual corrections to TransactionsScreen (header, sticky date headers, search bar, filters)
+- [x] **Phase 19: Transactions UI Fixes** - Visual corrections to TransactionsScreen (header, sticky date headers, search bar, filters) ✅
 
 ## Phase Details
 
@@ -145,7 +145,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
   5. Active filter indicator has lightweight styling (30% opacity)
 
 **Plans**:
-- [ ] 19-01-PLAN.md — UI corrections to TransactionsScreen
+- [x] 19-01-PLAN.md — UI corrections to TransactionsScreen
 
 **UI hint**: yes
 
@@ -158,7 +158,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 | 16. Theme Settings UI | 1/1 | ✅ Complete | 2026-04-25 |
 | 17. Income/Expense Coloring | 1/1 | ✅ Complete | 2026-04-25 |
 | 18. Split Transaction Expandable | 1/1 | In Progress | — |
-| 19. Transactions UI Fixes | 0/1 | ○ Pending | — |
+| 19. Transactions UI Fixes | 1/1 | ✅ Complete | 2026-04-25 |
 
 ---
 
