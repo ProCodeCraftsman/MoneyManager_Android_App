@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.moneymanager.app.ui.theme.AppTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -21,6 +22,8 @@ class PreferencesManager(private val context: Context) {
         private val AUTO_LOCK_MINUTES = intPreferencesKey("auto_lock_minutes")
         private val LAST_SYNC = longPreferencesKey("last_sync")
         private val IS_FIRST_LAUNCH = booleanPreferencesKey("is_first_launch")
+        private val SELECTED_THEME = stringPreferencesKey("selected_theme")
+        private val HAS_USER_SET_THEME = booleanPreferencesKey("has_user_set_theme")
     }
 
     val darkMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -57,6 +60,14 @@ class PreferencesManager(private val context: Context) {
 
     val lastSyncTime: Flow<Long?> = context.dataStore.data.map { preferences ->
         preferences[LAST_SYNC]
+    }
+
+    val selectedTheme: Flow<AppTheme> = context.dataStore.data.map { preferences ->
+        AppTheme.fromString(preferences[SELECTED_THEME] ?: AppTheme.SOFT_NEUTRAL.name)
+    }
+
+    val hasUserSetTheme: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[HAS_USER_SET_THEME] ?: false
     }
 
     suspend fun setDarkMode(enabled: Boolean) {
@@ -118,6 +129,18 @@ class PreferencesManager(private val context: Context) {
     suspend fun setFirstLaunchComplete() {
         context.dataStore.edit { preferences ->
             preferences[IS_FIRST_LAUNCH] = false
+        }
+    }
+
+    suspend fun setSelectedTheme(theme: AppTheme) {
+        context.dataStore.edit { preferences ->
+            preferences[SELECTED_THEME] = theme.name
+        }
+    }
+
+    suspend fun setUserHasSetTheme() {
+        context.dataStore.edit { preferences ->
+            preferences[HAS_USER_SET_THEME] = true
         }
     }
 

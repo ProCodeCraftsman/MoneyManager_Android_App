@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.work.ExistingWorkPolicy
@@ -16,6 +15,7 @@ import androidx.work.WorkManager
 import com.moneymanager.data.worker.RecurringGenerationWorker
 import com.moneymanager.app.ui.MoneyManagerNavHost
 import com.moneymanager.app.ui.theme.MoneyManagerTheme
+import com.moneymanager.app.ui.theme.rememberThemePreferences
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.app.ui.util.AppLockManager
 import com.moneymanager.data.security.BiometricAuthManager
@@ -51,8 +51,11 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            val darkMode by preferencesManager.darkMode.collectAsState(initial = false)
-            MoneyManagerTheme(darkTheme = darkMode) {
+            val themeState = rememberThemePreferences()
+            MoneyManagerTheme(
+                appTheme = themeState.theme,
+                isDarkMode = themeState.isDarkMode
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
