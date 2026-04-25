@@ -186,7 +186,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 **Plans**: 3 plans
 
 **Plans**:
-- [ ] 21-01-PLAN.md — Restructure topBar (compact header only) and add summary panel + time nav as LazyColumn items
+- [x] 21-01-PLAN.md — Restructure topBar (compact header only) and add summary panel + time nav as LazyColumn items
 - [ ] 21-02-PLAN.md — Hidden search behavior (icon in header, AnimatedVisibility bar) and remove inline filter pill
 - [ ] 21-03-PLAN.md — Single-surface discipline (remove alpha hacks) and WindowInsets.navigationBars contentPadding
 
@@ -203,7 +203,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 | 18. Split Transaction Expandable | 1/1 | In Progress | — |
 | 19. Transactions UI Fixes | 1/1 | Complete    | 2026-04-25 |
 | 20. Transactions UI Enhancement | 1/1 | Complete    | 2026-04-25 |
-| 21. Transactions UI Polish | 0/3 | Planned | — |
+| 21. Transactions UI Polish | 1/3 | In Progress | — |
 
 ---
 

@@ -3,22 +3,22 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Progress
 status: completed
-last_updated: "2026-04-25T09:21:49.772Z"
+last_updated: "2026-04-25T12:58:21.100Z"
 last_activity: 2026-04-25
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 5
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 7
 ---
 
 # Project State
 
 ## Current Milestone: v2.1 Multiple Themes
 
-Phase: 20
-Plan: Not started
-Status: Done
+Phase: 21
+Plan: 01
+Status: Completed
 
 Last activity: 2026-04-25
 
@@ -52,6 +52,11 @@ v2.0 (Categories + Dashboard) completed. Phase 13 was last phase.
 - Header height animation via `animateDpAsState` (56dp expanded → 48dp collapsed at firstVisibleItemScrollOffset > 50)
 - Bottom contentPadding reduced from 70dp to 56dp to eliminate nav gap
 
+## Decisions (Phase 21)
+
+- D-01: topBar contains only compact header row at end of Plan 01, summary + time nav become LazyColumn items
+- D-02: Summary Surface uses MaterialTheme.colorScheme.surface with shadowElevation=1.dp, no rounded corners or alpha hacks
+
 ## Stopped At
 
-Completed 20-01-PLAN.md (phase 20, plan 01 of 01)
+Completed 21-01-PLAN.md (phase 21, plan 01 of 03)
