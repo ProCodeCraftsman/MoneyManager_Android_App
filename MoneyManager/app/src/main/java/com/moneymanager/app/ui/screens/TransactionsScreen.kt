@@ -449,6 +449,56 @@ fun TransactionsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 56.dp)
             ) {
+                // Item 0 — Summary panel (always shown, scrolls with list)
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 1.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            SummaryItem("Spent", totalExpense, MaterialTheme.colorScheme.error, currencyFormat)
+                            SummaryItem("Income", totalIncome, MaterialTheme.colorScheme.secondary, currencyFormat)
+                            SummaryItem("Items", transactionCount.toDouble(), MaterialTheme.colorScheme.primary, null)
+                        }
+                    }
+                }
+
+                // Item 1 — Time navigation (conditional, scrolls with list)
+                if (timeFilter != "All" && timeFilter != "Custom") {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { navigatePrevious() }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.ChevronLeft, contentDescription = "Previous", modifier = Modifier.size(20.dp))
+                            }
+                            Text(
+                                text = when (timeFilter) {
+                                    "Day" -> SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(currentPeriodStart ?: System.currentTimeMillis()))
+                                    "Week" -> "Week ${Calendar.getInstance().apply { timeInMillis = currentPeriodStart ?: System.currentTimeMillis() }.get(Calendar.WEEK_OF_YEAR)}"
+                                    "Month" -> SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(Date(currentPeriodStart ?: System.currentTimeMillis()))
+                                    "Year" -> Calendar.getInstance().apply { timeInMillis = currentPeriodStart ?: System.currentTimeMillis() }.get(Calendar.YEAR).toString()
+                                    else -> ""
+                                },
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            IconButton(onClick = { navigateNext() }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.ChevronRight, contentDescription = "Next", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
+
                 if (uiState.transactions.isEmpty()) {
                     item {
                         Box(Modifier.fillParentMaxSize(), Alignment.Center) {
