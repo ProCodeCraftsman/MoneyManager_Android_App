@@ -28,6 +28,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 - [x] **Phase 17: Income/Expense Coloring** - Consistent color usage throughout app ✅
 - [x] **Phase 18: Split Transaction Expandable View** - Expandable split transactions with child items visible on demand ✅
 - [x] **Phase 19: Transactions UI Fixes** - Visual corrections to TransactionsScreen (header, sticky date headers, search bar, filters) ✅
+- [ ] **Phase 21: Transactions UI Polish** - Complete visual redesign of TransactionsScreen scroll behavior, search, surface discipline, and nav separation
 
 ## Phase Details
 
@@ -168,6 +169,24 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 
 **UI hint**: yes
 
+### Phase 21: Transactions UI Polish
+**Goal**: Complete the TransactionsScreen visual redesign — proper header-summary scroll choreography, single-surface theme discipline, hidden search, and clean bottom navigation separation
+
+**Depends on**: Phase 20
+
+**Requirements**: None (pure UI polish)
+
+**Success Criteria** (what must be TRUE):
+  1. Header and summary row scroll together with correct choreography
+  2. Search is hidden by default, revealed via button near filters
+  3. Single background surface with elevation-only separation throughout
+  4. Bottom navigation area has clean, gapless separation
+  5. All surfaces use MaterialTheme.colorScheme with no hardcoded colors
+
+**Plans**: TBD
+
+**UI hint**: yes
+
 ---
 
 | Phase | Plans Complete | Status | Completed |
@@ -179,6 +198,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 | 18. Split Transaction Expandable | 1/1 | In Progress | — |
 | 19. Transactions UI Fixes | 1/1 | Complete    | 2026-04-25 |
 | 20. Transactions UI Enhancement | 1/1 | Complete    | 2026-04-25 |
+| 21. Transactions UI Polish | 0/0 | Planned | — |
 
 ---
 
