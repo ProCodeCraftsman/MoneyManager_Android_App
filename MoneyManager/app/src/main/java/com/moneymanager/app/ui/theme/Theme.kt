@@ -81,10 +81,14 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun MoneyManagerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    appTheme: AppTheme = AppTheme.SOFT_NEUTRAL,
+    isDarkMode: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = when {
+        isDarkMode -> getDarkColorScheme(appTheme)
+        else -> getLightColorScheme(appTheme)
+    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -94,8 +98,8 @@ fun MoneyManagerTheme(
             window.statusBarColor = colorScheme.background.toArgb()
             @Suppress("DEPRECATION")
             window.navigationBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDarkMode
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !isDarkMode
         }
     }
 
@@ -104,3 +108,7 @@ fun MoneyManagerTheme(
         content = content
     )
 }
+
+private fun getLightColorScheme(theme: AppTheme): androidx.compose.material3.ColorScheme = LightColorScheme
+
+private fun getDarkColorScheme(theme: AppTheme): androidx.compose.material3.ColorScheme = DarkColorScheme

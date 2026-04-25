@@ -737,22 +737,40 @@ fun TransactionCardDense(
             // Middle Column: Category & Info
             Column(Modifier.weight(1f)) {
                 // Row 1: Title (Category) - Subtitle ([Icon] subcategory)
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+
                     Text(
-                        text = if (transaction.type == "transfer") stringResource(R.string.transfer) else (category?.name ?: transaction.type.replaceFirstChar { it.uppercase() }),
+                        text = if (transaction.type == "transfer")
+                            stringResource(R.string.transfer)
+                        else
+                            (category?.name ?: transaction.type.replaceFirstChar { it.uppercase() }),
+
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+
                     if (subcategory != null) {
+
                         Text(
-                            text = SEPARATOR_HYPHEN,
-                            style = MaterialTheme.typography.labelSmall,
+                            text = " - ",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
+                        // emoji icon from master list
                         Text(
-                            text = "${subcategory.emoji} ${subcategory.name}",
+                            text = subcategory.emoji,
+                            fontSize = 13.sp
+                        )
+
+                        // subcategory name
+                        Text(
+                            text = subcategory.name,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
