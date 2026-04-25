@@ -1,10 +1,18 @@
 package com.moneymanager.app.ui.screens
 
-import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
-import com.moneymanager.app.ui.util.parseColor
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.automirrored.filled.CallReceived
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.CallSplit
+import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.text.BasicTextField
 import com.moneymanager.app.ui.util.CurrencyUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,6 +28,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,13 +41,20 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.components.TransactionFilterSheet
 import com.moneymanager.app.ui.components.TransferDialog
+import com.moneymanager.app.ui.util.FileHelper
 import com.moneymanager.data.entity.*
+import androidx.compose.ui.res.stringResource
+import com.moneymanager.app.R
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -50,17 +67,66 @@ private val INVESTMENT_PLATFORMS = listOf(
     "HDFC Securities", "ICICI Direct", "Other"
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+// UI Constants for Transaction Tile
+private val TILE_PADDING_HORIZONTAL = 12.dp
+private val TILE_PADDING_INNER = 12.dp
+private val TILE_CORNER_RADIUS = 12.dp
+private val TILE_ELEVATION = 2.dp
+private val TILE_ICON_SIZE = 40.dp
+private val TILE_ICON_CORNER_RADIUS = 10.dp
+private val TILE_SPACING_VERTICAL = 8.dp
+
+private const val ICON_SPLIT = "🔀"
+private const val ICON_TRANSFER = "⇌"
+private const val ICON_SAVINGS = "📈"
+private const val ICON_DEFAULT = "💸"
+
+private val COLOR_INCOME = Color(0xFF4CAF50)
+private val COLOR_EXPENSE = Color(0xFFE57373)
+private val COLOR_SAVINGS = Color(0xFFF4A460)
+private val COLOR_TRANSFER = Color(0xFF5B6FB5)
+
+private const val SEPARATOR_HYPHEN = " - "
+private const val SEPARATOR_DOT = " • "
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TransactionsScreen(
     viewModel: TransactionsViewModel,
-    initialType: String? = null
+    initialType: String? = null,
+    initialAccountId: Long? = null,
+    initialStartDate: Long? = null,
+    initialEndDate: Long? = null,
+    initialGoalId: Long? = null,
+    initialCategoryId: Long? = null,
+    initialPeerId: Long? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Calculate totals for the current view
+    val totalIncome = remember(uiState.transactions) {
+        uiState.transactions.filter { it.type == "income" || it.type == "receive" }.sumOf { it.amount }
+    }
+    val totalExpense = remember(uiState.transactions) {
+        uiState.transactions.filter { it.type == "expense" || it.type == "lend" || it.type == "savings" }.sumOf { it.amount }
+    }
+    val transactionCount = uiState.transactions.size
+
+    // Apply initial filters if provided
+    LaunchedEffect(initialType, initialAccountId, initialStartDate, initialEndDate, initialGoalId, initialCategoryId, initialPeerId) {
+        if (initialType != null) viewModel.setTypeFilter(initialType)
+        if (initialAccountId != null) viewModel.setAccountFilter(initialAccountId)
+        if (initialGoalId != null) viewModel.setGoalFilter(initialGoalId)
+        if (initialCategoryId != null) viewModel.setCategoryFilter(initialCategoryId)
+        if (initialPeerId != null) viewModel.setPeerFilter(initialPeerId)
+        if (initialStartDate != null || initialEndDate != null) {
+            viewModel.setDateRangeFilter(initialStartDate, initialEndDate)
+        }
+    }
     val currencyFormat = remember(uiState.currency) {
         CurrencyUtils.getCurrencyFormat(uiState.currency)
     }
-    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()) }
+    var collapsedDates by rememberSaveable { mutableStateOf(setOf<Long>()) }
     var showAddDialog by remember { mutableStateOf(initialType != null) }
     var editingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var searchText by remember { mutableStateOf("") }
@@ -73,138 +139,307 @@ fun TransactionsScreen(
     }
 
     val activeFilterCount = listOfNotNull(
-        uiState.filterType.takeIf { it.isNotEmpty() },
+        uiState.filterType.takeIf { it.isNotEmpty() && it != "All" },
         uiState.filterAccountId,
         uiState.filterCategoryId,
         uiState.filterTagId,
+        uiState.filterGoalId,
         uiState.filterStartDate,
         uiState.filterEndDate
     ).size
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Transactions", fontWeight = FontWeight.Bold) },
-                actions = {
-                    // Transfer button
-                    IconButton(onClick = { showTransferDialog = true }) {
-                        Icon(Icons.Default.SwapHoriz, contentDescription = "Transfer")
-                    }
-                    // Filter button with badge
-                    BadgedBox(badge = {
-                        if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) }
-                    }) {
-                        IconButton(onClick = { showFilterSheet = true }) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filter")
+            Surface(
+                tonalElevation = 2.dp,
+                shadowElevation = 2.dp
+            ) {
+                Column {
+                    // Custom Compact Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "Transactions",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Light
+                            )
+                            val start = uiState.filterStartDate
+                            val end = uiState.filterEndDate
+                            val rangeText = if (start != null && end != null) {
+                                val s = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(start))
+                                val e = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(end))
+                                "$s - $e"
+                            } else {
+                                "All Time"
+                            }
+                            Text(
+                                text = rangeText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Transfer button
+                            IconButton(onClick = { showTransferDialog = true }) {
+                                Icon(Icons.Default.SwapHoriz, contentDescription = "Transfer", modifier = Modifier.size(20.dp))
+                            }
+                            // Filter button with badge
+                            BadgedBox(badge = {
+                                if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) }
+                            }) {
+                                IconButton(onClick = { showFilterSheet = true }) {
+                                    Icon(Icons.Default.FilterList, contentDescription = "Filter", modifier = Modifier.size(20.dp))
+                                }
+                            }
                         }
                     }
+
+                    // Summary Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        SummaryItem("Spent", totalExpense, MaterialTheme.colorScheme.error, currencyFormat)
+                        SummaryItem("Income", totalIncome, Color(0xFF4CAF50), currencyFormat)
+                        SummaryItem("Items", transactionCount.toDouble(), MaterialTheme.colorScheme.primary, null)
+                    }
+                    Spacer(Modifier.height(8.dp))
                 }
-            )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = CircleShape
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Transaction")
             }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // Search bar
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it; viewModel.setSearchQuery(it) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp),
-                placeholder = { Text("Search transactions…") },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                trailingIcon = {
+            // Streamlined Search Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .clickable { /* focus search */ }
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    BasicTextField(
+                        value = searchText,
+                        onValueChange = { searchText = it; viewModel.setSearchQuery(it) },
+                        modifier = Modifier.weight(1f),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            if (searchText.isEmpty()) {
+                                Text(
+                                    "Search by note, category or amount...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
                     if (searchText.isNotEmpty()) {
-                        IconButton(onClick = { searchText = ""; viewModel.setSearchQuery("") }) {
-                            Icon(Icons.Default.Clear, "Clear")
+                        IconButton(
+                            onClick = { searchText = ""; viewModel.setSearchQuery("") },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.Clear, "Clear", modifier = Modifier.size(16.dp))
                         }
                     }
-                },
-                singleLine = true
-            )
-
-            // Active filter chips
-            if (activeFilterCount > 0) {
-                LazyRow(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (uiState.filterType.isNotEmpty()) item {
-                        FilterChip(
-                            selected = true,
-                            onClick = { viewModel.setTypeFilter("") },
-                            label = { Text(uiState.filterType.replaceFirstChar { it.uppercase() }) },
-                            trailingIcon = { Icon(Icons.Default.Clear, null, Modifier.size(16.dp)) }
-                        )
-                    }
-                    uiState.filterAccountId?.let { id -> item {
-                        FilterChip(
-                            selected = true,
-                            onClick = { viewModel.setAccountFilter(null) },
-                            label = { Text(uiState.allAccounts.find { it.id == id }?.name ?: "Account") },
-                            trailingIcon = { Icon(Icons.Default.Clear, null, Modifier.size(16.dp)) }
-                        )
-                    }}
-                    uiState.filterCategoryId?.let { id -> item {
-                        FilterChip(
-                            selected = true,
-                            onClick = { viewModel.setCategoryFilter(null) },
-                            label = { Text(uiState.allCategories.find { it.id == id }?.name ?: "Category") },
-                            trailingIcon = { Icon(Icons.Default.Clear, null, Modifier.size(16.dp)) }
-                        )
-                    }}
-                    uiState.filterTagId?.let { id -> item {
-                        val tag = uiState.allTags.find { it.id == id }
-                        FilterChip(
-                            selected = true,
-                            onClick = { viewModel.setTagFilter(null) },
-                            label = { Text(tag?.name ?: "Tag") },
-                            trailingIcon = { Icon(Icons.Default.Clear, null, Modifier.size(16.dp)) }
-                        )
-                    }}
-                    if (uiState.filterStartDate != null || uiState.filterEndDate != null) item {
-                        FilterChip(
-                            selected = true,
-                            onClick = { viewModel.setDateRangeFilter(null, null) },
-                            label = { Text("Date Range") },
-                            trailingIcon = { Icon(Icons.Default.Clear, null, Modifier.size(16.dp)) }
-                        )
-                    }
-                    item { TextButton(onClick = { viewModel.clearAllFilters() }) { Text("Clear All") } }
                 }
             }
 
-            // Transaction list
+            // Compact Filter Chips
+            if (activeFilterCount > 0) {
+                LazyRow(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (uiState.filterType.isNotEmpty() && uiState.filterType != "All") item {
+                        CompactFilterChip(
+                            label = uiState.filterType.replaceFirstChar { it.uppercase() },
+                            onClear = { viewModel.setTypeFilter("") }
+                        )
+                    }
+                    uiState.filterAccountId?.let { id -> item {
+                        CompactFilterChip(
+                            label = uiState.allAccounts.find { it.id == id }?.name ?: "Account",
+                            onClear = { viewModel.setAccountFilter(null) }
+                        )
+                    }}
+                    uiState.filterCategoryId?.let { id -> item {
+                        CompactFilterChip(
+                            label = uiState.allCategories.find { it.id == id }?.name ?: "Category",
+                            onClear = { viewModel.setCategoryFilter(null) }
+                        )
+                    }}
+                    uiState.filterTagId?.let { id -> item {
+                        CompactFilterChip(
+                            label = uiState.allTags.find { it.id == id }?.name ?: "Tag",
+                            onClear = { viewModel.setTagFilter(null) }
+                        )
+                    }}
+                    if (uiState.filterStartDate != null || uiState.filterEndDate != null) item {
+                        CompactFilterChip(
+                            label = "Custom Dates",
+                            onClear = { viewModel.setDateRangeFilter(null, null) }
+                        )
+                    }
+                    item {
+                        TextButton(
+                            onClick = { viewModel.clearAllFilters() },
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("Clear all", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+
+            // Transaction list with Sticky Headers
+            val groupedTransactions = remember(uiState.transactions) {
+                uiState.transactions.groupBy { tx ->
+                    val cal = Calendar.getInstance().apply { timeInMillis = tx.date }
+                    cal.set(Calendar.HOUR_OF_DAY, 0)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    cal.timeInMillis
+                }
+            }
+            val headerDateFormat = remember { SimpleDateFormat("EEEE, MMM dd", Locale.getDefault()) }
+
             LazyColumn(
-                Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(start = 0.dp, top = 8.dp, end = 0.dp, bottom = 80.dp)
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 70.dp)
             ) {
                 if (uiState.transactions.isEmpty()) {
                     item {
-                        Box(Modifier.fillMaxWidth().padding(32.dp), Alignment.Center) {
-                            Text(
-                                if (activeFilterCount > 0 || searchText.isNotEmpty()) "No matching transactions"
-                                else "No transactions yet",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Box(Modifier.fillParentMaxSize(), Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Inbox, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outlineVariant)
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    if (activeFilterCount > 0 || searchText.isNotEmpty()) "No matching results"
+                                    else "No transactions recorded yet",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 } else {
-                    items(uiState.transactions, key = { it.id }) { tx ->
-                        TransactionCard(
-                            transaction = tx,
-                            tags = uiState.allTags,
-                            accounts = uiState.allAccounts,
-                            categories = uiState.allCategories,
-                            dateFormat = dateFormat,
-                            currencyFormat = currencyFormat,
-                            onEdit = { editingTransaction = it },
-                            onDuplicate = { viewModel.duplicateTransaction(it) },
-                            onDelete = { viewModel.deleteTransaction(it) }
-                        )
+                    groupedTransactions.forEach { (dateMillis, transactions) ->
+                        val isCollapsed = collapsedDates.contains(dateMillis)
+                        stickyHeader {
+                            val dailyTotal = transactions.sumOf {
+                                when(it.type) {
+                                    "income", "receive" -> it.amount
+                                    "expense", "lend", "savings" -> -it.amount
+                                    else -> 0.0
+                                }
+                            }
+
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 1.dp,
+                                onClick = {
+                                    collapsedDates = if (isCollapsed) {
+                                        collapsedDates - dateMillis
+                                    } else {
+                                        collapsedDates + dateMillis
+                                    }
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                        .fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = headerDateFormat.format(Date(dateMillis)),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = if (dailyTotal >= 0) {
+                                                "${stringResource(R.string.income)}: ${currencyFormat.format(dailyTotal)}"
+                                            } else {
+                                                "${stringResource(R.string.expense)}: ${currencyFormat.format(-dailyTotal)}"
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (dailyTotal >= 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Icon(
+                                            imageVector = if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                            HorizontalDivider(thickness = TILE_SPACING_VERTICAL, color = Color.Transparent)
+                        }
+
+                        if (!isCollapsed) {
+                            items(transactions, key = { it.id }) { tx ->
+                                TransactionItem(
+                                    transaction = tx,
+                                    accounts = uiState.allAccounts,
+                                    categories = uiState.allCategories,
+                                    currencyFormat = currencyFormat,
+                                    onEdit = { editingTransaction = it },
+                                    onDelete = { viewModel.deleteTransaction(it) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -215,9 +450,11 @@ fun TransactionsScreen(
     if (showAddDialog) {
         AddEditTransactionDialog(
             transaction = null,
+            currency = uiState.currency,
             categories = uiState.allCategories,
             tags = uiState.allTags,
             accounts = uiState.allAccounts,
+            peers = uiState.allPeers,
             goals = uiState.allGoals,
             initialType = preselectedType,
             onDismiss = { showAddDialog = false },
@@ -245,10 +482,12 @@ fun TransactionsScreen(
 
         AddEditTransactionDialog(
             transaction = editing,
+            currency = uiState.currency,
             splitChildren = splitChildren,
             categories = uiState.allCategories,
             tags = uiState.allTags,
             accounts = uiState.allAccounts,
+            peers = uiState.allPeers,
             goals = uiState.allGoals,
             initialType = editing.type,
             onDismiss = { editingTransaction = null },
@@ -302,123 +541,293 @@ fun TransactionsScreen(
 }
 
 // ---------------------------------------------------------------------------
-// Transaction Card
+// Transaction Item (Dense Refactor)
 // ---------------------------------------------------------------------------
 
 @Composable
-fun TransactionCard(
-    transaction: TransactionEntity,
-    tags: List<TagEntity>,
-    accounts: List<AccountEntity>,
-    categories: List<CategoryEntity>,
-    dateFormat: SimpleDateFormat,
-    currencyFormat: NumberFormat,
-    onEdit: (TransactionEntity) -> Unit,
-    onDuplicate: (TransactionEntity) -> Unit,
-    onDelete: (TransactionEntity) -> Unit,
-) {
-    val transactionTags = remember(transaction.tagIds, tags) {
-        if (transaction.tagIds.isEmpty()) emptyList()
-        else {
-            val ids = transaction.tagIds.split(",").mapNotNull { it.trim().toLongOrNull() }
-            tags.filter { it.id in ids }
+fun SummaryItem(label: String, amount: Double, color: Color, format: NumberFormat?) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = format?.format(amount) ?: amount.toInt().toString(),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+    }
+}
+
+@Composable
+fun CompactFilterChip(label: String, onClear: () -> Unit) {
+    Surface(
+        modifier = Modifier.height(30.dp),
+        shape = RoundedCornerShape(15.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(label, style = MaterialTheme.typography.labelMedium)
+            Icon(
+                Icons.Default.Close,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp).clickable { onClear() }
+            )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TransactionItem(
+    transaction: TransactionEntity,
+    accounts: List<AccountEntity>,
+    categories: List<CategoryEntity>,
+    currencyFormat: NumberFormat,
+    onEdit: (TransactionEntity) -> Unit,
+    onDelete: (TransactionEntity) -> Unit,
+) {
+    // 1. State for the confirmation dialog
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> {
+                    // 2. Instead of deleting, show the dialog
+                    showDeleteConfirm = true
+                    false // Return false so the item doesn't disappear yet
+                }
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    onEdit(transaction)
+                    false
+                }
+                else -> false
+            }
+        }
+    )
+
+    // 3. Confirmation Dialog Logic
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirm = false
+            },
+            title = { Text("Delete Transaction") },
+            text = { Text("Are you sure you want to delete this record? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete(transaction)
+                        showDeleteConfirm = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val color = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50)
+                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error
+                else -> Color.Transparent
+            }
+            Box(
+                Modifier.fillMaxSize().padding(horizontal = TILE_PADDING_HORIZONTAL).clip(RoundedCornerShape(TILE_CORNER_RADIUS)).background(color).padding(horizontal = 20.dp),
+                contentAlignment = if (direction == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                Icon(
+                    if (direction == SwipeToDismissBoxValue.StartToEnd) Icons.Default.Edit else Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+            }
+        }
+    ) {
+        Column {
+            TransactionCardDense(
+                transaction = transaction,
+                accounts = accounts,
+                categories = categories,
+                currencyFormat = currencyFormat,
+                onClick = { onEdit(transaction) }
+            )
+            Spacer(Modifier.height(TILE_SPACING_VERTICAL))
+        }
+    }
+}
+
+@Composable
+fun TransactionCardDense(
+    transaction: TransactionEntity,
+    accounts: List<AccountEntity>,
+    categories: List<CategoryEntity>,
+    currencyFormat: NumberFormat,
+    onClick: () -> Unit
+) {
     val account = remember(transaction.accountId, accounts) { accounts.find { it.id == transaction.accountId } }
     val category = remember(transaction.categoryId, categories) { categories.find { it.id == transaction.categoryId } }
-    val parentCategory = remember(category, categories) {
-        category?.parentId?.let { pid -> categories.find { it.id == pid } }
-    }
-    val toAccount = remember(transaction.toAccountId, accounts) {
-        transaction.toAccountId?.let { id -> accounts.find { it.id == id } }
+    val subcategory = remember(transaction.subCategoryId, categories) {
+        transaction.subCategoryId?.let { id -> categories.find { it.id == id } }
     }
 
     val typeColor = when (transaction.type) {
-        "income" -> Color(0xFF4CAF50)
-        "expense" -> MaterialTheme.colorScheme.error
-        "savings" -> Color(0xFF8B5E3C)
-        "transfer" -> Color(0xFF5B6FB5)
+        "income", "receive" -> COLOR_INCOME
+        "expense", "lend" -> COLOR_EXPENSE
+        "savings" -> COLOR_SAVINGS
+        "transfer" -> COLOR_TRANSFER
         else -> MaterialTheme.colorScheme.onSurface
     }
+
     val typeIcon = when {
-        transaction.isSplitParent -> "🔀"
-        transaction.isTransfer || transaction.type == "transfer" -> "⇌"
-        transaction.type == "savings" -> "📈"
-        else -> category?.emoji ?: when (transaction.type) {
-            "income" -> "💰"
-            else -> "💸"
-        }
+        transaction.isSplitParent -> ICON_SPLIT
+        transaction.isTransfer || transaction.type == "transfer" -> ICON_TRANSFER
+        transaction.type == "savings" -> ICON_SAVINGS
+        else -> category?.emoji ?: ICON_DEFAULT
     }
+
     val amountText = when (transaction.type) {
-        "income" -> "+${currencyFormat.format(transaction.amount)}"
-        "expense", "savings" -> "-${currencyFormat.format(transaction.amount)}"
-        "transfer" -> "⇌ ${currencyFormat.format(transaction.amount)}"
+        "income", "receive" -> "+${currencyFormat.format(transaction.amount)}"
+        "expense", "savings", "lend" -> "-${currencyFormat.format(transaction.amount)}"
         else -> currencyFormat.format(transaction.amount)
     }
 
-    Card(Modifier.fillMaxWidth().clickable { onEdit(transaction) }) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Icon circle
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(TILE_CORNER_RADIUS),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = TILE_ELEVATION,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = TILE_PADDING_HORIZONTAL)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(TILE_PADDING_INNER),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon
             Box(
                 Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(typeColor.copy(alpha = 0.15f)),
+                    .size(TILE_ICON_SIZE)
+                    .clip(RoundedCornerShape(TILE_ICON_CORNER_RADIUS))
+                    .background(typeColor.copy(alpha = 0.12f)),
                 Alignment.Center
             ) {
-                Text(typeIcon, style = MaterialTheme.typography.titleMedium)
+                Text(typeIcon, fontSize = 20.sp)
             }
+
             Spacer(Modifier.width(12.dp))
-            // Content
+
+            // Middle Column: Category & Info
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = transaction.note.ifEmpty { transaction.type.replaceFirstChar { it.uppercase() } },
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
-                // Metadata line
-                val meta = buildString {
-                    append(dateFormat.format(Date(transaction.date)))
-                    account?.let { append(" · ${it.name}") }
-                    if (transaction.isTransfer && toAccount != null) append(" → ${toAccount.name}")
-                    if (parentCategory != null) append(" · ${parentCategory.name} › ${category?.name}")
-                    else category?.let { append(" · ${it.name}") }
-                    if (transaction.isSplitParent) append(" · Split")
-                    transaction.investmentPlatform?.let { append(" · $it") }
+                // Row 1: Title (Category) - Subtitle ([Icon] subcategory)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (transaction.type == "transfer") stringResource(R.string.transfer) else (category?.name ?: transaction.type.replaceFirstChar { it.uppercase() }),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (subcategory != null) {
+                        Text(
+                            text = SEPARATOR_HYPHEN,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${subcategory.emoji} ${subcategory.name}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-                Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                // Tags
-                if (transactionTags.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        items(transactionTags) { tag ->
-                            Row(
-                                Modifier.background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(Modifier.size(6.dp).clip(CircleShape).background(parseColor(tag.color)))
-                                Spacer(Modifier.width(4.dp))
-                                Text(tag.name, style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
+
+                // Row 2: Subtitle - [icon] Account - Description
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = account?.name ?: stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (transaction.note.isNotBlank() || transaction.description.isNotBlank()) {
+                        val desc = transaction.note.ifBlank { transaction.description }
+                        Text(SEPARATOR_DOT, color = MaterialTheme.colorScheme.outline, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            text = desc,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
+
             Spacer(Modifier.width(8.dp))
-            // Amount + actions
+
+            // Right Column: Amount & Time
             Column(horizontalAlignment = Alignment.End) {
-                Text(amountText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = typeColor)
-                Row {
-                    IconButton(onClick = { onDuplicate(transaction) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.ContentCopy, "Duplicate", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { onDelete(transaction) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Delete, "Delete", Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
-                    }
-                }
+                Text(
+                    text = amountText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = typeColor
+                )
+                Text(
+                    text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(transaction.date)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
+    }
+}
+
+
+@Composable
+fun AccountBadge(account: AccountEntity?, modifier: Modifier = Modifier) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
+        Box(
+            Modifier.size(20.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+            Alignment.Center
+        ) {
+            Text(account?.emoji ?: "💰", style = MaterialTheme.typography.labelSmall)
+        }
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = account?.name ?: "Unknown",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -426,16 +835,173 @@ fun TransactionCard(
 // Add / Edit Transaction Dialog
 // ---------------------------------------------------------------------------
 
-data class SplitRowData(val localId: Int, val categoryId: Long? = null, val description: String = "", val amount: String = "")
+data class SplitRowData(
+    val localId: Int,
+    val categoryId: Long? = null,
+    val subCategoryId: Long? = null,
+    val description: String = "",
+    val amount: String = ""
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun CategoryGrid(
+    categories: List<CategoryEntity>,
+    selectedCategoryId: Long?,
+    onCategoryClick: (CategoryEntity) -> Unit,
+    onShowAllClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Category", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            maxItemsInEachRow = 4
+        ) {
+            val displayCategories = categories.take(7)
+            displayCategories.forEach { category ->
+                val isSelected = selectedCategoryId == category.id
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onCategoryClick(category) },
+                    label = { Text(category.name) },
+                    leadingIcon = { Text(category.emoji) },
+                    shape = RoundedCornerShape(20.dp)
+                )
+            }
+            FilterChip(
+                selected = false,
+                onClick = onShowAllClick,
+                label = { Text("All") },
+                leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(16.dp)) },
+                shape = RoundedCornerShape(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun NumericKeypad(
+    onNumberClick: (String) -> Unit,
+    onDeleteClick: () -> Unit,
+    onClearClick: () -> Unit,
+    onEvaluate: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val keys = listOf(
+        listOf("7", "8", "9", "/"),
+        listOf("4", "5", "6", "*"),
+        listOf("1", "2", "3", "-"),
+        listOf(".", "0", "=", "+")
+    )
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        keys.forEach { row ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { key ->
+                    val isOperator = key in listOf("/", "*", "-", "+", "=")
+
+                    Button(
+                        onClick = {
+                            if (key == "=") onEvaluate() else onNumberClick(key)
+                        },
+                        modifier = Modifier.weight(1f).aspectRatio(if (isOperator) 1.5f else 2f),
+                        contentPadding = PaddingValues(0.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = if (isOperator) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                        else ButtonDefaults.filledTonalButtonColors()
+                    ) {
+                        Text(key, style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+            }
+        }
+        // Bottom row for backspace and clear
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = onClearClick,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("CLEAR")
+            }
+            OutlinedButton(
+                onClick = onDeleteClick,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Backspace, "Backspace")
+            }
+        }
+    }
+}
+
+private fun evaluateExpression(expression: String): Double {
+    if (expression.isEmpty()) return 0.0
+
+    // Simple expression evaluator for +, -, *, /
+    // This is a basic implementation. For more complex ones, use a library or a better parser.
+    return try {
+        val tokens = mutableListOf<String>()
+        var current = ""
+        for (char in expression) {
+            if (char in "+-*/") {
+                if (current.isNotEmpty()) tokens.add(current)
+                tokens.add(char.toString())
+                current = ""
+            } else {
+                current += char
+            }
+        }
+        if (current.isNotEmpty()) tokens.add(current)
+
+        if (tokens.isEmpty()) return 0.0
+
+        // Handle * and / first
+        val pass1 = mutableListOf<String>()
+        var i = 0
+        while (i < tokens.size) {
+            val token = tokens[i]
+            if (token == "*" || token == "/") {
+                val prev = pass1.removeAt(pass1.size - 1).toDouble()
+                val next = tokens[i + 1].toDouble()
+                val res = if (token == "*") prev * next else prev / next
+                pass1.add(res.toString())
+                i += 2
+            } else {
+                pass1.add(token)
+                i++
+            }
+        }
+
+        // Handle + and -
+        var result = pass1[0].toDouble()
+        i = 1
+        while (i < pass1.size) {
+            val op = pass1[i]
+            val next = pass1[i + 1].toDouble()
+            result = if (op == "+") result + next else result - next
+            i += 2
+        }
+        result
+    } catch (e: Exception) {
+        expression.toDoubleOrNull() ?: 0.0
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditTransactionDialog(
     transaction: TransactionEntity?,
     splitChildren: List<TransactionEntity> = emptyList(),
+    currency: String,
     categories: List<CategoryEntity>,
     tags: List<TagEntity>,
     accounts: List<AccountEntity>,
+    peers: List<PeerContact> = emptyList(),
     goals: List<GoalEntity>,
     initialType: String?,
     onDismiss: () -> Unit,
@@ -444,10 +1010,14 @@ fun AddEditTransactionDialog(
     onCreateTag: (String) -> Unit,
 ) {
     val isEdit = transaction != null
-    var type by remember { mutableStateOf(transaction?.type?.takeIf { it != "transfer" } ?: initialType ?: "expense") }
+    var type by remember { mutableStateOf(transaction?.type ?: initialType ?: "expense") }
     var amount by remember { mutableStateOf(transaction?.amount?.let { if (it < 0) (-it).toString() else it.toString() } ?: "") }
     var selectedAccountId by remember { mutableStateOf(transaction?.accountId ?: accounts.firstOrNull()?.id) }
+    var selectedToAccountId by remember { mutableStateOf(transaction?.toAccountId) }
+    var showToAccountDropdown by remember { mutableStateOf(false) }
     var selectedCategoryId by remember { mutableStateOf<Long?>(transaction?.categoryId) }
+    var selectedPeerId by remember { mutableStateOf<Long?>(transaction?.peerContactId) }
+    var peerName by remember { mutableStateOf(peers.find { it.id == transaction?.peerContactId }?.displayName ?: "") }
     var selectedDate by remember { mutableStateOf(transaction?.date ?: System.currentTimeMillis()) }
     var description by remember { mutableStateOf(transaction?.note ?: "") }
     var selectedGoalId by remember { mutableStateOf<Long?>(transaction?.goalId) }
@@ -457,7 +1027,17 @@ fun AddEditTransactionDialog(
         mutableStateOf(
             if (transaction?.isSplitParent == true && splitChildren.isNotEmpty()) {
                 splitChildren.mapIndexed { index, child ->
-                    SplitRowData(index, child.categoryId, child.note, child.amount.toString())
+                    val parentCatId = if (categories.find { it.id == child.categoryId }?.parentId != null) {
+                        categories.find { it.id == child.categoryId }?.parentId
+                    } else {
+                        child.categoryId
+                    }
+                    val subCatId = if (categories.find { it.id == child.categoryId }?.parentId != null) {
+                        child.categoryId
+                    } else {
+                        null
+                    }
+                    SplitRowData(index, parentCatId, subCatId, child.note, child.amount.toString())
                 }
             } else {
                 listOf(SplitRowData(0), SplitRowData(1))
@@ -479,6 +1059,18 @@ fun AddEditTransactionDialog(
     var showTimePicker by remember { mutableStateOf(false) }
     var showAccountDropdown by remember { mutableStateOf(false) }
     var showCategoryDropdown by remember { mutableStateOf(false) }
+    var showPeerDropdown by remember { mutableStateOf(false) }
+    var expectedReturnDate by remember { mutableStateOf<Long?>(transaction?.expectedReturnDate) }
+    var showExpectedReturnDatePicker by remember { mutableStateOf(false) }
+
+    var showTypeDropdown by remember { mutableStateOf(false) }
+
+    // Visibility states for Progressive Disclosure
+    var showNoteInput by remember { mutableStateOf(transaction?.note?.isNotEmpty() == true) }
+    var showTagInput by remember { mutableStateOf(transaction?.tagIds?.isNotEmpty() == true) }
+    var showReceiptInput by remember { mutableStateOf(transaction?.receiptPath != null) }
+    var showSplitInput by remember { mutableStateOf(transaction?.isSplitParent == true) }
+
     var showSubCategoryDropdown by remember { mutableStateOf(false) }
     var showGoalDropdown by remember { mutableStateOf(false) }
     var showPlatformDropdown by remember { mutableStateOf(false) }
@@ -511,7 +1103,17 @@ fun AddEditTransactionDialog(
     LaunchedEffect(splitChildren) {
         if (transaction?.isSplitParent == true && splitChildren.isNotEmpty()) {
             splitRows = splitChildren.mapIndexed { index, child ->
-                SplitRowData(index, child.categoryId, child.note, child.amount.toString())
+                val parentCatId = if (categories.find { it.id == child.categoryId }?.parentId != null) {
+                    categories.find { it.id == child.categoryId }?.parentId
+                } else {
+                    child.categoryId
+                }
+                val subCatId = if (categories.find { it.id == child.categoryId }?.parentId != null) {
+                    child.categoryId
+                } else {
+                    null
+                }
+                SplitRowData(index, parentCatId, subCatId, child.note, child.amount.toString())
             }
         }
     }
@@ -531,7 +1133,7 @@ fun AddEditTransactionDialog(
 
     // Receipt picker
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { receiptData = uriToBase64(context, it) }
+        uri?.let { receiptData = FileHelper.saveReceipt(context, it) }
     }
 
     val mainAmount = amount.toDoubleOrNull() ?: 0.0
@@ -548,15 +1150,19 @@ fun AddEditTransactionDialog(
             type = type,
             amount = amt,
             categoryId = effectiveCategoryId,
+            peerContactId = if (type == "lend" || type == "receive") selectedPeerId else null,
+            expectedReturnDate = if (type == "lend" || type == "receive") expectedReturnDate else null,
             goalId = selectedGoalId,
             tagIds = selectedTagIds.joinToString(","),
             date = selectedDate,
             note = description,
+            description = description,
             receiptPath = receiptData,
             isRecurring = transaction?.isRecurring ?: false,
             recurringId = transaction?.recurringId,
             isSplitParent = splitEnabled,
-            isTransfer = false,
+            isTransfer = type == "transfer",
+            toAccountId = if (type == "transfer") selectedToAccountId else null,
             investmentPlatform = if (type == "savings") selectedPlatform else null,
             createdAt = transaction?.createdAt ?: System.currentTimeMillis()
         )
@@ -570,11 +1176,13 @@ fun AddEditTransactionDialog(
                 accountId = selectedAccountId!!,
                 type = type,
                 amount = rowAmt,
-                categoryId = row.categoryId,
+                categoryId = row.subCategoryId ?: row.categoryId,
                 tagIds = "",
                 date = selectedDate,
                 note = row.description,
+                description = row.description,
                 isSplitChild = true,
+                isTransfer = type == "transfer",
                 parentTransactionId = parentId
             )
         }
@@ -625,6 +1233,27 @@ fun AddEditTransactionDialog(
         )
     }
 
+    if (showExpectedReturnDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = expectedReturnDate ?: System.currentTimeMillis())
+        DatePickerDialog(
+            onDismissRequest = { showExpectedReturnDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    expectedReturnDate = datePickerState.selectedDateMillis
+                    showExpectedReturnDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    expectedReturnDate = null
+                    showExpectedReturnDatePicker = false
+                }) { Text("Clear") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
     // Receipt full-size preview
     if (showReceiptPreview && receiptData != null) {
         Dialog(onDismissRequest = { showReceiptPreview = false }) {
@@ -659,347 +1288,659 @@ fun AddEditTransactionDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.92f),
-            shape = RoundedCornerShape(16.dp)
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             Column(Modifier.fillMaxSize()) {
-                // Header
+                // 1. Header: Contextual Dropdown
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(if (isEdit) "Edit Transaction" else "Add Transaction", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Close") }
+                    Box {
+                        TextButton(
+                            onClick = { showTypeDropdown = true },
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "New ${type.replaceFirstChar { it.uppercase() }}",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showTypeDropdown,
+                            onDismissRequest = { showTypeDropdown = false }
+                        ) {
+                            val types = listOf("expense", "income", "savings", "transfer", "lend", "receive")
+                            types.forEach { t ->
+                                DropdownMenuItem(
+                                    text = { Text(t.replaceFirstChar { it.uppercase() }) },
+                                    onClick = {
+                                        type = t
+                                        selectedCategoryId = null
+                                        selectedToAccountId = null
+                                        selectedPlatform = null
+                                        selectedGoalId = null
+                                        selectedPeerId = null
+                                        showTypeDropdown = false
+                                    },
+                                    leadingIcon = {
+                                        val icon = when (t) {
+                                            "expense" -> Icons.Default.MoneyOff
+                                            "income" -> Icons.Default.AttachMoney
+                                            "savings" -> Icons.AutoMirrored.Filled.TrendingUp
+                                            "transfer" -> Icons.Default.SwapHoriz
+                                            "lend" -> Icons.Default.Handshake
+                                            "receive" -> Icons.AutoMirrored.Filled.CallReceived
+                                            else -> Icons.Default.Edit
+                                        }
+                                        Icon(icon, null)
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
-                HorizontalDivider()
 
                 // Scrollable body
                 Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+                    Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Type toggle (Income / Expense / Savings)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("income", "expense", "savings").forEach { t ->
-                            FilterChip(
-                                selected = type == t,
-                                onClick = { type = t; selectedCategoryId = null },
-                                label = { Text(t.replaceFirstChar { it.uppercase() }) }
+                    // 2. Hero Area: Amount & Integrated Keypad
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        ) {
+                            Text(
+                                text = CurrencyUtils.getCurrencySymbol(currency),
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Light,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (amount.isEmpty()) "0.00" else amount,
+                                style = MaterialTheme.typography.displayMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (amount.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.clickable { /* Tap to focus/edit if needed */ }
+                            )
+                        }
+
+                        NumericKeypad(
+                            onNumberClick = { num ->
+                                if (num == ".") {
+                                    if (amount.isEmpty()) amount = "0."
+                                    else if (!amount.contains(".")) amount += "."
+                                } else if (num in listOf("+", "-", "*", "/")) {
+                                    if (amount.isNotEmpty() && !amount.last().isDigit()) {
+                                        amount = amount.dropLast(1) + num
+                                    } else if (amount.isNotEmpty()) {
+                                        amount += num
+                                    }
+                                } else {
+                                    if (amount == "0") amount = num
+                                    else amount += num
+                                }
+                            },
+                            onDeleteClick = {
+                                if (amount.isNotEmpty()) amount = amount.dropLast(1)
+                            },
+                            onClearClick = { amount = "" },
+                            onEvaluate = {
+                                try {
+                                    val result = evaluateExpression(amount)
+                                    amount = if (result % 1.0 == 0.0) result.toInt().toString() else "%.2f".format(Locale.US, result)
+                                } catch (e: Exception) {
+                                    // Keep as is or show error
+                                }
+                            }
+                        )
+                    }
+
+                    // 3. Smart Bar: Date, Time | Account
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CalendarToday, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = SimpleDateFormat("EEE, MMM dd", Locale.getDefault()).format(Date(selectedDate)),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.clickable { showDatePicker = true }
+                                )
+                                Text(" | ", color = MaterialTheme.colorScheme.outline)
+                                Text(
+                                    text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(selectedDate)),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.clickable { showTimePicker = true }
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                VerticalDivider(Modifier.height(16.dp).padding(horizontal = 8.dp))
+                                if (type == "transfer") {
+                                    Text(
+                                        text = accounts.find { it.id == selectedAccountId }?.name ?: "From",
+                                        modifier = Modifier.clickable { showAccountDropdown = true },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(12.dp).padding(horizontal = 4.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        text = accounts.find { it.id == selectedToAccountId }?.name ?: "To",
+                                        modifier = Modifier.clickable { showToAccountDropdown = true },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    val account = accounts.find { it.id == selectedAccountId }
+                                    Text(
+                                        text = account?.name ?: "Select Account",
+                                        modifier = Modifier.clickable { showAccountDropdown = true },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
                         }
                     }
 
-                    // Amount
-                    OutlinedTextField(
-                        value = amount, onValueChange = { amount = it },
-                        label = { Text("Amount") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(), singleLine = true
-                    )
-
-                    // Date & Time
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(selectedDate)),
-                            onValueChange = {}, readOnly = true,
-                            label = { Text("Date") },
-                            trailingIcon = { Icon(Icons.Default.DateRange, null) },
-                            modifier = Modifier.weight(1f).clickable { showDatePicker = true }
-                        )
-                        OutlinedTextField(
-                            value = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(selectedDate)),
-                            onValueChange = {}, readOnly = true,
-                            label = { Text("Time") },
-                            trailingIcon = { Icon(Icons.Default.Schedule, null) },
-                            modifier = Modifier.weight(1f).clickable { showTimePicker = true }
-                        )
-                    }
-
-                    // Account
-                    ExposedDropdownMenuBox(showAccountDropdown, { showAccountDropdown = it }) {
-                        OutlinedTextField(
-                            value = accounts.find { it.id == selectedAccountId }?.name ?: "Select Account",
-                            onValueChange = {}, readOnly = true, label = { Text("Account") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showAccountDropdown) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(showAccountDropdown, { showAccountDropdown = false }) {
+                    // Account Dropdowns
+                    Box {
+                        DropdownMenu(
+                            expanded = showAccountDropdown,
+                            onDismissRequest = { showAccountDropdown = false }
+                        ) {
                             accounts.forEach { acc ->
                                 DropdownMenuItem(
-                                    text = { Text(acc.name) },
+                                    text = { Text("${acc.emoji} ${acc.name}") },
                                     onClick = { selectedAccountId = acc.id; showAccountDropdown = false }
+                                )
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = showToAccountDropdown,
+                            onDismissRequest = { showToAccountDropdown = false }
+                        ) {
+                            accounts.forEach { acc ->
+                                DropdownMenuItem(
+                                    text = { Text("${acc.emoji} ${acc.name}") },
+                                    onClick = { selectedToAccountId = acc.id; showToAccountDropdown = false }
                                 )
                             }
                         }
                     }
 
-                    // Category (parent)
-                    if (!splitEnabled) {
-                        ExposedDropdownMenuBox(showCategoryDropdown, { showCategoryDropdown = it }) {
-                            OutlinedTextField(
-                                value = selectedParentCategory?.let { "${it.emoji} ${it.name}" } ?: "Select Category",
-                                onValueChange = {}, readOnly = true, label = { Text("Category") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showCategoryDropdown) },
-                                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
+                    // 4. Main Grid: Categories
+                    if (type != "transfer" && !splitEnabled) {
+                        if (type == "lend" || type == "receive") {
+                            // Peer selection for lending/receiving
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Lending Partner", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showPeerDropdown = true },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(peerName.ifBlank { "Select Person" })
+                                        Icon(Icons.Default.Person, null)
+                                    }
+                                }
+                                Box {
+                                    DropdownMenu(expanded = showPeerDropdown, onDismissRequest = { showPeerDropdown = false }) {
+                                        if (peers.isEmpty()) {
+                                            DropdownMenuItem(text = { Text("No partners found") }, onClick = { showPeerDropdown = false })
+                                        }
+                                        peers.forEach { peer ->
+                                            DropdownMenuItem(
+                                                text = { Text(peer.displayName) },
+                                                onClick = {
+                                                    selectedPeerId = peer.id
+                                                    peerName = peer.displayName
+                                                    showPeerDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Text("Expected Return Date", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showExpectedReturnDatePicker = true },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(expectedReturnDate?.let { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(it)) } ?: "No return date")
+                                        Icon(Icons.Default.DateRange, null)
+                                    }
+                                }
+                            }
+                        } else if (selectedCategoryId == null || (selectedParentCategory == null && selectedSubCategory == null)) {
+                            CategoryGrid(
+                                categories = parentCategories,
+                                selectedCategoryId = null,
+                                onCategoryClick = { cat ->
+                                    selectedCategoryId = cat.id
+                                },
+                                onShowAllClick = { showCategoryDropdown = true }
                             )
-                            ExposedDropdownMenu(showCategoryDropdown, { showCategoryDropdown = false }) {
-                                DropdownMenuItem(text = { Text("None") }, onClick = { selectedCategoryId = null; showCategoryDropdown = false })
-                                parentCategories.forEach { cat ->
+                        } else {
+                            // Single selected category view
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Category", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    val displayCat = selectedParentCategory ?: selectedSubCategory
+                                    FilterChip(
+                                        selected = true,
+                                        onClick = { /* Do nothing, click Change to clear */ },
+                                        label = { Text(displayCat?.name ?: "") },
+                                        leadingIcon = { Text(displayCat?.emoji ?: "") },
+                                        shape = RoundedCornerShape(20.dp)
+                                    )
+                                    TextButton(onClick = {
+                                        selectedCategoryId = null
+                                    }) {
+                                        Text("Change")
+                                    }
+                                }
+
+                                if (subCategories.isNotEmpty()) {
+                                    Text("Sub-category", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(subCategories) { sub ->
+                                            FilterChip(
+                                                selected = selectedCategoryId == sub.id,
+                                                onClick = { selectedCategoryId = sub.id },
+                                                label = { Text(sub.name) },
+                                                leadingIcon = { Text(sub.emoji) },
+                                                shape = RoundedCornerShape(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Category Dropdown (Search/All)
+                        Box {
+                            DropdownMenu(
+                                expanded = showCategoryDropdown,
+                                onDismissRequest = { showCategoryDropdown = false }
+                            ) {
+                                categories.filter { it.type == type || (type == "savings" && it.type == "expense") }.forEach { cat ->
                                     DropdownMenuItem(
-                                        text = { Text("${cat.emoji} ${cat.name}") },
+                                        text = { Text("${if (cat.parentId != null) "  ↳ " else ""}${cat.emoji} ${cat.name}") },
                                         onClick = { selectedCategoryId = cat.id; showCategoryDropdown = false }
                                     )
                                 }
                             }
                         }
+                    }
 
-                        // Sub-category (only when parent has children)
-                        if (subCategories.isNotEmpty()) {
-                            ExposedDropdownMenuBox(showSubCategoryDropdown, { showSubCategoryDropdown = it }) {
+                    // Savings specific fields
+                    if (type == "savings") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Savings Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                            // Platform selection
+                            OutlinedCard(
+                                onClick = { showPlatformDropdown = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.AccountBalance, null, tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(Modifier.width(12.dp))
+                                        Text(selectedPlatform ?: "Select Platform", style = MaterialTheme.typography.bodyLarge)
+                                    }
+                                    Icon(Icons.Default.ArrowDropDown, null)
+                                }
+                            }
+
+                            // Goal selection
+                            if (goals.isNotEmpty()) {
+                                OutlinedCard(
+                                    onClick = { showGoalDropdown = true },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                                ) {
+                                    Row(
+                                        Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Flag, null, tint = MaterialTheme.colorScheme.secondary)
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(goals.find { it.id == selectedGoalId }?.name ?: "Link to Goal", style = MaterialTheme.typography.bodyLarge)
+                                        }
+                                        Icon(Icons.Default.ArrowDropDown, null)
+                                    }
+                                }
+                            }
+                        }
+
+                        DropdownMenu(expanded = showPlatformDropdown, onDismissRequest = { showPlatformDropdown = false }) {
+                            INVESTMENT_PLATFORMS.forEach { platform ->
+                                DropdownMenuItem(text = { Text(platform) }, onClick = { selectedPlatform = platform; showPlatformDropdown = false })
+                            }
+                        }
+                        DropdownMenu(expanded = showGoalDropdown, onDismissRequest = { showGoalDropdown = false }) {
+                            DropdownMenuItem(text = { Text("None") }, onClick = { selectedGoalId = null; showGoalDropdown = false })
+                            goals.forEach { goal ->
+                                DropdownMenuItem(text = { Text(goal.name) }, onClick = { selectedGoalId = goal.id; showGoalDropdown = false })
+                            }
+                        }
+                    }
+
+                    // 5. Action Bar: Optional feature toggles
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { showNoteInput = !showNoteInput }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Notes,
+                                "Note",
+                                tint = if (showNoteInput) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { showTagInput = !showTagInput }) {
+                            Icon(
+                                Icons.Default.LocalOffer,
+                                "Tag",
+                                tint = if (showTagInput) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { showReceiptInput = !showReceiptInput }) {
+                            Icon(
+                                Icons.Default.AttachFile,
+                                "Receipt",
+                                tint = if (showReceiptInput) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { showSplitInput = !showSplitInput; splitEnabled = !splitEnabled }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.CallSplit,
+                                "Split",
+                                tint = if (showSplitInput) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Progressive Disclosure Sections
+                    if (showNoteInput) {
+                        OutlinedTextField(
+                            value = description, onValueChange = { description = it },
+                            label = { Text("Note") },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 2
+                        )
+                    }
+
+                    if (showTagInput) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (selectedTags.isNotEmpty()) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    selectedTags.forEach { tag ->
+                                        InputChip(
+                                            selected = true,
+                                            onClick = { selectedTagIds = selectedTagIds - tag.id },
+                                            label = { Text(tag.name) },
+                                            trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(14.dp)) }
+                                        )
+                                    }
+                                }
+                            }
+                            Box {
                                 OutlinedTextField(
-                                    value = selectedSubCategory?.name ?: "Select Sub-category (Optional)",
-                                    onValueChange = {}, readOnly = true, label = { Text("Sub-category") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showSubCategoryDropdown) },
-                                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
+                                    value = tagQuery, onValueChange = { tagQuery = it; showTagDropdown = true },
+                                    label = { Text("Search or create tag") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
                                 )
-                                ExposedDropdownMenu(showSubCategoryDropdown, { showSubCategoryDropdown = false }) {
-                                    DropdownMenuItem(text = { Text("None") }, onClick = {
-                                        selectedCategoryId = selectedParentCategory?.id; showSubCategoryDropdown = false
-                                    })
-                                    subCategories.forEach { sub ->
+                                DropdownMenu(
+                                    expanded = showTagDropdown && tagQuery.isNotEmpty(),
+                                    onDismissRequest = { showTagDropdown = false },
+                                    properties = PopupProperties(focusable = false)
+                                ) {
+                                    if (filteredTags.isEmpty() && tagQuery.isNotEmpty()) {
                                         DropdownMenuItem(
-                                            text = { Text(sub.name) },
-                                            onClick = { selectedCategoryId = sub.id; showSubCategoryDropdown = false }
+                                            text = { Text("Create tag \"$tagQuery\"") },
+                                            onClick = {
+                                                onCreateTag(tagQuery)
+                                                pendingTagName = tagQuery
+                                                showTagDropdown = false
+                                            }
+                                        )
+                                    }
+                                    filteredTags.forEach { tag ->
+                                        DropdownMenuItem(
+                                            text = { Text(tag.name) },
+                                            onClick = {
+                                                selectedTagIds = selectedTagIds + tag.id
+                                                tagQuery = ""
+                                                showTagDropdown = false
+                                            }
                                         )
                                     }
                                 }
                             }
                         }
-                    } else {
-                        Text("Category overridden by splits below", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
-                    // Description
-                    OutlinedTextField(
-                        value = description, onValueChange = { description = it },
-                        label = { Text("Description") },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true
-                    )
+                    if (showReceiptInput) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (receiptData != null) {
+                                Box(
+                                    Modifier.size(64.dp).clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .clickable { showReceiptPreview = true },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (receiptData!!.startsWith("data:image")) {
+                                        val bitmap = remember(receiptData) {
+                                            runCatching {
+                                                val b64 = receiptData!!.substringAfter("base64,")
+                                                val bytes = Base64.decode(b64, Base64.DEFAULT)
+                                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                            }.getOrNull()
+                                        }
+                                        if (bitmap != null) {
+                                            Image(bitmap.asImageBitmap(), "Receipt", modifier = Modifier.fillMaxSize())
+                                        } else {
+                                            Icon(Icons.Default.Image, null)
+                                        }
+                                    } else {
+                                        Icon(Icons.Default.PictureAsPdf, null)
+                                    }
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { filePicker.launch("image/*") },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.AddAPhoto, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (receiptData == null) "Add Receipt" else "Change")
+                            }
+                        }
+                    }
 
-                    // Savings-only fields
-                    if (type == "savings") {
-                        // Goal link
-                        ExposedDropdownMenuBox(showGoalDropdown, { showGoalDropdown = it }) {
-                            OutlinedTextField(
-                                value = goals.find { it.id == selectedGoalId }?.let { "${it.emoji} ${it.name}" } ?: "Link to Goal (Optional)",
-                                onValueChange = {}, readOnly = true, label = { Text("Goal Link") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showGoalDropdown) },
-                                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
+                    if (showSplitInput) {
+                        // Split Summary Header
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (kotlin.math.abs(splitRemaining) < 0.01) MaterialTheme.colorScheme.primaryContainer
+                                else if (splitRemaining < 0) MaterialTheme.colorScheme.errorContainer
+                                else MaterialTheme.colorScheme.surfaceVariant
                             )
-                            ExposedDropdownMenu(showGoalDropdown, { showGoalDropdown = false }) {
-                                DropdownMenuItem(text = { Text("None") }, onClick = { selectedGoalId = null; showGoalDropdown = false })
-                                goals.forEach { goal ->
-                                    DropdownMenuItem(
-                                        text = { Text("${goal.emoji} ${goal.name}") },
-                                        onClick = { selectedGoalId = goal.id; showGoalDropdown = false }
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Total Amount", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        "${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, mainAmount)}",
+                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Allocated", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        "${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, splitTotal)}",
+                                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Remaining", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        "${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, splitRemaining)}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (kotlin.math.abs(splitRemaining) < 0.01) MaterialTheme.colorScheme.primary
+                                        else if (splitRemaining < 0) MaterialTheme.colorScheme.error
+                                        else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
                         }
-                        // Investment platform
-                        ExposedDropdownMenuBox(showPlatformDropdown, { showPlatformDropdown = it }) {
-                            OutlinedTextField(
-                                value = selectedPlatform ?: "Select Platform (Optional)",
-                                onValueChange = {}, readOnly = true, label = { Text("Investment Platform") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showPlatformDropdown) },
-                                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(showPlatformDropdown, { showPlatformDropdown = false }) {
-                                DropdownMenuItem(text = { Text("None") }, onClick = { selectedPlatform = null; showPlatformDropdown = false })
-                                INVESTMENT_PLATFORMS.forEach { p ->
-                                    DropdownMenuItem(text = { Text(p) }, onClick = { selectedPlatform = p; showPlatformDropdown = false })
-                                }
-                            }
-                        }
-                    }
-
-                    // Split toggle
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Split by category", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                        Switch(checked = splitEnabled, onCheckedChange = { splitEnabled = it })
-                    }
-
-                    // Split rows
-                    if (splitEnabled) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             splitRows.forEachIndexed { index, row ->
                                 SplitRowCard(
                                     row = row,
-                                    categories = categories.filter { it.parentId == null && (it.type == type || (type == "savings" && it.type == "expense")) },
+                                    allCategories = categories,
+                                    type = type,
                                     onUpdate = { updated -> splitRows = splitRows.toMutableList().also { it[index] = updated } },
                                     onRemove = { splitRows = splitRows.toMutableList().also { it.removeAt(index) } },
                                     showDropdown = showSplitCategoryDropdown == row.localId,
-                                    onToggleDropdown = { showSplitCategoryDropdown = if (showSplitCategoryDropdown == row.localId) null else row.localId }
+                                    onToggleDropdown = { showSplitCategoryDropdown = if (showSplitCategoryDropdown == row.localId) null else row.localId },
+                                    remainingAmount = splitRemaining,
+                                    currencySymbol = CurrencyUtils.getCurrencySymbol(currency)
                                 )
                             }
-                            // Running total
-                            val balanced = kotlin.math.abs(splitRemaining) < 0.001
-                            Text(
-                                "Allocated: ${String.format("%.2f", splitTotal)}  Remaining: ${String.format("%.2f", splitRemaining)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (balanced) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                            )
-                            TextButton(onClick = {
-                                splitRows = splitRows + SplitRowData(splitIdCounter++)
-                            }) {
+                            TextButton(onClick = { splitRows = splitRows + SplitRowData(splitIdCounter++) }) {
                                 Icon(Icons.Default.Add, null)
                                 Text(" Add Split")
                             }
                         }
                     }
 
-                    // Tags (searchable with inline create)
-                    Text("Tags", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    // Selected tag chips
-                    if (selectedTags.isNotEmpty()) {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(selectedTags) { tag ->
-                                InputChip(
-                                    selected = true,
-                                    onClick = { selectedTagIds = selectedTagIds - tag.id },
-                                    label = { Text(tag.name) },
-                                    trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(14.dp)) }
-                                )
-                            }
-                        }
-                    }
-                    ExposedDropdownMenuBox(showTagDropdown, { showTagDropdown = it }) {
-                        OutlinedTextField(
-                            value = tagQuery, onValueChange = { tagQuery = it; showTagDropdown = true },
-                            label = { Text("Search or create tag") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showTagDropdown) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth(),
-                            singleLine = true
-                        )
-                        ExposedDropdownMenu(showTagDropdown, { showTagDropdown = false }) {
-                            if (filteredTags.isEmpty() && tagQuery.isNotEmpty()) {
-                                DropdownMenuItem(
-                                    text = { Text("Create \"$tagQuery\"") },
-                                    leadingIcon = { Icon(Icons.Default.Add, null) },
-                                    onClick = {
-                                        pendingTagName = tagQuery
-                                        onCreateTag(tagQuery)
-                                        showTagDropdown = false
-                                    }
-                                )
-                            }
-                            filteredTags.forEach { tag ->
-                                DropdownMenuItem(
-                                    text = { Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(Modifier.size(10.dp).clip(CircleShape).background(parseColor(tag.color)))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(tag.name)
-                                    }},
-                                    onClick = {
-                                        selectedTagIds = if (tag.id in selectedTagIds) selectedTagIds - tag.id else selectedTagIds + tag.id
-                                        tagQuery = ""
-                                        showTagDropdown = false
-                                    },
-                                    trailingIcon = if (tag.id in selectedTagIds) ({ Icon(Icons.Default.Check, null) }) else null
-                                )
-                            }
-                        }
-                    }
-
-                    // Notes (multi-line)
-                    OutlinedTextField(
-                        value = description, onValueChange = { description = it },
-                        label = { Text("Notes") },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
-                        maxLines = 4
-                    )
-
-                    // Receipt upload
-                    Text("Receipt", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (receiptData != null) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (receiptData!!.startsWith("data:image")) {
-                                val bitmap = remember(receiptData) {
-                                    runCatching {
-                                        val b64 = receiptData!!.substringAfter("base64,")
-                                        val bytes = Base64.decode(b64, Base64.DEFAULT)
-                                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                                    }.getOrNull()
-                                }
-                                bitmap?.let {
-                                    Image(it.asImageBitmap(), "Receipt thumbnail",
-                                        Modifier.size(72.dp).clip(RoundedCornerShape(8.dp)).clickable { showReceiptPreview = true })
-                                }
-                            } else {
-                                Box(Modifier.size(72.dp).clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .clickable { showReceiptPreview = true }, Alignment.Center) {
-                                    Icon(Icons.Default.PictureAsPdf, "PDF", Modifier.size(36.dp))
-                                }
-                            }
-                            Column {
-                                TextButton(onClick = { filePicker.launch("image/*") }) { Text("Replace") }
-                                TextButton(onClick = { receiptData = null }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
-                            }
-                        }
-                    } else {
-                        OutlinedButton(onClick = { filePicker.launch("image/*") }, Modifier.fillMaxWidth()) {
-                            Icon(Icons.Default.AttachFile, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Attach Receipt (Image or PDF)")
-                        }
-                    }
+                    Spacer(Modifier.height(80.dp)) // Extra space for FAB/Bottom bar
                 }
 
-                // Footer buttons
-                HorizontalDivider()
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // 6. Footer: Save Button
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface
                 ) {
-                    TextButton(onClick = onDismiss, Modifier.weight(1f)) { Text("Cancel") }
-                    if (!isEdit) {
-                        OutlinedButton(
-                            onClick = {
-                                val tx = buildTransaction() ?: return@OutlinedButton
-                                val children = if (splitEnabled) buildSplitChildren(0) else null
-                                onSaveAndDuplicate(tx, children)
-                                
-                                // Reset form for next entry (keep same type/account/category)
-                                amount = ""
-                                description = ""
-                                selectedDate = System.currentTimeMillis()
-                                receiptData = null
-                                selectedTagIds = emptySet()
-                                if (splitEnabled) {
-                                    splitRows = listOf(SplitRowData(0), SplitRowData(1))
-                                }
-                            },
-                            modifier = Modifier.weight(1.3f),
-                            enabled = amount.toDoubleOrNull() != null && selectedAccountId != null &&
-                                (!splitEnabled || kotlin.math.abs(splitRemaining) < 0.001)
-                        ) { Text("Save & Dup.", maxLines = 1) }
-                    }
-                    Button(
-                        onClick = {
-                            val tx = buildTransaction() ?: return@Button
-                            if (splitEnabled) {
-                                val children = buildSplitChildren(0)
-                                onConfirm(tx, children)
-                            } else {
-                                onConfirm(tx, null)
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Cancel")
                             }
-                        },
-                        modifier = Modifier.weight(1.3f),
-                        enabled = amount.toDoubleOrNull() != null && selectedAccountId != null &&
-                            (!splitEnabled || kotlin.math.abs(splitRemaining) < 0.001)
-                    ) { Text(if (isEdit) "Update" else "Save") }
+                            Button(
+                                onClick = {
+                                    val tx = buildTransaction() ?: return@Button
+                                    if (splitEnabled) {
+                                        onConfirm(tx, buildSplitChildren(tx.id))
+                                    } else {
+                                        onConfirm(tx, null)
+                                    }
+                                },
+                                modifier = Modifier.weight(2f),
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = (amount.toDoubleOrNull() ?: try { evaluateExpression(amount) } catch(e:Exception) { null }) != null && selectedAccountId != null &&
+                                        (!splitEnabled || kotlin.math.abs(splitRemaining) < 0.001) &&
+                                        (type != "lend" && type != "receive" || selectedPeerId != null)
+                            ) {
+                                Text(if (isEdit) "UPDATE" else "SAVE", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        if (!isEdit) {
+                            Button(
+                                onClick = {
+                                    val tx = buildTransaction() ?: return@Button
+                                    if (splitEnabled) {
+                                        onSaveAndDuplicate(tx, buildSplitChildren(tx.id))
+                                    } else {
+                                        onSaveAndDuplicate(tx, null)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(),
+                                enabled = (amount.toDoubleOrNull() ?: try { evaluateExpression(amount) } catch(e:Exception) { null }) != null && selectedAccountId != null &&
+                                        (!splitEnabled || kotlin.math.abs(splitRemaining) < 0.001) &&
+                                        (type != "lend" && type != "receive" || selectedPeerId != null)
+                            ) {
+                                Text("SAVE & DUPLICATE", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1010,32 +1951,70 @@ fun AddEditTransactionDialog(
 @Composable
 private fun SplitRowCard(
     row: SplitRowData,
-    categories: List<CategoryEntity>,
+    allCategories: List<CategoryEntity>,
+    type: String,
     onUpdate: (SplitRowData) -> Unit,
     onRemove: () -> Unit,
     showDropdown: Boolean,
     onToggleDropdown: () -> Unit,
+    remainingAmount: Double = 0.0,
+    currencySymbol: String = "₹",
 ) {
+    var showSubDropdown by remember { mutableStateOf(false) }
+    val parentCategories = remember(allCategories, type) {
+        allCategories.filter { it.parentId == null && (it.type == type || (type == "savings" && it.type == "expense")) }
+    }
+    val selectedParent = remember(row.categoryId, allCategories) {
+        allCategories.find { it.id == row.categoryId }
+    }
+    val subCategories = remember(selectedParent, allCategories) {
+        selectedParent?.let { parent -> allCategories.filter { it.parentId == parent.id } } ?: emptyList()
+    }
+
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExposedDropdownMenuBox(showDropdown, { if (it) onToggleDropdown() else onToggleDropdown() }) {
-                OutlinedTextField(
-                    value = categories.find { it.id == row.categoryId }?.let { "${it.emoji} ${it.name}" } ?: "Category",
-                    onValueChange = {}, readOnly = true, label = { Text("Category") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showDropdown) },
-                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
-                )
-                ExposedDropdownMenu(showDropdown, onToggleDropdown) {
-                    DropdownMenuItem(text = { Text("None") }, onClick = { onUpdate(row.copy(categoryId = null)); onToggleDropdown() })
-                    categories.forEach { cat ->
-                        DropdownMenuItem(
-                            text = { Text("${cat.emoji} ${cat.name}") },
-                            onClick = { onUpdate(row.copy(categoryId = cat.id)); onToggleDropdown() }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Category Dropdown
+                ExposedDropdownMenuBox(showDropdown, { if (it) onToggleDropdown() else onToggleDropdown() }, Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = selectedParent?.let { "${it.emoji} ${it.name}" } ?: "Category",
+                        onValueChange = {}, readOnly = true, label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showDropdown) },
+                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(showDropdown, onToggleDropdown) {
+                        DropdownMenuItem(text = { Text("None") }, onClick = { onUpdate(row.copy(categoryId = null, subCategoryId = null)); onToggleDropdown() })
+                        parentCategories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text("${cat.emoji} ${cat.name}") },
+                                onClick = { onUpdate(row.copy(categoryId = cat.id, subCategoryId = null)); onToggleDropdown() }
+                            )
+                        }
+                    }
+                }
+
+                // Sub-category Dropdown
+                if (subCategories.isNotEmpty()) {
+                    ExposedDropdownMenuBox(showSubDropdown, { showSubDropdown = it }, Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = allCategories.find { it.id == row.subCategoryId }?.name ?: "Sub-cat (Opt)",
+                            onValueChange = {}, readOnly = true, label = { Text("Sub-category") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showSubDropdown) },
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth()
                         )
+                        ExposedDropdownMenu(showSubDropdown, { showSubDropdown = false }) {
+                            DropdownMenuItem(text = { Text("None") }, onClick = { onUpdate(row.copy(subCategoryId = null)); showSubDropdown = false })
+                            subCategories.forEach { sub ->
+                                DropdownMenuItem(
+                                    text = { Text(sub.name) },
+                                    onClick = { onUpdate(row.copy(subCategoryId = sub.id)); showSubDropdown = false }
+                                )
+                            }
+                        }
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = row.description, onValueChange = { onUpdate(row.copy(description = it)) },
                     label = { Text("Description") }, modifier = Modifier.weight(1f), singleLine = true
@@ -1046,6 +2025,21 @@ private fun SplitRowCard(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.width(100.dp), singleLine = true
                 )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "Left",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "$currencySymbol${"%.2f".format(Locale.US, remainingAmount)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (kotlin.math.abs(remainingAmount) < 0.01) MaterialTheme.colorScheme.primary
+                        else if (remainingAmount < 0) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, "Remove split", tint = MaterialTheme.colorScheme.error) }
             }
         }
@@ -1053,13 +2047,31 @@ private fun SplitRowCard(
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-private fun uriToBase64(context: Context, uri: Uri): String? = runCatching {
-    val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
-    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
-    val b64 = Base64.encodeToString(bytes, Base64.DEFAULT)
-    "data:$mimeType;base64,$b64"
-}.getOrNull()
+@Composable
+fun ReceiptPreviewDialog(path: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Receipt Preview") },
+        text = {
+            val context = LocalContext.current
+            val bitmap = remember(path) {
+                try {
+                    BitmapFactory.decodeFile(path)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "Receipt",
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)
+                )
+            } else {
+                Text("Could not load image")
+            }
+        }
+    )
+}
 

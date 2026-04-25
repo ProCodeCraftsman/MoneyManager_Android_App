@@ -9,6 +9,7 @@ data class CategoryEntity(
     val id: Long = 0,
     val name: String,
     val emoji: String = "📁",
+    val color: String = "#90A4AE", // Hex color string
     val type: String, // expense, income, savings
     val parentId: Long? = null,
     val isCustom: Boolean = false,

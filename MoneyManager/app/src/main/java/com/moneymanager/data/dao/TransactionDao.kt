@@ -21,6 +21,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE categoryId = :categoryId ORDER BY date DESC")
     fun getTransactionsByCategory(categoryId: Long): Flow<List<TransactionEntity>>
 
+    @Query("SELECT * FROM transactions WHERE goalId = :goalId ORDER BY date DESC")
+    fun getTransactionsByGoal(goalId: Long): Flow<List<TransactionEntity>>
+
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getTransactionById(id: Long): TransactionEntity?
 
@@ -54,6 +57,7 @@ interface TransactionDao {
         WHERE (:accountId IS NULL OR accountId = :accountId)
         AND (:type IS NULL OR type = :type)
         AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:goalId IS NULL OR goalId = :goalId)
         AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
         AND (:startDate IS NULL OR date >= :startDate)
         AND (:endDate IS NULL OR date <= :endDate)
@@ -63,6 +67,7 @@ interface TransactionDao {
         accountId: Long?,
         type: String?,
         categoryId: Long?,
+        goalId: Long?,
         tagId: Long?,
         startDate: Long?,
         endDate: Long?
@@ -76,6 +81,12 @@ interface TransactionDao {
 
     @Delete
     suspend fun deleteTransaction(transaction: TransactionEntity)
+
+    @Query("SELECT * FROM transactions WHERE parentTransactionId = :parentId")
+    fun getSplitChildren(parentId: Long): Flow<List<TransactionEntity>>
+
+    @Query("DELETE FROM transactions WHERE parentTransactionId = :parentId")
+    suspend fun deleteSplitChildren(parentId: Long)
 
     @Query("DELETE FROM transactions")
     suspend fun deleteAllTransactions()

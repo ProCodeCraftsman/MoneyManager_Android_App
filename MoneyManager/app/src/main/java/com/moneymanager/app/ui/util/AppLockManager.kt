@@ -7,6 +7,9 @@ import android.os.Bundle
 import com.moneymanager.data.preferences.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -16,6 +19,9 @@ import javax.inject.Singleton
 class AppLockManager @Inject constructor(
     private val preferencesManager: PreferencesManager
 ) : Application.ActivityLifecycleCallbacks {
+
+    private val _isLocked = MutableStateFlow(false)
+    val isLocked: StateFlow<Boolean> = _isLocked.asStateFlow()
 
     private var lastForegroundTime: Long = System.currentTimeMillis()
     private var isAppInForeground: Boolean = false
@@ -46,7 +52,9 @@ class AppLockManager @Inject constructor(
 
         CoroutineScope(Dispatchers.Main).launch {
             val pinEnabled = preferencesManager.pinEnabled.first()
-            if (pinEnabled) {
+            val pinHash = preferencesManager.pinHash.first()
+            // Only lock if PIN is actually set up (hash exists and enabled is true)
+            if (pinEnabled && pinHash != null && pinHash.isNotEmpty()) {
                 val autoLockMinutes = preferencesManager.autoLockMinutes.first()
                 if (autoLockMinutes > 0) {
                     val timeInBackground = System.currentTimeMillis() - lastForegroundTime
@@ -62,10 +70,11 @@ class AppLockManager @Inject constructor(
     }
 
     private fun navigateToLockScreen(activity: Activity) {
-        // This is a placeholder for actual navigation logic.
-        // In a real app, you'd start the LockActivity or update a state.
-        // Since we are using Compose and NavHost, we might need a different approach
-        // or a dedicated LockActivity that sits on top.
+        _isLocked.value = true
+    }
+
+    fun unlock() {
+        _isLocked.value = false
     }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}

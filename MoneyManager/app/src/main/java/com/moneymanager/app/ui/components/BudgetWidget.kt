@@ -1,10 +1,12 @@
 package com.moneymanager.app.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -16,14 +18,14 @@ import java.util.*
 fun BudgetWidget(
     budgetsWithProgress: List<BudgetWithProgress>,
     currencyFormat: NumberFormat,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    periodName: String = ""
 ) {
     if (budgetsWithProgress.isEmpty()) {
         return
     }
 
-    val calendar = Calendar.getInstance()
-    val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault())
+    val title = if (periodName.isNotEmpty()) "Budgets - $periodName" else "Budgets"
 
     Card(
         modifier = modifier.fillMaxWidth()
@@ -32,7 +34,7 @@ fun BudgetWidget(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Budgets - $monthName",
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -55,11 +57,7 @@ private fun BudgetProgressItem(
     budgetWithProgress: BudgetWithProgress,
     currencyFormat: NumberFormat
 ) {
-    val progressColor = when {
-        budgetWithProgress.percentage > 100 -> MaterialTheme.colorScheme.error
-        budgetWithProgress.percentage >= 80 -> Color(0xFFB8860B) // amber
-        else -> Color(0xFF2A6049) // green
-    }
+    val progressColor = budgetWithProgress.categoryColor
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -85,9 +83,10 @@ private fun BudgetProgressItem(
             progress = { (budgetWithProgress.percentage / 100f).coerceIn(0f, 1f) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp),
+                .height(8.dp)
+                .clip(CircleShape),
             color = progressColor,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            trackColor = progressColor.copy(alpha = 0.1f),
         )
     }
 }

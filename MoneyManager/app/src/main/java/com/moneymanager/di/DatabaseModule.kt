@@ -2,6 +2,8 @@ package com.moneymanager.di
 
 import android.content.Context
 import androidx.room.Room
+import com.moneymanager.data.MIGRATION_2_3
+import com.moneymanager.data.MIGRATION_5_6
 import com.moneymanager.data.MoneyManagerDatabase
 import com.moneymanager.data.dao.*
 import dagger.Module
@@ -22,7 +24,10 @@ object DatabaseModule {
             context,
             MoneyManagerDatabase::class.java,
             "moneymanager.db"
-        ).fallbackToDestructiveMigration(true).build()
+        )
+            .addMigrations(MIGRATION_2_3, MIGRATION_5_6)
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
     }
 
     @Provides
@@ -63,5 +68,10 @@ object DatabaseModule {
     @Provides
     fun provideTemplateDao(database: MoneyManagerDatabase): TemplateDao {
         return database.templateDao()
+    }
+
+    @Provides
+    fun providePeerContactDao(database: MoneyManagerDatabase): PeerContactDao {
+        return database.peerContactDao()
     }
 }

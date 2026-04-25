@@ -30,10 +30,15 @@ data class RecurringEntity(
     val type: String, // income, expense, savings
     val amount: Double,
     val categoryId: Long? = null,
+    val subCategoryId: Long? = null,
+    val goalId: Long? = null,
     val note: String = "",
     val frequency: String, // daily, weekly, biweekly, monthly, yearly
+    val startDate: Long = System.currentTimeMillis(),
     val nextDate: Long,
     val isActive: Boolean = true,
     val reminderEnabled: Boolean = false,
+    val reminderDays: Int = 0,
+    val investmentApp: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

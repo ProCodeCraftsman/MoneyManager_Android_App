@@ -1,6 +1,7 @@
 package com.moneymanager.data.worker
 
 import android.content.Context
+import android.content.Intent
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -17,7 +18,8 @@ class RecurringGenerationWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val recurringDao: RecurringDao,
-    private val transactionDao: TransactionDao
+    private val transactionDao: TransactionDao,
+    private val accountDao: com.moneymanager.data.dao.AccountDao
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -49,6 +51,17 @@ class RecurringGenerationWorker @AssistedInject constructor(
             createdAt = System.currentTimeMillis()
         )
         transactionDao.insertTransaction(transaction)
+        
+        // Update account balance
+        val account = accountDao.getAccountById(recurring.accountId)
+        if (account != null) {
+            val delta = if (recurring.type == "income") recurring.amount else -recurring.amount
+            val updatedAccount = account.copy(
+                balance = account.balance + delta,
+                updatedAt = System.currentTimeMillis()
+            )
+            accountDao.updateAccount(updatedAccount)
+        }
     }
 
     private suspend fun updateNextDate(recurring: RecurringEntity) {

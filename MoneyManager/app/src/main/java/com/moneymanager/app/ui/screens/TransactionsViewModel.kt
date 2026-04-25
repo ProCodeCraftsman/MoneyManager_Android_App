@@ -1,7 +1,9 @@
 package com.moneymanager.app.ui.screens
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.moneymanager.app.ui.util.FileHelper
 import com.moneymanager.data.entity.*
 import com.moneymanager.domain.repository.*
 import com.moneymanager.data.preferences.PreferencesManager
@@ -18,29 +20,34 @@ data class TransactionsUiState(
     val filterAccountId: Long? = null,
     val filterCategoryId: Long? = null,
     val filterTagId: Long? = null,
+    val filterGoalId: Long? = null,
+    val filterPeerId: Long? = null,
     val filterStartDate: Long? = null,
     val filterEndDate: Long? = null,
     val allTags: List<TagEntity> = emptyList(),
     val allCategories: List<CategoryEntity> = emptyList(),
     val allAccounts: List<AccountEntity> = emptyList(),
     val allGoals: List<GoalEntity> = emptyList(),
-    val currency: String = "USD",
+    val allPeers: List<PeerContact> = emptyList(),
+    val currency: String = "INR",
 )
 
 @HiltViewModel
 class TransactionsViewModel @Inject constructor(
+    application: Application,
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
     private val goalRepository: GoalRepository,
+    private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _searchQuery = MutableStateFlow("")
-    private val _filters = MutableStateFlow(FilterState("", null, null, null, null, null))
+    private val _filters = MutableStateFlow(FilterState("", null, null, null, null, null, null))
 
     val currency: StateFlow<String> = preferencesManager.currency
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "USD")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "INR")
 
     val allTags: StateFlow<List<TagEntity>> = categoryRepository.getAllTags()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -54,6 +61,9 @@ class TransactionsViewModel @Inject constructor(
     val allGoals: StateFlow<List<GoalEntity>> = goalRepository.getAllGoals()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allPeers: StateFlow<List<PeerContact>> = peerContactRepository.getAllPeers()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val uiState: StateFlow<TransactionsUiState> = combine(
         transactionRepository.getAllTransactions(),
         _searchQuery,
@@ -62,6 +72,7 @@ class TransactionsViewModel @Inject constructor(
         allCategories,
         allAccounts,
         allGoals,
+        allPeers,
         preferencesManager.currency
     ) { array ->
         val txs = array[0] as List<TransactionEntity>
@@ -71,7 +82,8 @@ class TransactionsViewModel @Inject constructor(
         val c = array[4] as List<CategoryEntity>
         val a = array[5] as List<AccountEntity>
         val g = array[6] as List<GoalEntity>
-        val curr = array[7] as String
+        val p = array[7] as List<PeerContact>
+        val curr = array[8] as String
 
         val filtered = txs
             .filter { !it.isSplitChild } // hide split children from main list
@@ -80,13 +92,15 @@ class TransactionsViewModel @Inject constructor(
                     tx.note.contains(q, ignoreCase = true) ||
                     tx.amount.toString().contains(q)
                 val typeMatches = f.type.isEmpty() || tx.type == f.type
-                val accountMatches = f.accountId == null || tx.accountId == f.accountId
+                val accountMatches = f.accountId == null || tx.accountId == f.accountId || tx.toAccountId == f.accountId
                 val categoryMatches = f.categoryId == null || tx.categoryId == f.categoryId
                 val tagMatches = f.tagId == null ||
                     (tx.tagIds.isNotEmpty() && tx.tagIds.split(",").contains(f.tagId.toString()))
+                val goalMatches = f.goalId == null || tx.goalId == f.goalId
+                val peerMatches = f.peerId == null || tx.peerContactId == f.peerId
                 val startDateMatches = f.startDate == null || tx.date >= f.startDate
                 val endDateMatches = f.endDate == null || tx.date <= f.endDate
-                noteMatches && typeMatches && accountMatches && categoryMatches && tagMatches && startDateMatches && endDateMatches
+                noteMatches && typeMatches && accountMatches && categoryMatches && tagMatches && goalMatches && peerMatches && startDateMatches && endDateMatches
             }
             .sortedByDescending { it.date }
         TransactionsUiState(
@@ -97,12 +111,15 @@ class TransactionsViewModel @Inject constructor(
             filterAccountId = f.accountId,
             filterCategoryId = f.categoryId,
             filterTagId = f.tagId,
+            filterGoalId = f.goalId,
+            filterPeerId = f.peerId,
             filterStartDate = f.startDate,
             filterEndDate = f.endDate,
             allTags = t,
             allCategories = c,
             allAccounts = a,
             allGoals = g,
+            allPeers = p,
             currency = curr
         )
     }.stateIn(
@@ -116,13 +133,16 @@ class TransactionsViewModel @Inject constructor(
     fun setAccountFilter(id: Long?) { _filters.value = _filters.value.copy(accountId = id) }
     fun setCategoryFilter(id: Long?) { _filters.value = _filters.value.copy(categoryId = id) }
     fun setTagFilter(id: Long?) { _filters.value = _filters.value.copy(tagId = id) }
+    fun setGoalFilter(id: Long?) { _filters.value = _filters.value.copy(goalId = id) }
+    fun setPeerFilter(id: Long?) { _filters.value = _filters.value.copy(peerId = id) }
     fun setDateRangeFilter(start: Long?, end: Long?) { _filters.value = _filters.value.copy(startDate = start, endDate = end) }
-    fun clearAllFilters() { _filters.value = FilterState("", null, null, null, null, null) }
+    fun clearAllFilters() { _filters.value = FilterState("", null, null, null, null, null, null, null) }
 
     fun addTransaction(transaction: TransactionEntity) {
         viewModelScope.launch {
             transactionRepository.insertTransaction(transaction)
             adjustBalance(transaction, reverse = false)
+            updatePeerBalance(transaction, reverse = false)
         }
     }
 
@@ -134,27 +154,41 @@ class TransactionsViewModel @Inject constructor(
                 transactionRepository.insertTransaction(child.copy(isSplitChild = true, parentTransactionId = parentId))
             }
             adjustBalance(parent, reverse = false)
+            updatePeerBalance(parent, reverse = false)
         }
     }
 
+
     fun getSplitChildren(parentId: Long): Flow<List<TransactionEntity>> {
-        return transactionRepository.getAllTransactions().map { txs ->
-            txs.filter { it.isSplitChild && it.parentTransactionId == parentId }
-        }
+        return transactionRepository.getSplitChildren(parentId)
     }
 
     fun addTransfer(fromAccountId: Long, toAccountId: Long, amount: Double, note: String, date: Long) {
         viewModelScope.launch {
-            val tx = TransactionEntity(
+            // Create OUT transaction for source account
+            val sourceTx = TransactionEntity(
                 accountId = fromAccountId,
                 toAccountId = toAccountId,
                 type = "transfer",
                 isTransfer = true,
                 amount = amount,
-                note = note,
+                note = note.ifEmpty { "Transfer to Account" },
                 date = date
             )
-            transactionRepository.insertTransaction(tx)
+            transactionRepository.insertTransaction(sourceTx)
+            
+            // Create IN transaction for destination account
+            val destTx = TransactionEntity(
+                accountId = toAccountId,
+                toAccountId = fromAccountId,
+                type = "transfer",
+                isTransfer = true,
+                amount = amount,
+                note = note.ifEmpty { "Transfer from Account" },
+                date = date
+            )
+            transactionRepository.insertTransaction(destTx)
+
             accountRepository.updateAccountBalance(fromAccountId, -amount)
             accountRepository.updateAccountBalance(toAccountId, amount)
         }
@@ -163,32 +197,56 @@ class TransactionsViewModel @Inject constructor(
     fun updateTransaction(old: TransactionEntity, new: TransactionEntity, children: List<TransactionEntity>? = null) {
         viewModelScope.launch {
             adjustBalance(old, reverse = true)
-            transactionRepository.updateTransaction(new)
+            updatePeerBalance(old, reverse = true)
             
-            if (new.isSplitParent && children != null) {
-                // Simplified: delete old children and insert new ones
-                transactionRepository.getAllTransactions().first()
-                    .filter { it.isSplitChild && it.parentTransactionId == old.id }
-                    .forEach { transactionRepository.deleteTransaction(it) }
-                
+            // Delete old receipt file if it changed
+            if (old.receiptPath != null && old.receiptPath != new.receiptPath) {
+                FileHelper.deleteReceipt(old.receiptPath)
+            }
+
+            val updatedParent = if (new.id == 0L) old.copy(
+                accountId = new.accountId,
+                toAccountId = new.toAccountId,
+                type = new.type,
+                amount = new.amount,
+                categoryId = new.categoryId,
+                subCategoryId = new.subCategoryId,
+                goalId = new.goalId,
+                peerContactId = new.peerContactId,
+                tagIds = new.tagIds,
+                date = new.date,
+                note = new.note,
+                receiptPath = new.receiptPath,
+                isSplitParent = new.isSplitParent,
+                isTransfer = new.isTransfer,
+                investmentPlatform = new.investmentPlatform,
+                expectedReturnDate = new.expectedReturnDate
+            ) else new
+
+            transactionRepository.updateTransaction(updatedParent)
+            
+            if (updatedParent.isSplitParent && children != null) {
+                transactionRepository.deleteSplitChildren(old.id)
                 children.forEach { child ->
-                    transactionRepository.insertTransaction(child.copy(isSplitChild = true, parentTransactionId = new.id))
+                    transactionRepository.insertTransaction(child.copy(isSplitChild = true, parentTransactionId = updatedParent.id))
                 }
             }
 
-            adjustBalance(new, reverse = false)
+            adjustBalance(updatedParent, reverse = false)
+            updatePeerBalance(updatedParent, reverse = false)
         }
     }
 
     fun deleteTransaction(transaction: TransactionEntity) {
         viewModelScope.launch {
-            // Delete split children if this is a parent
             if (transaction.isSplitParent) {
-                transactionRepository.getAllTransactions().first()
-                    .filter { it.parentTransactionId == transaction.id }
-                    .forEach { transactionRepository.deleteTransaction(it) }
+                val children = transactionRepository.getSplitChildren(transaction.id).first()
+                children.forEach { FileHelper.deleteReceiptsForTransaction(it) }
+                transactionRepository.deleteSplitChildren(transaction.id)
             }
+            FileHelper.deleteReceiptsForTransaction(transaction)
             adjustBalance(transaction, reverse = true)
+            updatePeerBalance(transaction, reverse = true)
             transactionRepository.deleteTransaction(transaction)
         }
     }
@@ -203,11 +261,7 @@ class TransactionsViewModel @Inject constructor(
             val newId = transactionRepository.insertTransaction(copy)
             
             if (transaction.isSplitParent) {
-                // Also duplicate children
-                val children = transactionRepository.getAllTransactions().first()
-                    .filter { it.isSplitChild && it.parentTransactionId == transaction.id }
-                
-                children.forEach { child ->
+                transactionRepository.getSplitChildren(transaction.id).first().forEach { child ->
                     transactionRepository.insertTransaction(
                         child.copy(
                             id = 0,
@@ -220,6 +274,7 @@ class TransactionsViewModel @Inject constructor(
             }
 
             adjustBalance(copy, reverse = false)
+            updatePeerBalance(copy, reverse = false)
         }
     }
 
@@ -232,26 +287,48 @@ class TransactionsViewModel @Inject constructor(
     private suspend fun adjustBalance(tx: TransactionEntity, reverse: Boolean) {
         val sign = if (reverse) -1.0 else 1.0
         when (tx.type) {
-            "income" -> accountRepository.updateAccountBalance(tx.accountId, sign * tx.amount)
-            "expense", "savings" -> accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
+            "income", "receive" -> accountRepository.updateAccountBalance(tx.accountId, sign * tx.amount)
+            "expense", "savings", "lend" -> accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
             "transfer" -> {
-                if (!reverse) {
-                    accountRepository.updateAccountBalance(tx.accountId, -tx.amount)
-                    tx.toAccountId?.let { accountRepository.updateAccountBalance(it, tx.amount) }
-                } else {
-                    accountRepository.updateAccountBalance(tx.accountId, tx.amount)
-                    tx.toAccountId?.let { accountRepository.updateAccountBalance(it, -tx.amount) }
+                if (tx.isTransfer) {
+                    val isOutgoing = tx.note.contains("Transfer to", ignoreCase = true)
+                    val factor = if (isOutgoing) -1.0 else 1.0
+                    accountRepository.updateAccountBalance(tx.accountId, sign * factor * tx.amount)
                 }
             }
+        }
+    }
+
+    private suspend fun updatePeerBalance(tx: TransactionEntity, reverse: Boolean) {
+        val peerId = tx.peerContactId ?: return
+        val peer = peerContactRepository.getPeerByIdSync(peerId) ?: return
+        val sign = if (reverse) -1.0 else 1.0
+        
+        val updatedPeer = when (tx.type) {
+            "lend" -> peer.copy(
+                totalGiven = peer.totalGiven + (sign * tx.amount),
+                updatedAt = System.currentTimeMillis()
+            )
+            "receive" -> peer.copy(
+                totalReceived = peer.totalReceived + (sign * tx.amount),
+                updatedAt = System.currentTimeMillis()
+            )
+            else -> peer
+        }
+        
+        if (updatedPeer !== peer) {
+            peerContactRepository.updatePeer(updatedPeer)
         }
     }
 }
 
 private data class FilterState(
-    val type: String,
-    val accountId: Long?,
-    val categoryId: Long?,
-    val tagId: Long?,
-    val startDate: Long?,
-    val endDate: Long?
+    val type: String = "All",
+    val accountId: Long? = null,
+    val categoryId: Long? = null,
+    val tagId: Long? = null,
+    val goalId: Long? = null,
+    val peerId: Long? = null,
+    val startDate: Long? = null,
+    val endDate: Long? = null
 )

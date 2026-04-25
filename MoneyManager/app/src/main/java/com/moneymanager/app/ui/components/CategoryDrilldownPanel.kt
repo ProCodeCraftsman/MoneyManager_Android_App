@@ -111,10 +111,18 @@ fun CategoryDrilldownPanel(
                                     )
                                 }
                                 Text(
-                                    text = "-${currencyFormat.format(transaction.amount)}",
+                                    text = when (transaction.type) {
+                                        "income" -> "+${currencyFormat.format(transaction.amount)}"
+                                        "expense" -> "-${currencyFormat.format(transaction.amount)}"
+                                        else -> currencyFormat.format(transaction.amount)
+                                    },
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.error
+                                    color = when (transaction.type) {
+                                        "income" -> androidx.compose.ui.graphics.Color(0xFF00C853)
+                                        "expense" -> MaterialTheme.colorScheme.error
+                                        else -> MaterialTheme.colorScheme.onSurface
+                                    }
                                 )
                             }
                         }

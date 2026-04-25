@@ -28,7 +28,7 @@ class PreferencesManager(private val context: Context) {
     }
 
     val currency: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[CURRENCY] ?: "USD"
+        preferences[CURRENCY] ?: "INR"
     }
 
     val pinEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->

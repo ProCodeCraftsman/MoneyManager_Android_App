@@ -39,4 +39,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTemplateRepository(impl: TemplateRepositoryImpl): TemplateRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPeerContactRepository(impl: PeerContactRepositoryImpl): PeerContactRepository
 }

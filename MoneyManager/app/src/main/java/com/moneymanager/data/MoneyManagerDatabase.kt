@@ -18,6 +18,31 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Create peer_contacts table
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS peer_contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                contactId TEXT NOT NULL,
+                displayName TEXT NOT NULL,
+                phoneNumber TEXT NOT NULL,
+                photoUri TEXT,
+                totalGiven REAL NOT NULL DEFAULT 0.0,
+                totalReceived REAL NOT NULL DEFAULT 0.0,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+        
+        // Add peerContactId to transactions
+        db.execSQL("ALTER TABLE transactions ADD COLUMN peerContactId INTEGER")
+        
+        // Add peerContactId to accounts
+        db.execSQL("ALTER TABLE accounts ADD COLUMN peerContactId INTEGER")
+    }
+}
+
 @Database(
     entities = [
         AccountEntity::class,
@@ -27,9 +52,10 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         BudgetEntity::class,
         GoalEntity::class,
         RecurringEntity::class,
-        TemplateEntity::class
+        TemplateEntity::class,
+        PeerContact::class
     ],
-    version = 3,
+    version = 6,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {
@@ -41,4 +67,5 @@ abstract class MoneyManagerDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun recurringDao(): RecurringDao
     abstract fun templateDao(): TemplateDao
+    abstract fun peerContactDao(): PeerContactDao
 }

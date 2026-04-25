@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface AccountRepository {
     fun getAllAccounts(): Flow<List<AccountEntity>>
+    fun getTotalBalance(): Flow<Double>
     fun getTotalAssets(): Flow<Double>
     fun getTotalDebt(): Flow<Double>
     fun getAccountBalance(accountId: Long): Flow<Double>

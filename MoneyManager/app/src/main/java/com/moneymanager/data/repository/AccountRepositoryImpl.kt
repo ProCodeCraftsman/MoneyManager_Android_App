@@ -16,6 +16,9 @@ class AccountRepositoryImpl @Inject constructor(
     override fun getAllAccounts(): Flow<List<AccountEntity>> =
         accountDao.getAllAccounts()
 
+    override fun getTotalBalance(): Flow<Double> =
+        accountDao.getTotalBalance().map { it ?: 0.0 }
+
     override fun getTotalAssets(): Flow<Double> =
         accountDao.getTotalAssets().map { it ?: 0.0 }
 

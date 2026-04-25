@@ -31,10 +31,19 @@ class TransactionRepositoryImpl @Inject constructor(
     override fun getRecentTransactions(limit: Int): Flow<List<TransactionEntity>> =
         transactionDao.getRecentTransactions(limit)
 
+    override fun getTransactionsByGoal(goalId: Long): Flow<List<TransactionEntity>> =
+        transactionDao.getTransactionsByGoal(goalId)
+
     override fun getTotalByType(type: String): Flow<Double> =
         transactionDao.getTransactionsByType(type).map { transactions ->
             transactions.sumOf { it.amount }
         }
+
+    override fun getSplitChildren(parentId: Long): Flow<List<TransactionEntity>> =
+        transactionDao.getSplitChildren(parentId)
+
+    override suspend fun deleteSplitChildren(parentId: Long) =
+        transactionDao.deleteSplitChildren(parentId)
 
     override suspend fun getTransactionById(id: Long): TransactionEntity? =
         transactionDao.getTransactionById(id)
@@ -59,9 +68,10 @@ class TransactionRepositoryImpl @Inject constructor(
         accountId: Long?,
         type: String?,
         categoryId: Long?,
+        goalId: Long?,
         tagId: Long?,
         startDate: Long?,
         endDate: Long?
     ): Flow<List<TransactionEntity>> =
-        transactionDao.getTransactionsWithFilters(accountId, type, categoryId, tagId, startDate, endDate)
+        transactionDao.getTransactionsWithFilters(accountId, type, categoryId, goalId, tagId, startDate, endDate)
 }

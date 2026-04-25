@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.moneymanager.data.entity.AccountEntity
+import com.moneymanager.app.ui.util.CurrencyUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -20,7 +21,7 @@ import java.util.*
 @Composable
 fun TransferDialog(
     accounts: List<AccountEntity>,
-    currency: String = "USD",
+    currency: String = "INR",
     onDismiss: () -> Unit,
     onTransfer: (fromAccountId: Long, toAccountId: Long, amount: Double, note: String, date: Long) -> Unit
 ) {
@@ -95,7 +96,7 @@ fun TransferDialog(
                         value = fromAccount?.name ?: "Select source account",
                         onValueChange = {}, readOnly = true, label = { Text("From Account") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedFrom) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable)
                     )
                     ExposedDropdownMenu(expandedFrom, { expandedFrom = false }) {
                         accounts.forEach { acc ->
@@ -116,7 +117,7 @@ fun TransferDialog(
                         value = accounts.find { it.id == toAccountId }?.name ?: "Select destination account",
                         onValueChange = {}, readOnly = true, label = { Text("To Account") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedTo) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable)
                     )
                     ExposedDropdownMenu(expandedTo, { expandedTo = false }) {
                         accounts.forEach { acc ->
@@ -141,7 +142,7 @@ fun TransferDialog(
                 )
                 if (fromAccount != null) {
                     Text(
-                        "Available: $currency ${String.format("%.2f", fromAccount.balance)}",
+                        "Available: ${CurrencyUtils.getCurrencySymbol(currency)}${String.format("%.2f", fromAccount.balance)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (amountValue > fromAccount.balance) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -163,10 +164,10 @@ fun TransferDialog(
                     )
                 }
 
-                // Note
+                // Description
                 OutlinedTextField(
                     value = note, onValueChange = { note = it },
-                    label = { Text("Note (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+                    label = { Text("Description (Optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth()
                 )
 
                 if (fromAccountId == toAccountId && fromAccountId != null) {
