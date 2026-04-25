@@ -53,6 +53,12 @@
 - [ ] **COL-03**: All income labels/icons use theme's income color
 - [ ] **COL-04**: All expense labels/icons use theme's expense color
 
+### Split Transaction Expandable View
+
+- [ ] **SPLIT-01**: Split parent transactions display expandable icon indicating collapsible child transactions
+- [ ] **SPLIT-02**: Expanding a split transaction reveals all child transactions with individual details (category, amount, note)
+- [ ] **SPLIT-03**: Collapsing hides child transactions, returning to parent-only view
+
 ## v2 Requirements
 
 Deferred themes for future consideration.
@@ -107,10 +113,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COL-02 | Phase 17 | Pending |
 | COL-03 | Phase 17 | Pending |
 | COL-04 | Phase 17 | Pending |
+| SPLIT-01 | Phase 18 | Pending |
+| SPLIT-02 | Phase 18 | Pending |
+| SPLIT-03 | Phase 18 | Pending |
 
 **Coverage:**
-- v2.1 requirements: 25 total
-- Mapped to phases: 25
+- v2.1 requirements: 28 total
+- Mapped to phases: 28
 - Unmapped: 0 ✓
 
 ---
