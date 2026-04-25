@@ -126,6 +126,7 @@ fun TransactionsScreen(
         CurrencyUtils.getCurrencyFormat(uiState.currency)
     }
     var collapsedDates by rememberSaveable { mutableStateOf(setOf<Long>()) }
+    var expandedSplitIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
     var showAddDialog by remember { mutableStateOf(initialType != null) }
     var editingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var searchText by remember { mutableStateOf("") }
@@ -193,6 +194,14 @@ fun TransactionsScreen(
             }
         }
         viewModel.setDateRangeFilter(currentPeriodStart, currentPeriodEnd)
+    }
+
+    fun toggleSplitExpand(transactionId: Long) {
+        expandedSplitIds = if (expandedSplitIds.contains(transactionId)) {
+            expandedSplitIds - transactionId
+        } else {
+            expandedSplitIds + transactionId
+        }
     }
 
     fun navigatePrevious() {
@@ -447,55 +456,6 @@ fun TransactionsScreen(
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(Icons.Default.Clear, "Clear", modifier = Modifier.size(16.dp))
-                        }
-                    }
-                }
-            }
-
-            // Compact Filter Chips
-            if (activeFilterCount > 0) {
-                LazyRow(
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (uiState.filterType.isNotEmpty() && uiState.filterType != "All") item {
-                        CompactFilterChip(
-                            label = uiState.filterType.replaceFirstChar { it.uppercase() },
-                            onClear = { viewModel.setTypeFilter("") }
-                        )
-                    }
-                    uiState.filterAccountId?.let { id -> item {
-                        CompactFilterChip(
-                            label = uiState.allAccounts.find { it.id == id }?.name ?: "Account",
-                            onClear = { viewModel.setAccountFilter(null) }
-                        )
-                    }}
-                    uiState.filterCategoryId?.let { id -> item {
-                        CompactFilterChip(
-                            label = uiState.allCategories.find { it.id == id }?.name ?: "Category",
-                            onClear = { viewModel.setCategoryFilter(null) }
-                        )
-                    }}
-                    uiState.filterTagId?.let { id -> item {
-                        CompactFilterChip(
-                            label = uiState.allTags.find { it.id == id }?.name ?: "Tag",
-                            onClear = { viewModel.setTagFilter(null) }
-                        )
-                    }}
-                    if (uiState.filterStartDate != null || uiState.filterEndDate != null) item {
-                        CompactFilterChip(
-                            label = "Custom Dates",
-                            onClear = { viewModel.setDateRangeFilter(null, null) }
-                        )
-                    }
-                    item {
-                        TextButton(
-                            onClick = { viewModel.clearAllFilters() },
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Text("Clear all", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
