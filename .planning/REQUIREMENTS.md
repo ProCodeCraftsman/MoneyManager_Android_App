@@ -55,9 +55,9 @@
 
 ### Split Transaction Expandable View
 
-- [ ] **SPLIT-01**: Split parent transactions display expandable icon indicating collapsible child transactions
-- [ ] **SPLIT-02**: Expanding a split transaction reveals all child transactions with individual details (category, amount, note)
-- [ ] **SPLIT-03**: Collapsing hides child transactions, returning to parent-only view
+- [x] **SPLIT-01**: Split parent transactions display expandable icon indicating collapsible child transactions
+- [x] **SPLIT-02**: Expanding a split transaction reveals all child transactions with individual details (category, amount, note)
+- [x] **SPLIT-03**: Collapsing hides child transactions, returning to parent-only view
 
 ## v2 Requirements
 
@@ -113,9 +113,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COL-02 | Phase 17 | Pending |
 | COL-03 | Phase 17 | Pending |
 | COL-04 | Phase 17 | Pending |
-| SPLIT-01 | Phase 18 | Pending |
-| SPLIT-02 | Phase 18 | Pending |
-| SPLIT-03 | Phase 18 | Pending |
+| SPLIT-01 | Phase 18 | Complete |
+| SPLIT-02 | Phase 18 | Complete |
+| SPLIT-03 | Phase 18 | Complete |
 
 **Coverage:**
 - v2.1 requirements: 28 total
