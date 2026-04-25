@@ -27,6 +27,10 @@ Comprehensive money management web app with:
 - **App Name**: MoneyManager
 - **Data Storage**: Both (Room local + Firebase cloud backup)
 - **Monetization**: Free (all features)
+## Current State
+
+Phase 20 complete — Transactions UI enhancements (collapsible header, nav gap fix, theme-aware surfaces)
+
 ## Current Milestone: v2.1 Multiple Themes
 
 **Goal:** Add 5 selectable themes with light/dark variants, each with consistent color palettes for background, cards, text, income, expense, and accent colors.
@@ -69,4 +73,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-25*
+*Last updated: 2026-04-25 — Phase 20 complete*
