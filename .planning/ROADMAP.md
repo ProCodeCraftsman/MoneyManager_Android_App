@@ -66,7 +66,10 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
   9. Modern Muted theme available in light mode
   10. Modern Muted theme available in dark mode
 
-**Plans**: TBD
+**Plans**:
+- [ ] 15-01-PLAN.md — All 5 themes with light/dark color schemes
+
+**Plans**: 1 plan
 
 **UI hint**: yes
 
