@@ -434,6 +434,7 @@ fun TransactionsScreen(
                                     transaction = tx,
                                     accounts = uiState.allAccounts,
                                     categories = uiState.allCategories,
+                                    peers = uiState.allPeers,
                                     currencyFormat = currencyFormat,
                                     onEdit = { editingTransaction = it },
                                     onDelete = { viewModel.deleteTransaction(it) }
@@ -586,6 +587,7 @@ fun TransactionItem(
     transaction: TransactionEntity,
     accounts: List<AccountEntity>,
     categories: List<CategoryEntity>,
+    peers: List<PeerContact> = emptyList(),
     currencyFormat: NumberFormat,
     onEdit: (TransactionEntity) -> Unit,
     onDelete: (TransactionEntity) -> Unit,
@@ -663,6 +665,7 @@ fun TransactionItem(
                 transaction = transaction,
                 accounts = accounts,
                 categories = categories,
+                peers = peers,
                 currencyFormat = currencyFormat,
                 onClick = { onEdit(transaction) }
             )
@@ -676,6 +679,7 @@ fun TransactionCardDense(
     transaction: TransactionEntity,
     accounts: List<AccountEntity>,
     categories: List<CategoryEntity>,
+    peers: List<PeerContact> = emptyList(),
     currencyFormat: NumberFormat,
     onClick: () -> Unit
 ) {
@@ -683,6 +687,12 @@ fun TransactionCardDense(
     val category = remember(transaction.categoryId, categories) { categories.find { it.id == transaction.categoryId } }
     val subcategory = remember(transaction.subCategoryId, categories) {
         transaction.subCategoryId?.let { id -> categories.find { it.id == id } }
+    }
+    val toAccount = remember(transaction.toAccountId, accounts) {
+        transaction.toAccountId?.let { id -> accounts.find { it.id == id } }
+    }
+    val peer = remember(transaction.peerContactId, peers) {
+        transaction.peerContactId?.let { id -> peers.find { it.id == id } }
     }
 
     val typeColor = when (transaction.type) {
@@ -780,23 +790,77 @@ fun TransactionCardDense(
                     }
                 }
 
-                // Row 2: Subtitle - [icon] Account - Description
+                // Row 2: Account(s) - Description
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = 2.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountBalanceWallet,
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = account?.name ?: stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (transaction.type == "transfer" && toAccount != null) {
+                        val fromEmoji = account?.emoji ?: "🏦"
+                        val toEmoji = toAccount.emoji ?: "🏦"
+                        Text(
+                            text = fromEmoji,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        Text(
+                            text = account?.name ?: stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = COLOR_TRANSFER
+                        )
+                        Text(
+                            text = toEmoji,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        Text(
+                            text = toAccount.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = COLOR_TRANSFER
+                        )
+                    } else if ((transaction.type == "lend" || transaction.type == "receive") && peer != null) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = COLOR_EXPENSE
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = account?.name ?: stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = COLOR_EXPENSE
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            text = peer.displayName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = COLOR_EXPENSE
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = account?.name ?: stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     if (transaction.note.isNotBlank() || transaction.description.isNotBlank()) {
                         val desc = transaction.note.ifBlank { transaction.description }
                         Text(SEPARATOR_DOT, color = MaterialTheme.colorScheme.outline, style = MaterialTheme.typography.labelSmall)
