@@ -1,161 +1,118 @@
-# Requirements: MoneyManager Android
+# Requirements: MoneyManager v2.1
 
-**Defined:** 2026-04-14
-**Core Value:** Personal finance management with comprehensive default categories and full dashboard
+**Defined:** 2026-04-25
+**Core Value:** Personal finance management with multiple theme options
 
-## v2.0 Requirements
+## v2.1 Requirements
 
-### Default Categories
+### Theme Infrastructure
 
-- [ ] **CAT-01**: App ships with 11 pre-configured Expense categories (Food & Dining, Transport, Shopping, Bills & Utilities, Health, Entertainment, Travel, Education, Home, Personal Care, Other Expense)
-- [ ] **CAT-02**: App ships with 5 pre-configured Income categories (Salary, Freelance, Investment, Gift, Other Income)
-- [ ] **CAT-03**: App ships with 2 pre-configured Savings & Investment categories (Mutual Funds, Fixed Deposit)
-- [ ] **CAT-04**: Default categories cannot be deleted by users
-- [ ] **CAT-05**: Default categories can be archived/unarchived by users
-- [ ] **CAT-06**: Users can add custom categories (name, emoji, type)
-- [ ] **CAT-07**: Users can edit custom categories
-- [ ] **CAT-08**: Users can delete custom categories
+- [ ] **THEM-01**: App uses Jetpack Compose Material 3 dynamic color theming system
+- [ ] **THEM-02**: Theme colors are defined in Theme.kt with ColorScheme extension
+- [ ] **THEM-03**: User preference (theme selection + dark mode) is persisted to DataStore
+- [ ] **THEM-04**: Dark mode toggle applies to currently selected theme
+- [ ] **THEM-05**: App applies theme colors on startup before first frame
 
-### Sub-Categories
+### Theme 1: Soft Neutral (Default)
 
-- [ ] **SUB-01**: Food & Dining category has sub-categories (Restaurants, Online Delivery, Bakery, Groceries)
-- [ ] **SUB-02**: Transport category has sub-categories (Fuel, Cab/Ride Share, Public Transit)
-- [ ] **SUB-03**: Shopping category has sub-categories (Clothing, Electronics, Home Goods)
-- [ ] **SUB-04**: Bills & Utilities category has sub-categories (Electricity, Internet, Rent, Insurance)
-- [ ] **SUB-05**: Health category has sub-categories (Doctor, Pharmacy, Health Insurance)
-- [ ] **SUB-06**: Entertainment category has sub-categories (Streaming, Movies, Games)
-- [ ] **SUB-07**: Travel category has sub-categories (Flights, Hotel, Activities)
-- [ ] **SUB-08**: Mutual Funds category has sub-categories (Equity, Debt, ELSS, Index)
-- [ ] **SUB-09**: Fixed Deposit category has sub-categories (Bank FD, Corporate FD)
-- [ ] **SUB-10**: Users can add sub-categories to any category
-- [ ] **SUB-11**: Sub-categories inherit parent's category type
+- [ ] **THEM-06**: Soft Neutral light mode with colors: Background #F6F7F9, Card #FFFFFF, Primary Text #1F2937, Secondary Text #6B7280, Income #16A34A, Expense #DC2626, Accent #2563EB, Divider #E5E7EB
+- [ ] **THEM-07**: Soft Neutral dark mode with colors: Background #0F172A, Card #1E293B, Primary Text #E5E7EB, Secondary Text #94A3B8, Income #22C55E, Expense #F87171, Accent #3B82F6
 
-### Category Archive
+### Theme 2: Warm Finance
 
-- [ ] **ARCH-01**: Users can archive default categories (hides from selection but preserves transaction history)
-- [ ] **ARCH-02**: Users can unarchive archived categories
-- [ ] **ARCH-03**: Archived categories do not appear in category picker
-- [ ] **ARCH-04**: Archived categories preserve historical transaction data
+- [ ] **THEM-08**: Warm Finance light mode with colors: Background #FAF7F2, Card #FFFFFF, Primary Text #2B2B2B, Secondary Text #7A7A7A, Income #2E7D32, Expense #C62828, Accent #F59E0B, Divider #E8E3DA
+- [ ] **THEM-09**: Warm Finance dark mode with colors: Background #1C1917, Card #292524, Primary Text #F5F5F4, Secondary Text #A8A29E, Income #4ADE80, Expense #FB7185, Accent #F59E0B
 
-### Dashboard - Time Filter
+### Theme 3: Cool Blue Finance
 
-- [ ] **DASH-01**: Dashboard displays time filter bar with options: Day, Week, Month (default), Year, All, Custom
-- [ ] **DASH-02**: Selecting "Custom" reveals two date-picker inputs (From/To)
-- [ ] **DASH-03**: All stat cards and charts respond to selected time filter
-- [ ] **DASH-04**: Recent transactions list ignores time filter (always shows last 8)
-- [ ] **DASH-05**: Budget widget always shows current month (ignores dashboard time filter)
+- [ ] **THEM-10**: Cool Blue Finance light mode with colors: Background #F4F8FF, Card #FFFFFF, Primary Text #1E3A8A, Secondary Text #64748B, Income #059669, Expense #DC2626, Accent #2563EB, Divider #DBEAFE
+- [ ] **THEM-11**: Cool Blue Finance dark mode with colors: Background #020617, Card #0F172A, Primary Text #E2E8F0, Secondary Text #94A3B8, Income #34D399, Expense #F87171, Accent #3B82F6
 
-### Dashboard - Stat Cards
+### Theme 4: Minimal Green Ledger
 
-- [ ] **DASH-06**: Net Worth card displays sum of all account balances (always, regardless of time filter)
-- [ ] **DASH-07**: Income card displays total income for selected period
-- [ ] **DASH-08**: Expenses card displays total expenses for selected period
-- [ ] **DASH-09**: Net card displays income minus expenses for selected period
-- [ ] **DASH-10**: Stat cards have appropriate accent colors (gold for net worth, green for income, red for expenses)
+- [ ] **THEM-12**: Minimal Green Ledger light mode with colors: Background #F3FBF6, Card #FFFFFF, Primary Text #064E3B, Secondary Text #6B7280, Income #16A34A, Expense #B91C1C, Accent #10B981, Divider #D1FAE5
+- [ ] **THEM-13**: Minimal Green Ledger dark mode with colors: Background #022C22, Card #064E3B, Primary Text #ECFDF5, Secondary Text #A7F3D0, Income #4ADE80, Expense #F87171, Accent #10B981
 
-### Dashboard - Charts
+### Theme 5: Modern Muted
 
-- [ ] **DASH-11**: Spending by Category displays as doughnut chart
-- [ ] **DASH-12**: Chart shows expense breakdown by category for filtered period
-- [ ] **DASH-13**: Tapping a chart segment opens drill-down panel showing all transactions in that category
-- [ ] **DASH-14**: Drill-down panel shows transaction date, account, category, tags, and amount
-- [ ] **DASH-15**: Drill-down panel has close button
+- [ ] **THEM-14**: Modern Muted light mode with colors: Background #F8FAFC, Card #FFFFFF, Primary Text #0F172A, Secondary Text #64748B, Income #22C55E, Expense #EF4444, Accent #7C3AED, Divider #E2E8F0
+- [ ] **THEM-15**: Modern Muted dark mode with colors: Background #020617, Card #111827, Primary Text #F1F5F9, Secondary Text #94A3B8, Income #4ADE80, Expense #FB7185, Accent #8B5CF6
 
-### Dashboard - Recent Transactions
+### Settings UI
 
-- [ ] **DASH-16**: Recent Transactions shows last 8 transactions
-- [ ] **DASH-17**: Each transaction displays icon, title, date, account, category, tags, badges
-- [ ] **DASH-18**: Amount displayed with type-specific coloring and sign prefix
+- [ ] **UI-01**: Settings screen shows theme selection dropdown with 5 theme options
+- [ ] **UI-02**: Settings screen shows dark mode toggle below theme selection
+- [ ] **UI-03**: Theme selection is highlighted with current theme name
+- [ ] **UI-04**: Changing theme immediately updates the UI
+- [ ] **UI-05**: Default theme is Soft Neutral (Theme 1) for new users
 
-### Dashboard - Budget Widget
+### Income/Expense Color Consistency
 
-- [ ] **DASH-19**: Budget widget displays if budgets are configured
-- [ ] **DASH-20**: Shows each budget with progress bar
-- [ ] **DASH-21**: Always uses current calendar month
+- [ ] **COL-01**: All income amounts display in theme's income color throughout the app
+- [ ] **COL-02**: All expense amounts display in theme's expense color throughout the app
+- [ ] **COL-03**: All income labels/icons use theme's income color
+- [ ] **COL-04**: All expense labels/icons use theme's expense color
 
-### Dashboard - Recurring Reminders
+## v2 Requirements
 
-- [ ] **DASH-22**: Gold-highlighted banner shows upcoming recurring transactions within reminder window
-- [ ] **DASH-23**: Each reminder displays category emoji, name, amount, days until due, next occurrence date
+Deferred themes for future consideration.
 
-## v2.1 Requirements (Future)
+### Theme Presets
 
-### Enhanced Dashboard
+- **PRESET-01**: User can save current theme + dark mode as a preset
+- **PRESET-02**: User can switch between saved presets quickly
 
-- **DASH-24**: Net worth trend chart over time
-- **DASH-25**: Budget vs actual comparison widget
-- **DASH-26**: Actionable insights ("spending up 30% vs last month")
+### Auto Theme
 
-### Category Management
-
-- **CAT-09**: Category reordering/drag-and-drop
-- **CAT-10**: Category color customization
+- **AUTO-01**: App respects system theme by default
+- **AUTO-02**: User can override system theme with manual selection
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Category sharing/import | Niche feature, defer to v2+ |
-| Auto-categorization rules | High complexity, requires rule engine |
-| Customizable dashboard widgets | Low initial value, defer to v2+ |
-| Cash flow forecast | High complexity, defer to v2+ |
+| Custom theme creator | High complexity, most users prefer curated options |
+| Theme switching animations | Performance concern on lower-end devices |
+| Per-account themes | Confusion, single theme for app consistency |
+| AMOLED black themes | Special-purpose, not needed for v2.1 |
+| Sync themes across devices | Cloud sync infrastructure not in scope |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CAT-01 | Phase 12 | Pending |
-| CAT-02 | Phase 12 | Pending |
-| CAT-03 | Phase 12 | Pending |
-| CAT-04 | Phase 12 | Pending |
-| CAT-05 | Phase 12 | Pending |
-| CAT-06 | Phase 12 | Pending |
-| CAT-07 | Phase 12 | Pending |
-| CAT-08 | Phase 12 | Pending |
-| SUB-01 | Phase 12 | Pending |
-| SUB-02 | Phase 12 | Pending |
-| SUB-03 | Phase 12 | Pending |
-| SUB-04 | Phase 12 | Pending |
-| SUB-05 | Phase 12 | Pending |
-| SUB-06 | Phase 12 | Pending |
-| SUB-07 | Phase 12 | Pending |
-| SUB-08 | Phase 12 | Pending |
-| SUB-09 | Phase 12 | Pending |
-| SUB-10 | Phase 12 | Pending |
-| SUB-11 | Phase 12 | Pending |
-| ARCH-01 | Phase 12 | Pending |
-| ARCH-02 | Phase 12 | Pending |
-| ARCH-03 | Phase 12 | Pending |
-| ARCH-04 | Phase 12 | Pending |
-| DASH-01 | Phase 13 | Pending |
-| DASH-02 | Phase 13 | Pending |
-| DASH-03 | Phase 13 | Pending |
-| DASH-04 | Phase 13 | Pending |
-| DASH-05 | Phase 13 | Pending |
-| DASH-06 | Phase 13 | Pending |
-| DASH-07 | Phase 13 | Pending |
-| DASH-08 | Phase 13 | Pending |
-| DASH-09 | Phase 13 | Pending |
-| DASH-10 | Phase 13 | Pending |
-| DASH-11 | Phase 13 | Pending |
-| DASH-12 | Phase 13 | Pending |
-| DASH-13 | Phase 13 | Pending |
-| DASH-14 | Phase 13 | Pending |
-| DASH-15 | Phase 13 | Pending |
-| DASH-16 | Phase 13 | Pending |
-| DASH-17 | Phase 13 | Pending |
-| DASH-18 | Phase 13 | Pending |
-| DASH-19 | Phase 13 | Pending |
-| DASH-20 | Phase 13 | Pending |
-| DASH-21 | Phase 13 | Pending |
-| DASH-22 | Phase 13 | Pending |
-| DASH-23 | Phase 13 | Pending |
+| THEM-01 | - | Pending |
+| THEM-02 | - | Pending |
+| THEM-03 | - | Pending |
+| THEM-04 | - | Pending |
+| THEM-05 | - | Pending |
+| THEM-06 | - | Pending |
+| THEM-07 | - | Pending |
+| THEM-08 | - | Pending |
+| THEM-09 | - | Pending |
+| THEM-10 | - | Pending |
+| THEM-11 | - | Pending |
+| THEM-12 | - | Pending |
+| THEM-13 | - | Pending |
+| THEM-14 | - | Pending |
+| THEM-15 | - | Pending |
+| UI-01 | - | Pending |
+| UI-02 | - | Pending |
+| UI-03 | - | Pending |
+| UI-04 | - | Pending |
+| UI-05 | - | Pending |
+| COL-01 | - | Pending |
+| COL-02 | - | Pending |
+| COL-03 | - | Pending |
+| COL-04 | - | Pending |
 
 **Coverage:**
-- v2.0 requirements: 37 total
-- Mapped to phases: 37
-- Unmapped: 0 ✓
+- v2.1 requirements: 25 total
+- Mapped to phases: 0
+- Unmapped: 25 ⚠️
 
 ---
-*Requirements defined: 2026-04-14*
-*Last updated: 2026-04-14 after initial definition*
+*Requirements defined: 2026-04-25*
+*Last updated: 2026-04-25 after initial definition*
