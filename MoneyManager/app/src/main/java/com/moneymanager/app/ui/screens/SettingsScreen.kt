@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moneymanager.app.ui.theme.AppTheme
 import com.moneymanager.data.repository.ExportType
 import com.moneymanager.data.sync.SyncStatus
 import java.text.SimpleDateFormat
@@ -46,6 +47,7 @@ fun SettingsScreen(
     var showAutoLockDialog by remember { mutableStateOf(false) }
     var showSignInDialog by remember { mutableStateOf(false) }
     var showCsvTypeDialog by remember { mutableStateOf(false) }
+    var showThemeDropdown by remember { mutableStateOf(false) }
     var pendingCsvAction by remember { mutableStateOf<String?>(null) }
     var selectedCsvType by remember { mutableStateOf<ExportType?>(null) }
     var enteredPin by remember { mutableStateOf("") }
@@ -230,6 +232,51 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            item {
+                SettingsCard(
+                    title = "Theme",
+                    subtitle = uiState.selectedTheme.displayName,
+                    trailing = {
+                        ExposedDropdownMenuBox(
+                            expanded = showThemeDropdown,
+                            onExpandedChange = { showThemeDropdown = it }
+                        ) {
+                            Box(
+                                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, true)
+                            ) {
+                                OutlinedTextField(
+                                    value = uiState.selectedTheme.displayName,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showThemeDropdown) },
+                                    modifier = Modifier.width(140.dp),
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
+                            ExposedDropdownMenu(
+                                expanded = showThemeDropdown,
+                                onDismissRequest = { showThemeDropdown = false }
+                            ) {
+                                AppTheme.entries.forEach { theme ->
+                                    DropdownMenuItem(
+                                        text = { Text(theme.displayName) },
+                                        onClick = {
+                                            viewModel.setSelectedTheme(theme)
+                                            showThemeDropdown = false
+                                        },
+                                        trailingIcon = if (theme == uiState.selectedTheme) {
+                                            { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showThemeDropdown) }
+                                        } else null
+                                    )
+                                }
+                            }
+                        }
+                    }
                 )
             }
 
