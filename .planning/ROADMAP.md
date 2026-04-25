@@ -22,7 +22,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 
 ## Phases
 
-- [ ] **Phase 14: Theme Infrastructure** - Material 3 theming, DataStore persistence, dark mode support
+- [x] **Phase 14: Theme Infrastructure** - Material 3 theming, DataStore persistence, dark mode support ✅
 - [ ] **Phase 15: Complete Theme System** - All 5 themes with light and dark mode variants
 - [ ] **Phase 16: Settings UI** - Theme selector dropdown, dark mode toggle, immediate updates
 - [ ] **Phase 17: Income/Expense Coloring** - Consistent color usage throughout app
@@ -43,7 +43,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
   4. Dark mode toggle applies to currently selected theme
   5. App applies theme colors on startup before first frame
 
-**Plans**: TBD
+**Plans**: 758ceda ✅
 
 **UI hint**: yes
 
@@ -109,7 +109,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 14. Theme Infrastructure | 0/1 | Not started | - |
+| 14. Theme Infrastructure | 1/1 | ✅ Complete | 2026-04-25 |
 | 15. Complete Theme System | 0/1 | Not started | - |
 | 16. Theme Settings UI | 0/1 | Not started | - |
 | 17. Income/Expense Coloring | 0/1 | Not started | - |
