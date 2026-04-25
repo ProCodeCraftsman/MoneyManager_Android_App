@@ -87,7 +87,8 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
   4. Changing theme immediately updates the UI
   5. Default theme is Soft Neutral for new users
 
-**Plans**: TBD
+**Plans**:
+- [ ] 16-01-PLAN.md — Theme selection dropdown and dark mode toggle in Settings
 
 **UI hint**: yes
 
