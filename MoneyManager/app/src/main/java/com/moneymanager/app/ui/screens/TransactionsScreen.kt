@@ -60,6 +60,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.foundation.text.KeyboardOptions
 
+import android.app.Activity
+
+import androidx.core.view.WindowCompat
+
 // Investment platforms for savings transactions
 private val INVESTMENT_PLATFORMS = listOf(
     "Zerodha", "Groww", "Kite", "IndMoney", "Paytm Money",
@@ -244,6 +248,13 @@ fun TransactionsScreen(
         uiState.filterEndDate
     ).size
 
+    // Task 1: Fix status bar color to match header background
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        val window = (context as Activity).window
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+    }
+
     Scaffold(
         topBar = {
             Surface(
@@ -405,21 +416,29 @@ fun TransactionsScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.width(8.dp))
+                    // Task 3: Center search placeholder text vertically
                     BasicTextField(
                         value = searchText,
                         onValueChange = { searchText = it; viewModel.setSearchQuery(it) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .align(Alignment.CenterVertically),
                         textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                         singleLine = true,
                         decorationBox = { innerTextField ->
-                            if (searchText.isEmpty()) {
-                                Text(
-                                    "Search by note, category or amount...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
+                            Box(
+                                modifier = Modifier.fillMaxHeight(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (searchText.isEmpty()) {
+                                    Text(
+                                        "Search by note, category or amount...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
+                                innerTextField()
                             }
-                            innerTextField()
                         }
                     )
                     if (activeFilterCount > 0) {
@@ -505,9 +524,13 @@ fun TransactionsScreen(
                                 }
                             }
 
+                            // Task 2: Add elevation and vertical padding to sticky date headers
                             Surface(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
                                 color = MaterialTheme.colorScheme.surface,
+                                shadowElevation = 2.dp,
                                 tonalElevation = 1.dp,
                                 onClick = {
                                     collapsedDates = if (isCollapsed) {
@@ -1203,6 +1226,7 @@ fun CategoryGrid(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             maxItemsInEachRow = 4
         ) {
+            // Task 4: Match filter chip height to text field and fix indicator styling
             val displayCategories = categories.take(7)
             displayCategories.forEach { category ->
                 val isSelected = selectedCategoryId == category.id
@@ -1211,7 +1235,11 @@ fun CategoryGrid(
                     onClick = { onCategoryClick(category) },
                     label = { Text(category.name) },
                     leadingIcon = { Text(category.emoji) },
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.height(48.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                    )
                 )
             }
             FilterChip(
@@ -1219,7 +1247,8 @@ fun CategoryGrid(
                 onClick = onShowAllClick,
                 label = { Text("All") },
                 leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(16.dp)) },
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.height(48.dp)
             )
         }
     }
@@ -1924,7 +1953,11 @@ fun AddEditTransactionDialog(
                                         onClick = { /* Do nothing, click Change to clear */ },
                                         label = { Text(displayCat?.name ?: "") },
                                         leadingIcon = { Text(displayCat?.emoji ?: "") },
-                                        shape = RoundedCornerShape(20.dp)
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier.height(48.dp),
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                        )
                                     )
                                     TextButton(onClick = {
                                         selectedCategoryId = null
@@ -1942,7 +1975,11 @@ fun AddEditTransactionDialog(
                                                 onClick = { selectedCategoryId = sub.id },
                                                 label = { Text(sub.name) },
                                                 leadingIcon = { Text(sub.emoji) },
-                                                shape = RoundedCornerShape(16.dp)
+                                                shape = RoundedCornerShape(16.dp),
+                                                modifier = Modifier.height(48.dp),
+                                                colors = FilterChipDefaults.filterChipColors(
+                                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                                )
                                             )
                                         }
                                     }
