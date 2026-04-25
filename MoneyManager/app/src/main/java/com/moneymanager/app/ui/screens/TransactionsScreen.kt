@@ -38,11 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import com.moneymanager.app.ui.theme.savingsColor
-import com.moneymanager.app.ui.theme.expenseColor
-import com.moneymanager.app.ui.theme.transferColor
-import com.moneymanager.app.ui.theme.lendingColor
-import com.moneymanager.app.ui.theme.borrowingColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -85,6 +80,10 @@ private const val ICON_SPLIT = "🔀"
 private const val ICON_TRANSFER = "⇌"
 private const val ICON_SAVINGS = "📈"
 private const val ICON_DEFAULT = "💸"
+
+private val COLOR_EXPENSE = Color(0xFFE57373)
+private val COLOR_SAVINGS = Color(0xFFF4A460)
+private val COLOR_TRANSFER = Color(0xFF5B6FB5)
 
 private const val SEPARATOR_HYPHEN = " - "
 private const val SEPARATOR_DOT = " • "
@@ -133,9 +132,97 @@ fun TransactionsScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     var showTransferDialog by remember { mutableStateOf(false) }
     var preselectedType by remember { mutableStateOf(initialType) }
+    var timeFilter by remember { mutableStateOf("Month") }
+    var currentPeriodStart by remember { mutableStateOf<Long?>(null) }
+    var currentPeriodEnd by remember { mutableStateOf<Long?>(null) }
+    var showTimeDropdown by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showAddDialog) {
-        if (!showAddDialog) preselectedType = null
+    val timeFilterOptions = listOf("All", "Day", "Week", "Month", "Year", "Custom")
+
+    fun updatePeriodBasedOnFilter(filter: String, baseCal: Calendar? = null) {
+        val cal = baseCal ?: Calendar.getInstance()
+        when (filter) {
+            "Day" -> {
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                currentPeriodStart = cal.timeInMillis
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59)
+                currentPeriodEnd = cal.timeInMillis
+            }
+            "Week" -> {
+                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                currentPeriodStart = cal.timeInMillis
+                cal.add(Calendar.WEEK_OF_YEAR, 1)
+                cal.add(Calendar.MILLISECOND, -1)
+                currentPeriodEnd = cal.timeInMillis
+            }
+            "Month" -> {
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                currentPeriodStart = cal.timeInMillis
+                cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59)
+                currentPeriodEnd = cal.timeInMillis
+            }
+            "Year" -> {
+                cal.set(Calendar.DAY_OF_YEAR, 1)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                currentPeriodStart = cal.timeInMillis
+                cal.set(Calendar.MONTH, Calendar.DECEMBER)
+                cal.set(Calendar.DAY_OF_MONTH, 31)
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59)
+                currentPeriodEnd = cal.timeInMillis
+            }
+        }
+        viewModel.setDateRangeFilter(currentPeriodStart, currentPeriodEnd)
+    }
+
+    fun navigatePrevious() {
+        val baseCal = Calendar.getInstance().apply {
+            timeInMillis = currentPeriodStart ?: System.currentTimeMillis()
+        }
+        when (timeFilter) {
+            "Day" -> baseCal.add(Calendar.DAY_OF_MONTH, -1)
+            "Week" -> baseCal.add(Calendar.WEEK_OF_YEAR, -1)
+            "Month" -> baseCal.add(Calendar.MONTH, -1)
+            "Year" -> baseCal.add(Calendar.YEAR, -1)
+        }
+        updatePeriodBasedOnFilter(timeFilter, baseCal)
+    }
+
+    fun navigateNext() {
+        val baseCal = Calendar.getInstance().apply {
+            timeInMillis = currentPeriodStart ?: System.currentTimeMillis()
+        }
+        when (timeFilter) {
+            "Day" -> baseCal.add(Calendar.DAY_OF_MONTH, 1)
+            "Week" -> baseCal.add(Calendar.WEEK_OF_YEAR, 1)
+            "Month" -> baseCal.add(Calendar.MONTH, 1)
+            "Year" -> baseCal.add(Calendar.YEAR, 1)
+        }
+        updatePeriodBasedOnFilter(timeFilter, baseCal)
+    }
+
+    LaunchedEffect(Unit) {
+        updatePeriodBasedOnFilter("Month")
     }
 
     val activeFilterCount = listOfNotNull(
@@ -170,50 +257,110 @@ fun TransactionsScreen(
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Light
                             )
-                            val start = uiState.filterStartDate
-                            val end = uiState.filterEndDate
-                            val rangeText = if (start != null && end != null) {
-                                val s = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(start))
-                                val e = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(end))
-                                "$s - $e"
-                            } else {
-                                "All Time"
+                            Box {
+                                TextButton(
+                                    onClick = { showTimeDropdown = true },
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text(
+                                        text = timeFilter,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showTimeDropdown,
+                                    onDismissRequest = { showTimeDropdown = false }
+                                ) {
+                                    timeFilterOptions.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = {
+                                                timeFilter = option
+                                                showTimeDropdown = false
+                                                if (option == "Custom") {
+                                                    showFilterSheet = true
+                                                } else if (option != "All") {
+                                                    updatePeriodBasedOnFilter(option)
+                                                } else {
+                                                    viewModel.setDateRangeFilter(null, null)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
                             }
-                            Text(
-                                text = rangeText,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Transfer button
-                            IconButton(onClick = { showTransferDialog = true }) {
-                                Icon(Icons.Default.SwapHoriz, contentDescription = "Transfer", modifier = Modifier.size(20.dp))
-                            }
-                            // Filter button with badge
+                        // Filter button with count
+                        if (activeFilterCount > 0) {
                             BadgedBox(badge = {
-                                if (activeFilterCount > 0) Badge { Text(activeFilterCount.toString()) }
+                                Badge { Text(activeFilterCount.toString()) }
                             }) {
                                 IconButton(onClick = { showFilterSheet = true }) {
                                     Icon(Icons.Default.FilterList, contentDescription = "Filter", modifier = Modifier.size(20.dp))
                                 }
                             }
+                        } else {
+                            IconButton(onClick = { showFilterSheet = true }) {
+                                Icon(Icons.Default.FilterList, contentDescription = "Filter", modifier = Modifier.size(20.dp))
+                            }
                         }
                     }
 
-                    // Summary Row
-                    Row(
+                    // Horizontal Navigation Bar
+                    if (timeFilter != "All" && timeFilter != "Custom") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { navigatePrevious() }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.ChevronLeft, contentDescription = "Previous", modifier = Modifier.size(20.dp))
+                            }
+                            Text(
+                                text = when (timeFilter) {
+                                    "Day" -> SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(currentPeriodStart ?: System.currentTimeMillis()))
+                                    "Week" -> "Week ${Calendar.getInstance().apply { timeInMillis = currentPeriodStart ?: System.currentTimeMillis() }.get(Calendar.WEEK_OF_YEAR)}"
+                                    "Month" -> SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(Date(currentPeriodStart ?: System.currentTimeMillis()))
+                                    "Year" -> Calendar.getInstance().apply { timeInMillis = currentPeriodStart ?: System.currentTimeMillis() }.get(Calendar.YEAR).toString()
+                                    else -> ""
+                                },
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            IconButton(onClick = { navigateNext() }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.ChevronRight, contentDescription = "Next", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    // Summary Row - Redesigned as container
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ) {
-                        SummaryItem("Spent", totalExpense, MaterialTheme.colorScheme.error, currencyFormat)
-                        SummaryItem("Income", totalIncome, MaterialTheme.colorScheme.secondary, currencyFormat)
-                        SummaryItem("Items", transactionCount.toDouble(), MaterialTheme.colorScheme.primary, null)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            SummaryItem("Spent", totalExpense, MaterialTheme.colorScheme.error, currencyFormat)
+                            SummaryItem("Income", totalIncome, MaterialTheme.colorScheme.secondary, currencyFormat)
+                            SummaryItem("Items", transactionCount.toDouble(), MaterialTheme.colorScheme.primary, null)
+                        }
                     }
-                    Spacer(Modifier.height(8.dp))
                 }
             }
         },
@@ -266,6 +413,34 @@ fun TransactionsScreen(
                             innerTextField()
                         }
                     )
+                    if (activeFilterCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "$activeFilterCount filter${if (activeFilterCount > 1) "s" else ""}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { viewModel.clearAllFilters() },
+                                    modifier = Modifier.size(12.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear filters",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
                     if (searchText.isNotEmpty()) {
                         IconButton(
                             onClick = { searchText = ""; viewModel.setSearchQuery("") },
@@ -697,9 +872,9 @@ fun TransactionCardDense(
 
     val typeColor = when (transaction.type) {
         "income", "receive" -> MaterialTheme.colorScheme.secondary
-        "expense", "lend" -> MaterialTheme.colorScheme.expenseColor
-        "savings" -> MaterialTheme.colorScheme.savingsColor
-        "transfer" -> MaterialTheme.colorScheme.transferColor
+        "expense", "lend" -> COLOR_EXPENSE
+        "savings" -> COLOR_SAVINGS
+        "transfer" -> COLOR_TRANSFER
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -812,20 +987,20 @@ fun TransactionCardDense(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.transferColor
+                            tint = COLOR_TRANSFER
                         )
                         Spacer(Modifier.width(2.dp))
                         Text(
                             text = toAccount.name,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.transferColor
+                            color = COLOR_TRANSFER
                         )
                     } else if ((transaction.type == "lend" || transaction.type == "receive") && peer != null) {
                         Icon(
                             imageVector = Icons.Default.AccountBalanceWallet,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.expenseColor
+                            tint = COLOR_EXPENSE
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
@@ -837,13 +1012,13 @@ fun TransactionCardDense(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.expenseColor
+                            tint = COLOR_EXPENSE
                         )
                         Spacer(Modifier.width(2.dp))
                         Text(
                             text = peer.displayName,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.expenseColor
+                            color = COLOR_EXPENSE
                         )
                     } else {
                         Icon(
