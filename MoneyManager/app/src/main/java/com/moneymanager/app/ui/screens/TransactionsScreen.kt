@@ -20,9 +20,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -131,6 +133,14 @@ fun TransactionsScreen(
     }
     var collapsedDates by rememberSaveable { mutableStateOf(setOf<Long>()) }
     var expandedSplitIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
+    val lazyListState = rememberLazyListState()
+    val isScrolled by remember {
+        derivedStateOf { lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 50 }
+    }
+    val animatedHeaderHeight by animateDpAsState(
+        targetValue = if (isScrolled) 48.dp else 56.dp,
+        label = "headerHeight"
+    )
     var showAddDialog by remember { mutableStateOf(initialType != null) }
     var editingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var searchText by remember { mutableStateOf("") }
@@ -266,7 +276,7 @@ fun TransactionsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(animatedHeaderHeight)
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -494,7 +504,8 @@ fun TransactionsScreen(
             val headerDateFormat = remember { SimpleDateFormat("EEEE, MMM dd", Locale.getDefault()) }
 
             LazyColumn(
-                Modifier.fillMaxSize(),
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 70.dp)
             ) {
                 if (uiState.transactions.isEmpty()) {
