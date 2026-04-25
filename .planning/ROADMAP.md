@@ -158,7 +158,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 | 16. Theme Settings UI | 1/1 | ✅ Complete | 2026-04-25 |
 | 17. Income/Expense Coloring | 1/1 | ✅ Complete | 2026-04-25 |
 | 18. Split Transaction Expandable | 1/1 | In Progress | — |
-| 19. Transactions UI Fixes | 1/1 | ✅ Complete | 2026-04-25 |
+| 19. Transactions UI Fixes | 1/1 | Complete    | 2026-04-25 |
 
 ---
 
