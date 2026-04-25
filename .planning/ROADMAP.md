@@ -149,6 +149,25 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 
 **UI hint**: yes
 
+### Phase 20: Transactions UI Enhancement
+**Goal**: UI/UX enhancements to TransactionsScreen — collapsible header on scroll, bottom gap fix, theme-aware colors with elevation separation
+
+**Depends on**: Phase 19
+
+**Requirements**: None (pure UI improvements)
+
+**Success Criteria** (what must be TRUE):
+  1. Header collapses when scrolled down (scroll-based collapse)
+  2. Header expands when scrolled to top
+  3. Bottom gap above navigation removed
+  4. Theme-aware colors used throughout (MaterialTheme.colorScheme)
+  5. Elevation provides component separation
+
+**Plans**:
+- [x] 20-01-PLAN.md — UI enhancements (collapsible header, bottom gap, theme colors)
+
+**UI hint**: yes
+
 ---
 
 | Phase | Plans Complete | Status | Completed |
@@ -159,6 +178,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 | 17. Income/Expense Coloring | 1/1 | ✅ Complete | 2026-04-25 |
 | 18. Split Transaction Expandable | 1/1 | In Progress | — |
 | 19. Transactions UI Fixes | 1/1 | Complete    | 2026-04-25 |
+| 20. Transactions UI Enhancement | 1/1 | Planned     | — |
 
 ---
 
