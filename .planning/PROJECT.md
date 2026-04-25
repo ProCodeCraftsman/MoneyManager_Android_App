@@ -27,26 +27,28 @@ Comprehensive money management web app with:
 - **App Name**: MoneyManager
 - **Data Storage**: Both (Room local + Firebase cloud backup)
 - **Monetization**: Free (all features)
-## Current Milestone: v2.0 Categories + Dashboard
+## Current Milestone: v2.1 Multiple Themes
 
-**Goal:** Add comprehensive default categories with sub-categories and build the complete dashboard with time filters, stat cards, charts, budget widget, and recurring reminders.
+**Goal:** Add 5 selectable themes with light/dark variants, each with consistent color palettes for background, cards, text, income, expense, and accent colors.
 
 **Target features:**
 
-*Categories:*
-- 11 Expense Categories (Food, Transport, Shopping, Bills, Health, Entertainment, Travel, Education, Home, Personal Care, Other Expense)
-- 5 Income Categories (Salary, Freelance, Investment, Gift, Other Income)
-- 2 Savings & Investment Categories (Mutual Funds, Fixed Deposit) with sub-categories
-- Default categories cannot be deleted but can be archived/unarchived
-- Users can add custom categories
+*Themes:*
+- Theme 1 — Soft Neutral (Default): Professional, calm, maximum readability
+- Theme 2 — Warm Finance: Friendly, less clinical, human feel
+- Theme 3 — Cool Blue Finance: Classic banking tone, trust-focused
+- Theme 4 — Minimal Green Ledger: Financial focus, clean and disciplined
+- Theme 5 — Modern Muted: Premium feel, paid-product illusion
 
-*Dashboard:*
-- Time filter bar (Day, Week, Month, Year, All, Custom)
-- Stat cards (Net Worth, Income, Expenses, Net)
-- Spending by category doughnut chart with drill-down
-- Recent transactions (last 8)
-- Budget widget (current month)
-- Recurring reminders banner
+*Each theme includes:*
+- Light mode variant
+- Dark mode variant (tied to existing dark mode toggle)
+- Complete color palette: Background, Card, Primary Text, Secondary Text, Income, Expense, Accent, Divider (where applicable)
+
+*Settings UI:*
+- Theme selection dropdown (shows theme names with visual preview)
+- Dark mode toggle works with selected theme
+- Default: Soft Neutral Theme
 
 ## Evolution
 
@@ -67,4 +69,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-14*
+*Last updated: 2026-04-25*
