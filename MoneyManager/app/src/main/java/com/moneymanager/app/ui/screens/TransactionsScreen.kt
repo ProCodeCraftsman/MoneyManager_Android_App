@@ -506,7 +506,7 @@ fun TransactionsScreen(
             LazyColumn(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 70.dp)
+                contentPadding = PaddingValues(bottom = 56.dp)
             ) {
                 if (uiState.transactions.isEmpty()) {
                     item {
