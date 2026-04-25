@@ -83,35 +83,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THEM-01 | - | Pending |
-| THEM-02 | - | Pending |
-| THEM-03 | - | Pending |
-| THEM-04 | - | Pending |
-| THEM-05 | - | Pending |
-| THEM-06 | - | Pending |
-| THEM-07 | - | Pending |
-| THEM-08 | - | Pending |
-| THEM-09 | - | Pending |
-| THEM-10 | - | Pending |
-| THEM-11 | - | Pending |
-| THEM-12 | - | Pending |
-| THEM-13 | - | Pending |
-| THEM-14 | - | Pending |
-| THEM-15 | - | Pending |
-| UI-01 | - | Pending |
-| UI-02 | - | Pending |
-| UI-03 | - | Pending |
-| UI-04 | - | Pending |
-| UI-05 | - | Pending |
-| COL-01 | - | Pending |
-| COL-02 | - | Pending |
-| COL-03 | - | Pending |
-| COL-04 | - | Pending |
+| THEM-01 | Phase 14 | Pending |
+| THEM-02 | Phase 14 | Pending |
+| THEM-03 | Phase 14 | Pending |
+| THEM-04 | Phase 14 | Pending |
+| THEM-05 | Phase 14 | Pending |
+| THEM-06 | Phase 15 | Pending |
+| THEM-07 | Phase 15 | Pending |
+| THEM-08 | Phase 15 | Pending |
+| THEM-09 | Phase 15 | Pending |
+| THEM-10 | Phase 15 | Pending |
+| THEM-11 | Phase 15 | Pending |
+| THEM-12 | Phase 15 | Pending |
+| THEM-13 | Phase 15 | Pending |
+| THEM-14 | Phase 15 | Pending |
+| THEM-15 | Phase 15 | Pending |
+| UI-01 | Phase 16 | Pending |
+| UI-02 | Phase 16 | Pending |
+| UI-03 | Phase 16 | Pending |
+| UI-04 | Phase 16 | Pending |
+| UI-05 | Phase 16 | Pending |
+| COL-01 | Phase 17 | Pending |
+| COL-02 | Phase 17 | Pending |
+| COL-03 | Phase 17 | Pending |
+| COL-04 | Phase 17 | Pending |
 
 **Coverage:**
 - v2.1 requirements: 25 total
-- Mapped to phases: 0
-- Unmapped: 25 ⚠️
+- Mapped to phases: 25
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-25*
