@@ -1,5 +1,4 @@
 package com.moneymanager.app.ui.screens
-
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
@@ -61,9 +60,7 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.foundation.text.KeyboardOptions
-
 import android.app.Activity
-
 import androidx.core.view.WindowCompat
 
 // Investment platforms for savings transactions
@@ -107,6 +104,7 @@ fun TransactionsScreen(
     initialPeerId: Long? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
 
     // Calculate totals for the current view
     val totalIncome = remember(uiState.transactions) {
@@ -258,137 +256,80 @@ fun TransactionsScreen(
         uiState.filterEndDate
     ).size
 
-    // Task 1: Fix status bar color to match header background
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
-        val window = (context as Activity).window
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
-    }
-
     Scaffold(
         topBar = {
             Surface(
                 tonalElevation = 2.dp,
                 shadowElevation = 2.dp
             ) {
-                Column {
-                    // Custom Compact Header
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(animatedHeaderHeight)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                text = "Transactions",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Light
-                            )
-                            Box {
-                                TextButton(
-                                    onClick = { showTimeDropdown = true },
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text(
-                                        text = timeFilter,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                    Icon(
-                                        Icons.Default.ArrowDropDown,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = showTimeDropdown,
-                                    onDismissRequest = { showTimeDropdown = false }
-                                ) {
-                                    timeFilterOptions.forEach { option ->
-                                        DropdownMenuItem(
-                                            text = { Text(option) },
-                                            onClick = {
-                                                timeFilter = option
-                                                showTimeDropdown = false
-                                                if (option == "Custom") {
-                                                    showFilterSheet = true
-                                                } else if (option != "All") {
-                                                    updatePeriodBasedOnFilter(option)
-                                                } else {
-                                                    viewModel.setDateRangeFilter(null, null)
-                                                }
+                // Custom Compact Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(animatedHeaderHeight)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Transactions",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Box {
+                            TextButton(
+                                onClick = { showTimeDropdown = true },
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text(
+                                    text = timeFilter,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showTimeDropdown,
+                                onDismissRequest = { showTimeDropdown = false }
+                            ) {
+                                timeFilterOptions.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option) },
+                                        onClick = {
+                                            timeFilter = option
+                                            showTimeDropdown = false
+                                            if (option == "Custom") {
+                                                showFilterSheet = true
+                                            } else if (option != "All") {
+                                                updatePeriodBasedOnFilter(option)
+                                            } else {
+                                                viewModel.setDateRangeFilter(null, null)
                                             }
-                                        )
-                                    }
+                                        }
+                                    )
                                 }
                             }
                         }
+                    }
 
-                        // Filter button with count
-                        if (activeFilterCount > 0) {
-                            BadgedBox(badge = {
-                                Badge { Text(activeFilterCount.toString()) }
-                            }) {
-                                IconButton(onClick = { showFilterSheet = true }) {
-                                    Icon(Icons.Default.FilterList, contentDescription = "Filter", modifier = Modifier.size(20.dp))
-                                }
-                            }
-                        } else {
+                    // Filter button with count
+                    if (activeFilterCount > 0) {
+                        BadgedBox(badge = {
+                            Badge { Text(activeFilterCount.toString()) }
+                        }) {
                             IconButton(onClick = { showFilterSheet = true }) {
                                 Icon(Icons.Default.FilterList, contentDescription = "Filter", modifier = Modifier.size(20.dp))
                             }
                         }
-                    }
-
-                    // Horizontal Navigation Bar
-                    if (timeFilter != "All" && timeFilter != "Custom") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { navigatePrevious() }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.ChevronLeft, contentDescription = "Previous", modifier = Modifier.size(20.dp))
-                            }
-                            Text(
-                                text = when (timeFilter) {
-                                    "Day" -> SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(currentPeriodStart ?: System.currentTimeMillis()))
-                                    "Week" -> "Week ${Calendar.getInstance().apply { timeInMillis = currentPeriodStart ?: System.currentTimeMillis() }.get(Calendar.WEEK_OF_YEAR)}"
-                                    "Month" -> SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(Date(currentPeriodStart ?: System.currentTimeMillis()))
-                                    "Year" -> Calendar.getInstance().apply { timeInMillis = currentPeriodStart ?: System.currentTimeMillis() }.get(Calendar.YEAR).toString()
-                                    else -> ""
-                                },
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            IconButton(onClick = { navigateNext() }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.ChevronRight, contentDescription = "Next", modifier = Modifier.size(20.dp))
-                            }
-                        }
-                    }
-
-                    // Summary Row - Redesigned as container
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            SummaryItem("Spent", totalExpense, MaterialTheme.colorScheme.error, currencyFormat)
-                            SummaryItem("Income", totalIncome, MaterialTheme.colorScheme.secondary, currencyFormat)
-                            SummaryItem("Items", transactionCount.toDouble(), MaterialTheme.colorScheme.primary, null)
+                    } else {
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            Icon(Icons.Default.FilterList, contentDescription = "Filter", modifier = Modifier.size(20.dp))
                         }
                     }
                 }
