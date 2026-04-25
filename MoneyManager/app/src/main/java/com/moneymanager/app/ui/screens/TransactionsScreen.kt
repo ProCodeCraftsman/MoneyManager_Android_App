@@ -81,7 +81,6 @@ private const val ICON_TRANSFER = "⇌"
 private const val ICON_SAVINGS = "📈"
 private const val ICON_DEFAULT = "💸"
 
-private val COLOR_INCOME = Color(0xFF4CAF50)
 private val COLOR_EXPENSE = Color(0xFFE57373)
 private val COLOR_SAVINGS = Color(0xFFF4A460)
 private val COLOR_TRANSFER = Color(0xFF5B6FB5)
@@ -210,7 +209,7 @@ fun TransactionsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         SummaryItem("Spent", totalExpense, MaterialTheme.colorScheme.error, currencyFormat)
-                        SummaryItem("Income", totalIncome, Color(0xFF4CAF50), currencyFormat)
+                        SummaryItem("Income", totalIncome, MaterialTheme.colorScheme.secondary, currencyFormat)
                         SummaryItem("Items", transactionCount.toDouble(), MaterialTheme.colorScheme.primary, null)
                     }
                     Spacer(Modifier.height(8.dp))
@@ -413,7 +412,7 @@ fun TransactionsScreen(
                                             },
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Medium,
-                                            color = if (dailyTotal >= 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                            color = if (dailyTotal >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Icon(
@@ -644,7 +643,7 @@ fun TransactionItem(
         backgroundContent = {
             val direction = dismissState.dismissDirection
             val color = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50)
+                SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.secondary
                 SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error
                 else -> Color.Transparent
             }
@@ -696,7 +695,7 @@ fun TransactionCardDense(
     }
 
     val typeColor = when (transaction.type) {
-        "income", "receive" -> COLOR_INCOME
+        "income", "receive" -> MaterialTheme.colorScheme.secondary
         "expense", "lend" -> COLOR_EXPENSE
         "savings" -> COLOR_SAVINGS
         "transfer" -> COLOR_TRANSFER
@@ -796,12 +795,13 @@ fun TransactionCardDense(
                     modifier = Modifier.padding(top = 2.dp)
                 ) {
                     if (transaction.type == "transfer" && toAccount != null) {
-                        val fromEmoji = account?.emoji ?: "🏦"
-                        val toEmoji = toAccount.emoji ?: "🏦"
-                        Text(
-                            text = fromEmoji,
-                            style = MaterialTheme.typography.labelSmall
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
+                        Spacer(Modifier.width(2.dp))
                         Text(
                             text = account?.name ?: stringResource(R.string.app_name),
                             style = MaterialTheme.typography.labelSmall,
@@ -813,10 +813,7 @@ fun TransactionCardDense(
                             modifier = Modifier.size(12.dp),
                             tint = COLOR_TRANSFER
                         )
-                        Text(
-                            text = toEmoji,
-                            style = MaterialTheme.typography.labelSmall
-                        )
+                        Spacer(Modifier.width(2.dp))
                         Text(
                             text = toAccount.name,
                             style = MaterialTheme.typography.labelSmall,

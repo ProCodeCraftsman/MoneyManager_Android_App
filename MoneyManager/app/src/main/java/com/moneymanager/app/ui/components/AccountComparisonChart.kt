@@ -71,7 +71,7 @@ fun AccountComparisonChart(
                                 .weight(1f)
                                 .fillMaxHeight((item.inflow / maxVal).toFloat().coerceIn(0.01f, 1f))
                                 .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(Color(0xFF4CAF50))
+                                .background(MaterialTheme.colorScheme.secondary)
                         )
                         // Outflow Bar
                         Box(
@@ -104,7 +104,7 @@ fun AccountComparisonChart(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            LegendItem(color = Color(0xFF4CAF50), label = "Inflow")
+            LegendItem(color = MaterialTheme.colorScheme.secondary, label = "Inflow")
             Spacer(modifier = Modifier.width(16.dp))
             LegendItem(color = Color(0xFFFF7043), label = "Outflow")
         }
