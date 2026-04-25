@@ -564,16 +564,34 @@ fun TransactionsScreen(
                         }
 
                         if (!isCollapsed) {
-                            items(transactions, key = { it.id }) { tx ->
-                                TransactionItem(
-                                    transaction = tx,
-                                    accounts = uiState.allAccounts,
-                                    categories = uiState.allCategories,
-                                    peers = uiState.allPeers,
-                                    currencyFormat = currencyFormat,
-                                    onEdit = { editingTransaction = it },
-                                    onDelete = { viewModel.deleteTransaction(it) }
-                                )
+                            items(transactions.filter { !it.isSplitChild }, key = { it.id }) { tx ->
+                                if (tx.isSplitParent) {
+                                    val splitChildren by viewModel.getSplitChildren(tx.id).collectAsStateWithLifecycle(initialValue = emptyList())
+                                    val isExpanded = expandedSplitIds.contains(tx.id)
+
+                                    SplitTransactionCard(
+                                        parentTransaction = tx,
+                                        splitChildren = splitChildren,
+                                        accounts = uiState.allAccounts,
+                                        categories = uiState.allCategories,
+                                        peers = uiState.allPeers,
+                                        currencyFormat = currencyFormat,
+                                        isExpanded = isExpanded,
+                                        onToggleExpand = { toggleSplitExpand(tx.id) },
+                                        onEdit = { editingTransaction = it },
+                                        onDelete = { viewModel.deleteTransaction(it) }
+                                    )
+                                } else {
+                                    TransactionItem(
+                                        transaction = tx,
+                                        accounts = uiState.allAccounts,
+                                        categories = uiState.allCategories,
+                                        peers = uiState.allPeers,
+                                        currencyFormat = currencyFormat,
+                                        onEdit = { editingTransaction = it },
+                                        onDelete = { viewModel.deleteTransaction(it) }
+                                    )
+                                }
                             }
                         }
                     }
