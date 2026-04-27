@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Android projec** (418 symbols, 411 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **Android projec** (420 symbols, 413 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -99,3 +99,42 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+<!-- code-analysis:start -->
+# Code Analysis & Refactoring
+
+Before writing or modifying code, **ALWAYS analyze the file first** using the topography approach below.
+
+## Topography Analysis Template
+
+For every file, identify and categorize elements into these buckets:
+
+### 1. Constants & Configs
+Hardcoded lists, theme colors, dimensions, UI constants.
+
+### 2. Pure Utility Functions
+Stateless logic helpers (date formatters, math evaluators, validators).
+
+### 3. Dumb / Stateless Components
+UI elements that only take data via parameters and emit events via callbacks. No internal state.
+
+### 4. Complex / Stateful Overlays
+Dialogs, Bottom Sheets, or sub-sections that manage their own complex internal state.
+
+### 5. The Core Scaffold
+The main screen wrapper and state holder. Contains ViewModel, UI state, Scaffold, navigation.
+
+## Refactoring Workflow
+
+1. **Analyze first** — Map the file using topography
+2. **Extract to dumb components** — Move UI rendering to stateless composables
+3. **Pull state up** — Keep state in the Core Scaffold or ViewModel
+4. **Isolate overlays** — Keep dialogs/bottom sheets in separate files if complex
+5. **Verify build** — Always compile after refactoring
+
+## Code Style Rules
+
+- **Dumb components** should be `private` or in separate files
+- **Avoid** passing ViewModel to dumb components — pass only needed data
+- **Use** `@Composable` only where actually needed
+- **Keep** utility functions as top-level `private` functions or in dedicated utils

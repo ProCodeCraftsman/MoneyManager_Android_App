@@ -29,6 +29,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 - [x] **Phase 18: Split Transaction Expandable View** - Expandable split transactions with child items visible on demand ✅
 - [x] **Phase 19: Transactions UI Fixes** - Visual corrections to TransactionsScreen (header, sticky date headers, search bar, filters) ✅
 - [ ] **Phase 21: Transactions UI Polish** - Complete visual redesign of TransactionsScreen scroll behavior, search, surface discipline, and nav separation
+- [ ] **Phase 22: Transactions Header & Navigation Enhancements** - Time filter on right, search toggle, sticky nav, move-to-top, collapse/expand daily groups
 
 ## Phase Details
 
@@ -192,6 +193,30 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 
 **UI hint**: yes
 
+### Phase 22: Transactions Header & Navigation Enhancements
+**Goal**: UI/UX enhancements to TransactionsScreen — time filter on right, search toggle, sticky navigation, move-to-top button, collapsible daily groups
+
+**Depends on**: Phase 21
+
+**Requirements**: None (pure UI enhancements)
+
+**Success Criteria** (what must be TRUE):
+  1. Time filter dropdown positioned on right side of header, after search icon
+  2. Search bar hidden by default, toggled by search icon in header
+  3. Navigation bar (period display) uses stickyHeader and sticks while scrolling
+  4. Move-to-top button appears after scrolling past threshold
+  5. Daily date groups are collapsible/expandable via tap
+  6. Statistics calculate from filtered transactions (based on time period)
+
+**Plans**: 3 plans
+
+**Plans**:
+- [ ] 22-01-PLAN.md — Header layout (search icon, time filter on right) + AnimatedVisibility search bar
+- [ ] 22-02-PLAN.md — Sticky navigation bar + move-to-top button
+- [ ] 22-03-PLAN.md — Collapsible daily groups + statistics following time filter
+
+**UI hint**: yes
+
 ---
 
 | Phase | Plans Complete | Status | Completed |
@@ -204,6 +229,7 @@ v2.1: Multiple Themes — 25 requirements across 4 phases
 | 19. Transactions UI Fixes | 1/1 | Complete    | 2026-04-25 |
 | 20. Transactions UI Enhancement | 1/1 | Complete    | 2026-04-25 |
 | 21. Transactions UI Polish | 1/3 | In Progress | — |
+| 22. Header & Navigation | 0/3 | Pending | — |
 
 ---
 
