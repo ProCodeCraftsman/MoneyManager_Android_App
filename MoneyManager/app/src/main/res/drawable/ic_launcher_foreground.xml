@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="320"
+    android:viewportHeight="320">
+
+    <!-- Coin -->
+    <path
+        android:fillColor="@color/logo_gold"
+        android:pathData="M160,58a14,14 0 1,1 0,28a14,14 0 1,1 0,-28" />
+
+    <!-- Coin Slot -->
+    <path
+        android:strokeColor="@color/logo_gold"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M132,92h56" />
+
+    <!-- Piggy Box Body -->
+    <path
+        android:strokeColor="@color/logo_gold"
+        android:strokeWidth="10"
+        android:strokeLineJoin="round"
+        android:pathData="M114,108h92a28,28 0 0,1 28,28v56a28,28 0 0,1 -28,28h-92a28,28 0 0,1 -28,-28v-56a28,28 0 0,1 28,-28z" />
+
+    <!-- Inner Vault Line -->
+    <path
+        android:strokeColor="@color/logo_gold"
+        android:strokeWidth="4"
+        android:alpha="0.45"
+        android:pathData="M124,130h72a16,16 0 0,1 16,16v36a16,16 0 0,1 -16,16h-72a16,16 0 0,1 -16,-16v-36a16,16 0 0,1 16,-16z" />
+
+    <!-- Minimal Lock / Ledger Mark -->
+    <path
+        android:fillColor="@color/logo_gold"
+        android:pathData="M152,148h16a6,6 0 0,1 6,6v22a6,6 0 0,1 -6,6h-16a6,6 0 0,1 -6,-6v-22a6,6 0 0,1 6,-6z" />
+
+    <!-- Small Ledger Lines -->
+    <path
+        android:strokeColor="@color/logo_navy"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:alpha="0.35"
+        android:pathData="M152,158h16" />
+
+    <path
+        android:strokeColor="@color/logo_navy"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:alpha="0.25"
+        android:pathData="M152,166h14" />
+
+    <!-- Feet -->
+    <path
+        android:strokeColor="@color/logo_gold"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M114,228v14" />
+
+    <path
+        android:strokeColor="@color/logo_gold"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M206,228v14" />
+
+    <!-- Base Shadow Accent -->
+    <path
+        android:strokeColor="@color/logo_gold"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:alpha="0.5"
+        android:pathData="M122,256h76" />
+
+</vector>

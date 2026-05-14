@@ -1,0 +1,42 @@
+# GitNexus
+.gitnexus
+
+# Gradle
+.gradle/
+build/
+*.gradle
+*.gradle.*
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+
+# Build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.jar
+*.so
+*.hprof
+
+# Generated code
+app/build/
+MoneyManager/build/
+MoneyManager/.gradle/
+**/build/
+**/generated/
+
+# Heap dump
+java_*.hprof
+*.hprof
+
+# Keystore
+*.jks
+*.keystore
+
+# Local config
+local.properties
+secrets.properties
