@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ink">#FF0f0e0c</color>
+    <color name="paper">#FFf5f1ea</color>
+    <color name="cream">#FFede8df</color>
+    <color name="warm_mid">#FFc8bfae</color>
+    <color name="accent">#FFc8420a</color>
+    <color name="accent_light">#FFf5ddd5</color>
+    <color name="accent_2">#FF2a6049</color>
+    <color name="accent_2_light">#FFd4ebe1</color>
+    <color name="gold">#FFb8860b</color>
+    <color name="gold_light">#FFf5ecd0</color>
+    <color name="card">#FFfaf8f4</color>
+    <color name="border">#FFddd8ce</color>
+    <color name="text_muted">#FF7a7162</color>
+    
+    <!-- Dark mode colors -->
+    <color name="ink_dark">#FFe8e3da</color>
+    <color name="paper_dark">#FF141210</color>
+    <color name="cream_dark">#FF1e1b17</color>
+    <color name="warm_mid_dark">#FF5a5448</color>
+    <color name="card_dark">#FF1a1815</color>
+    <color name="border_dark">#FF2a2620</color>
+    
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="ic_launcher_background">#0F172A</color>
+    <color name="logo_gold">#D4AF37</color>
+    <color name="logo_navy">#0F172A</color>
+</resources>
