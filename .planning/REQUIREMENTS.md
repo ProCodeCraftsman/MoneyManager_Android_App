@@ -52,19 +52,21 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYBRID-01 | TBD | Pending |
-| HYBRID-02 | TBD | Pending |
-| HYBRID-03 | TBD | Pending |
-| HYBRID-04 | TBD | Pending |
-| HYBRID-05 | TBD | Pending |
-| HYBRID-06 | TBD | Pending |
-| HYBRID-07 | TBD | Pending |
-| HYBRID-08 | TBD | Pending |
-| HYBRID-09 | TBD | Pending |
-| HYBRID-10 | TBD | Pending |
-| AIFND-01 (mod) | TBD | Pending |
-| AIFND-04 (mod) | TBD | Pending |
-| AIFND-11 (mod) | TBD | Pending |
+| HYBRID-01 | Phase 39 — Backend Detection & DI | Pending |
+| HYBRID-02 | Phase 37 — Data Foundation | Pending |
+| HYBRID-03 | Phase 37 — Data Foundation | Pending |
+| HYBRID-04 | Phase 38 — Local AI Client | Pending |
+| HYBRID-05 | Phase 40 — User-Facing Download Flow | Pending |
+| HYBRID-06 | Phase 40 — User-Facing Download Flow | Pending |
+| HYBRID-07 | Phase 37 — Data Foundation | Pending |
+| HYBRID-08 | Phase 39 — Backend Detection & DI | Pending |
+| HYBRID-09 | Phase 38 — Local AI Client | Pending |
+| HYBRID-10 | Phase 38 — Local AI Client | Pending |
+| AIFND-01 (mod) | Phase 39 — Backend Detection & DI | Pending |
+| AIFND-04 (mod) | Phase 38 — Local AI Client | Pending |
+| AIFND-11 (mod) | Phase 37 — Data Foundation | Pending |
+
+**Coverage:** 13/13 requirements mapped ✓
 
 ---
 
@@ -264,4 +266,4 @@
 
 ---
 *Requirements defined: 2026-05-15*
-*Last updated: 2026-05-15 — traceability table populated (roadmap phases 32–36)*
+*Last updated: 2026-05-16 — v3.1 traceability table populated (roadmap phases 37–40)*

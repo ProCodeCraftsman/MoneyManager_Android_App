@@ -8,11 +8,12 @@
 | [v2.0](milestones/v2.0-ROADMAP.md) | ✅ Shipped | 2026-04-25 |
 | [v2.1](milestones/v2.1-ROADMAP.md) | In Progress | 2026-04-25 |
 | v2.2 | In Progress | 2026-04-28 |
-| v3.0 | In Progress | 2026-05-15 |
+| v3.0 | ✅ Complete | 2026-05-15 |
+| v3.1 | In Progress | 2026-05-16 |
 
 ## Next Milestone
 
-v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32–36)
+v3.1: Hybrid AI Backend — 13 requirements across 4 phases (37–40)
 
 ---
 
@@ -494,7 +495,7 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
 - [x] **Phase 33: Data AI Implementation** - Gradle dependencies, PreferencesManager extension, PromptBuilder, DraftParser, NanoAiClient, DeviceCapabilityManager (4-state) ✅
 - [x] **Phase 34: DI Wiring & AI Availability** - AiModule nullable @Provides, MoneyManagerApp startup hook, Flow<Boolean> availability repository ✅
 - [x] **Phase 35: AI Draft Source Screens** - AiDraftViewModel, SmsPickerScreen, ReceiptScanScreen, VoiceMemoScreen, shared UI state ✅
-- [ ] **Phase 36: Dialog Integration & FAB** - Expandable 3-source FAB, AddEditTransactionDialog initialDraft, source banner, AI field highlighting, nav routes
+- [x] **Phase 36: Dialog Integration & FAB** - Expandable 3-source FAB, AddEditTransactionDialog initialDraft, source banner, AI field highlighting, nav routes ✅
 
 ## Phase Details
 
@@ -609,7 +610,7 @@ Plans:
 - [x] 36-01-PLAN.md — Navigation foundation: AI source screen routes + AddTransaction draftJson arg
 - [x] 36-02-PLAN.md — Expandable AI Draft FAB group in TransactionsScreen
 - [x] 36-03-PLAN.md — AddEditTransactionDialog initialDraft wiring + source banner
-- [ ] 36-04-PLAN.md — AI field highlighting (tinted container + sparkle badge)
+- [x] 36-04-PLAN.md — AI field highlighting (tinted container + sparkle badge)
 
 **UI hint**: yes
 
@@ -621,7 +622,7 @@ Plans:
 | 33. Data AI Implementation | 3/3 | ✅ Complete | 2026-05-15 |
 | 34. DI Wiring & AI Availability | 2/2 | ✅ Complete | 2026-05-15 |
 | 35. AI Draft Source Screens | 4/4 | ✅ Complete | 2026-05-15 |
-| 36. Dialog Integration & FAB | 3/4 | In Progress | — |
+| 36. Dialog Integration & FAB | 4/4 | ✅ Complete | 2026-05-16 |
 
 ---
 
@@ -630,3 +631,101 @@ Plans:
 **Requirements:** 54 total (12 AIFND + 10 SMS + 9 OCR + 10 VOICE + 9 DRAFT + 4 STD) | **Phases:** 5 | **Mapped:** 54/54 ✓
 
 <!-- END: v3.0.milestone -->
+
+<!-- START: v3.1.milestone -->
+# Milestone v3.1: Hybrid AI Backend
+
+**Started:** 2026-05-16
+**Goal:** Extend the AI layer from AICore-only to a 3-tier system — AICore (preferred), local Gemma 3 1B model via MediaPipe (fallback for capable hardware, user opt-in download), and None (graceful degradation). Enables AI drafting on devices like Samsung Galaxy S24 Ultra that have Snapdragon 8 Gen 3 NPU but no AICore.
+
+## Phases
+
+- [ ] **Phase 37: Data Foundation** - AiBackend enum, PreferencesManager 5 new keys, ModelDownloadManager core, Gradle tasks-genai dependency
+- [ ] **Phase 38: Local AI Client** - LocalModelAiClient with delegate cascade, lazy init with "Loading AI..." indicator, delegate failure fallback
+- [ ] **Phase 39: Backend Detection & DI** - 3-tier DeviceCapabilityManager update, AiModule backend-selection expansion
+- [ ] **Phase 40: User-Facing Download Flow** - Opt-in download dialog with size disclosure, download progress indicator
+
+## Phase Details
+
+### Phase 37: Data Foundation
+**Goal**: All data contracts and infrastructure for the hybrid AI backend exist and compile — enum, preferences keys, download manager, and Gradle dependency in place before any client or DI wiring is written
+
+**Depends on**: Phase 36
+
+**Requirements**: HYBRID-02, HYBRID-03, HYBRID-07, AIFND-11 (mod)
+
+**Success Criteria** (what must be TRUE):
+  1. `AiBackend.AICORE`, `AiBackend.LOCAL_MODEL`, and `AiBackend.NONE` are importable from domain layer with zero Android imports
+  2. PreferencesManager compiles with 5 new DataStore keys (`ai_backend`, `ai_availability`, `local_model_downloaded`, `local_model_path`, `user_opted_in_ai`) added to the existing single DataStore instance — no second delegate created
+  3. `ModelDownloadManager.download()` returns `Flow<DownloadProgress>`, stores the model file exclusively at `context.filesDir/models/gemma3_1b_int4.task`, and respects WiFi-only constraint by default
+  4. Gradle sync succeeds with `com.google.mediapipe:tasks-genai:0.10.22` added; existing dependencies unchanged
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 38: Local AI Client
+**Goal**: `LocalModelAiClient` exists as a fully functional second implementation of `GenAiClient` — delegates cascade from NPU to GPU to CPU, model loads lazily on first call, and all failure modes are handled without crashing
+
+**Depends on**: Phase 37
+
+**Requirements**: HYBRID-04, HYBRID-09, HYBRID-10, AIFND-04 (mod)
+
+**Success Criteria** (what must be TRUE):
+  1. `LocalModelAiClient` implements `GenAiClient` and is the second concrete implementation alongside `NanoAiClient` — both exist in `data/ai/`
+  2. First call to `generateDraft()` triggers model initialization; calling code sees a "Loading AI..." indicator for the 2–3 second cold-start window before the result arrives
+  3. Delegate cascade attempts QNN (NPU) first, then GPU (OpenCL), then CPU (XNNPACK) — first successful delegate wins; none of the failures propagate to the caller
+  4. If all three delegates fail at runtime, `generateDraft()` catches the exception, writes `NONE` to the `ai_backend` preference, and returns `Result.failure` — the app does not crash and AI buttons are hidden on the next composition
+  5. `close()` releases model memory — callable from `Activity.onStop()`, `onTrimMemory(TRIM_MEMORY_RUNNING_CRITICAL)`, or after 5 minutes of inference idle time
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 39: Backend Detection & DI
+**Goal**: The app correctly selects which `GenAiClient` implementation to inject at startup — AICore when available, local model when downloaded and RAM sufficient, null otherwise — and the Hilt graph compiles cleanly
+
+**Depends on**: Phase 38
+
+**Requirements**: HYBRID-01, HYBRID-08, AIFND-01 (mod)
+
+**Success Criteria** (what must be TRUE):
+  1. On a device with AICore ready, `DeviceCapabilityManager` detects `AICORE_READY` via `Generation.getClient().checkStatus()` (ML Kit) and caches that result; local model check is skipped
+  2. On a device without AICore but with ≥6 GB RAM, `DeviceCapabilityManager` detects `LOCAL_DOWNLOADABLE` (or `LOCAL_READY` if model already downloaded) — never falls through to `NEVER` on capable hardware
+  3. Detection runs on every app launch — even if the local model was previously downloaded, AICore availability is re-checked first
+  4. `AiModule` provides `NanoAiClient` when cached backend is `AICORE_READY`, `LocalModelAiClient` when `LOCAL_READY`, and `null` when `NONE` or model not yet downloaded — the Hilt graph compiles with no KSP errors
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 40: User-Facing Download Flow
+**Goal**: Users on capable non-AICore devices are offered an explicit opt-in to download the 529 MB model; they see live progress during the download; nothing downloads without their consent
+
+**Depends on**: Phase 39
+
+**Requirements**: HYBRID-05, HYBRID-06
+
+**Success Criteria** (what must be TRUE):
+  1. User sees an opt-in dialog disclosing "529 MB" download size and on-device privacy assurance before any download byte is transferred
+  2. Tapping "Maybe Later" dismisses the dialog without initiating any download and does not re-prompt within the same app session; the prompt re-appears on the next app launch
+  3. Tapping "Download (529 MB)" initiates the download and dismisses the dialog
+  4. User sees download progress — either a persistent system notification showing percentage or an in-app indicator — while the download runs; the app remains fully usable during download
+  5. AI features (draft FAB group, "AI Fill" buttons) become available automatically when download completes without requiring an app restart
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 37. Data Foundation | 0/? | Not started | — |
+| 38. Local AI Client | 0/? | Not started | — |
+| 39. Backend Detection & DI | 0/? | Not started | — |
+| 40. User-Facing Download Flow | 0/? | Not started | — |
+
+---
+
+## Milestone v3.1 Progress
+
+**Requirements:** 13 total (10 HYBRID + 3 AIFND-mod) | **Phases:** 4 | **Mapped:** 13/13 ✓
+
+<!-- END: v3.1.milestone -->
