@@ -96,6 +96,7 @@ fun AddEditTransactionDialog(
     onConfirm: (TransactionEntity, List<TransactionEntity>?) -> Unit,
 ) {
     val isEdit = transaction != null
+    var aiSuggestedFields by remember { mutableStateOf(emptySet<String>()) }
 
     // ── Core State ──
     var type by rememberSaveable { mutableStateOf(transaction?.type ?: initialType ?: "expense") }
@@ -375,6 +376,17 @@ fun AddEditTransactionDialog(
                 showNoteInput = true
             }
             initialDraft.date?.let { selectedDate = it }
+
+            aiSuggestedFields = buildSet {
+                if (initialDraft.typeId != null) add("type")
+                if (initialDraft.amount != null) add("amount")
+                if (initialDraft.categoryId != null) add("category")
+                if (initialDraft.accountId != null) add("account")
+                if (initialDraft.peerContactId != null) add("peer")
+                if (initialDraft.tagIds.isNotEmpty()) add("tags")
+                if (initialDraft.description != null || initialDraft.note != null) add("note")
+                if (initialDraft.date != null) add("date")
+            }
         }
     }
 
@@ -454,13 +466,13 @@ fun AddEditTransactionDialog(
     }
 
     // ── Main Dialog ──
-    Dialog(onDismissRequest = { onDraftDismiss?.invoke(); onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxSize()) {
                 DialogTopBar(
                     title = "${if (isEdit) "Edit" else "Add"} ${config.displayName}",
                     accentColor = accentColor,
-                    onDismiss = { onDraftDismiss?.invoke(); onDismiss() }
+                    onDismiss = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() }
                 )
 
                 TransactionTypeHeader(selectedType = type, onTypeSelected = ::onTypeSelected)
@@ -761,7 +773,7 @@ fun AddEditTransactionDialog(
                         amountValid = amount.isNotEmpty(),
                         accountValid = selectedAccountId != null,
                         accentColor = accentColor,
-                        onCancel = { onDraftDismiss?.invoke(); onDismiss() },
+                        onCancel = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() },
                         onSave = {
                             val tx = buildTransaction()
                             if (tx != null) {
