@@ -1,5 +1,6 @@
 package com.moneymanager.app.ui.transactions
 
+import android.speech.SpeechRecognizer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
@@ -38,8 +39,12 @@ import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Badge
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +55,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -65,6 +71,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -157,6 +164,7 @@ fun TransactionsScreen(
     val isScrolled by remember {
         derivedStateOf { lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 50 }
     }
+    var aiDraftExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(initialType != null) }
     var editingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var viewingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -284,6 +292,10 @@ fun TransactionsScreen(
 
     LaunchedEffect(Unit) {
         updatePeriodBasedOnFilter("Month")
+    }
+
+    LaunchedEffect(showAddDialog) {
+        if (showAddDialog) aiDraftExpanded = false
     }
 
     val activeFilterCount = listOfNotNull(
@@ -444,13 +456,59 @@ fun TransactionsScreen(
             }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = CircleShape
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.End
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                if (isAiAssistAvailable) {
+                    AnimatedVisibility(
+                        visible = aiDraftExpanded,
+                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SmallFloatingActionButton(
+                                onClick = { onNavigateToAiDraftSms(); aiDraftExpanded = false },
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ) {
+                                Icon(Icons.Default.Sms, contentDescription = "AI Draft from SMS")
+                            }
+                            SmallFloatingActionButton(
+                                onClick = { onNavigateToAiDraftReceipt(); aiDraftExpanded = false },
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ) {
+                                Icon(Icons.Default.Receipt, contentDescription = "AI Draft from Receipt")
+                            }
+                            if (SpeechRecognizer.isRecognitionAvailable(LocalContext.current)) {
+                                SmallFloatingActionButton(
+                                    onClick = { onNavigateToAiDraftVoice(); aiDraftExpanded = false },
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ) {
+                                    Icon(Icons.Default.Mic, contentDescription = "AI Draft from Voice")
+                                }
+                            }
+                        }
+                    }
+                    FloatingActionButton(
+                        onClick = { aiDraftExpanded = !aiDraftExpanded },
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        shape = CircleShape
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "AI Draft Options")
+                    }
+                }
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = CircleShape
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                }
             }
         }
     ) { padding ->
