@@ -1,47 +1,39 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Progress
-status: verifying
-stopped_at: Phase 30 Risks Pane complete — 8/8 composables created, build verified
-last_updated: "2026-04-30T10:31:15.816Z"
-last_activity: 2026-05-04 - Completed quick task 260504-ewv: Fix PIN and Biometric Lock Issues
+milestone: v3.0
+milestone_name: AI-Assisted Transaction Drafting
+status: planning
+stopped_at: Milestone v3.0 started — defining requirements
+last_updated: "2026-05-15T00:00:00.000Z"
+last_activity: 2026-05-15 - Milestone v3.0 started, research in progress
 progress:
-  total_phases: 20
-  completed_phases: 13
-  total_plans: 30
-  completed_plans: 24
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
-## Current Milestone: v2.2 Insights Dashboard
+## Current Milestone: v3.0 AI-Assisted Transaction Drafting
 
-Phase: 29
-Plan: Not started
-Status: Phase 30 complete — Risks Pane stateless composables and screen integration done, build verified
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
 
-Last activity: 2026-04-30
+Last activity: 2026-05-15 — Milestone v3.0 started
 
 ## Milestone Goal
 
-Add a 3-screen swipeable Insights section (STATUS / RISKS / TRENDS) derived purely from transaction records. All calculations deterministic (current vs previous month). Mobile-first large typography with failsafe empty state.
+Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant. Users create transaction drafts from SMS, receipt images, or voice memos — AI suggests a pre-filled form, user reviews and confirms. App stays 100% functional without AI. All existing features unchanged.
 
 ## Phase Structure
 
-| Phase | Name | Requirements | Status |
-|-------|------|--------------|--------|
-| 27 | Data Layer & Calculations | Infrastructure (no user-facing requirements) | Not started |
-| 28 | Navigation & Screen Shell | INF-01, INF-02, INF-03 | Not started |
-| 29 | Status Pane | STA-01–STA-09 | Not started |
-| 30 | Risks Pane | RSK-01–RSK-08 | ✅ Complete |
-| 31 | Trends Pane | TRD-01–TRD-04 | Not started |
-
-**Dependency chain:** 27 → 28 → 29, 30, 31 (29/30/31 all depend on 28 independently)
+TBD — roadmap being created (phases continue from 31+)
 
 ## Previous Milestone
 
-v2.1 (Multiple Themes + Transaction enhancements) — Phase 26 was last phase.
+v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shell, Status Pane, Risks Pane). Phase 31 Trends Pane was pending at milestone transition.
 
 ## Accumulated Context
 
@@ -102,6 +94,6 @@ v2.1 (Multiple Themes + Transaction enhancements) — Phase 26 was last phase.
 
 ## Session Info
 
-- **Last session:** 2026-05-04
-- **Stopped at:** Quick task 260504-ewv complete — PIN unlock routing fixed, biometric re-trigger fixed, numeric keyboard added to PinSetupDialog, assembleDebug verified
-- **Next phase:** Phase 31 — Trends Pane (UI-SPEC → Plan → Execute)
+- **Last session:** 2026-05-15
+- **Stopped at:** Milestone v3.0 started — research agents launched, requirements and roadmap pending
+- **Next phase:** TBD — awaiting research completion and roadmap creation
