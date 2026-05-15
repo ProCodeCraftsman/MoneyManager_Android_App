@@ -1,4 +1,74 @@
-# Requirements: MoneyManager v3.0
+# Requirements: MoneyManager
+
+**Last updated:** 2026-05-16
+**Core Value:** AI-assisted transaction drafting — AI suggests, user decides. App is 100% functional without AI.
+
+---
+
+# v3.1 Requirements — Hybrid AI Backend
+
+**Defined:** 2026-05-16
+**Goal:** Extend AI layer from AICore-only to a 3-tier hybrid system (AICore → Local Model → None).
+
+## Backend Detection
+
+- [ ] **HYBRID-01**: App detects 3 backend tiers at startup using `Generation.getClient().checkStatus()` (ML Kit) + `ActivityManager.MemoryInfo.totalMem ≥ 6 GB`; result cached as string in PreferencesManager (`"AICORE_READY"` / `"LOCAL_READY"` / `"LOCAL_DOWNLOADABLE"` / `"LOCAL_DOWNLOADING"` / `"NEVER"`)
+- [ ] **HYBRID-02**: `AiBackend` enum exists with `AICORE`, `LOCAL_MODEL`, `NONE` values used throughout the app for backend routing
+
+## Model Download & Storage
+
+- [ ] **HYBRID-03**: `ModelDownloadManager` downloads the ~529 MB Gemma 3 1B int4 `.task` file; exposes `Flow<DownloadProgress>`; handles network errors with retry, insufficient storage, and user cancellation; survives backgrounding via foreground service or WorkManager; WiFi-only by default with cellular override opt-in
+- [ ] **HYBRID-05**: User sees an opt-in dialog disclosing the 529 MB download size and on-device privacy assurance before any download begins; "Maybe Later" suppresses the prompt for the session and re-prompts on next launch; "Download (529 MB)" initiates the download
+- [ ] **HYBRID-06**: User sees download progress via a persistent notification or in-app indicator while download runs; app remains fully usable during download; AI features become available automatically when download completes
+- [ ] **HYBRID-07**: Model file stored exclusively in `context.filesDir/models/gemma3_1b_int4.task` — never in external storage
+
+## Local AI Client
+
+- [ ] **HYBRID-04**: `LocalModelAiClient` wraps `com.google.mediapipe:tasks-genai:0.10.22`; tries Qualcomm QNN (NPU) → GPU (OpenCL) → CPU (XNNPACK) delegate in order; uses `temperature=0.0`, `topK=1` for deterministic JSON output; `close()` releases ~1.5 GB RAM on `Activity.onStop()`, `onTrimMemory(TRIM_MEMORY_RUNNING_CRITICAL)`, or 5-min inference idle
+- [ ] **HYBRID-09**: `LocalModelAiClient` lazy-initializes the model on the first inference call, not at Hilt startup; first-inference cold start (~2–3 s) shows "Loading AI…" indicator in the UI
+- [ ] **HYBRID-10**: If all MediaPipe delegates fail at runtime, app catches the exception, marks backend `NONE` in PreferencesManager, and hides AI buttons without crashing
+
+## DI & Wiring
+
+- [ ] **HYBRID-08**: `AiModule` provides `GenAiClient?` — returns `NanoAiClient` when `AICORE`, `LocalModelAiClient` when `LOCAL_READY`, `null` when `NONE` or model not yet downloaded — null causes AI buttons to hide and manual entry to proceed normally
+
+## Modified from v3.0
+
+- [ ] **AIFND-01** *(modified)*: `DeviceCapabilityManager.checkAndCacheAvailability()` detects 3 tiers (AICore via ML Kit → RAM ≥6 GB check → NONE); result cached as multi-value backend string; AICore always preferred — re-checked on every launch even when local model already downloaded
+- [ ] **AIFND-04** *(modified)*: `GenAiClient` interface has two concrete implementations: `NanoAiClient` (existing, unchanged) and `LocalModelAiClient` (new)
+- [ ] **AIFND-11** *(modified)*: `AiModule` backend-selection logic expanded to read cached backend type from PreferencesManager and gate on `ModelDownloadManager.isModelDownloaded()`; `PreferencesManager` extended with 5 new keys (`ai_backend`, `ai_availability`, `local_model_downloaded`, `local_model_path`, `user_opted_in_ai`) — same DataStore instance, strictly additive
+
+## v3.1 Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Cloud AI fallback | 100% offline inference contract |
+| Auto-download without opt-in | Explicit user consent required (529 MB) |
+| External storage for model | Security — app-private only |
+| Non-Gemma models in this milestone | Scope control |
+| Multi-model switching at runtime | v3.2+ |
+
+## v3.1 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| HYBRID-01 | TBD | Pending |
+| HYBRID-02 | TBD | Pending |
+| HYBRID-03 | TBD | Pending |
+| HYBRID-04 | TBD | Pending |
+| HYBRID-05 | TBD | Pending |
+| HYBRID-06 | TBD | Pending |
+| HYBRID-07 | TBD | Pending |
+| HYBRID-08 | TBD | Pending |
+| HYBRID-09 | TBD | Pending |
+| HYBRID-10 | TBD | Pending |
+| AIFND-01 (mod) | TBD | Pending |
+| AIFND-04 (mod) | TBD | Pending |
+| AIFND-11 (mod) | TBD | Pending |
+
+---
+
+# v3.0 Requirements — AI-Assisted Transaction Drafting
 
 **Defined:** 2026-05-15
 **Core Value:** AI-assisted transaction drafting — Gemini Nano suggests, user decides. App is 100% functional without AI.
