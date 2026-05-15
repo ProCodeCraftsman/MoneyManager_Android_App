@@ -501,7 +501,7 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
 ### Phase 32: Domain AI Foundation
 **Goal**: All AI domain contracts exist as pure Kotlin — zero Android runtime imports, fully unit-testable on JVM
 
-**Depends on**: Phase 31
+**Depends on**: no previous phases/
 
 **Requirements**: AIFND-03, AIFND-05, AIFND-06, AIFND-07, AIFND-08
 
@@ -511,7 +511,12 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
   3. TransactionType.allIds() returns all current transaction type strings matching TransactionEntity.VALID_TYPES
   4. PromptContextBuilder builds a PromptContext from 3 mock repositories without touching Room or Android Context
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 32-01-PLAN.md — Create TransactionType enum, GenAiClient interface, AiUnavailableException
+- [ ] 32-02-PLAN.md — Create TransactionDraft and PromptContext with entry projection types
+- [ ] 32-03-PLAN.md — Create PromptContextBuilder and GenerateDraftFromTextUseCase
 
 **UI hint**: no
 
@@ -588,7 +593,7 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 32. Domain AI Foundation | 0/? | Not started | — |
+| 32. Domain AI Foundation | 0/3 | Not started | — |
 | 33. Data AI Implementation | 0/? | Not started | — |
 | 34. DI Wiring & AI Availability | 0/? | Not started | — |
 | 35. AI Draft Source Screens | 0/? | Not started | — |
