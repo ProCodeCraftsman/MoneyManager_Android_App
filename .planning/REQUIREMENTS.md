@@ -70,15 +70,15 @@
 
 ### Draft Review & Dialog Integration (DRAFT)
 
-- [ ] **DRAFT-01**: A three-source expandable FAB (SMS / Receipt / Voice) appears alongside the existing + FAB; the AI draft FAB group is visible only when `isAiAssistAvailable = true`; the existing + FAB behavior is completely unchanged
-- [ ] **DRAFT-02**: `AddEditTransactionDialog` accepts an optional `initialDraft: TransactionDraft? = null` parameter; all existing call sites pass `null` — no existing behavior changes
-- [ ] **DRAFT-03**: A `LaunchedEffect(initialDraft)` inside `AddEditTransactionDialog` applies draft field values to form state via the existing `onTypeSelected()` path before any user interaction
+- [x] **DRAFT-01**: A three-source expandable FAB (SMS / Receipt / Voice) appears alongside the existing + FAB; the AI draft FAB group is visible only when `isAiAssistAvailable = true`; the existing + FAB behavior is completely unchanged
+- [x] **DRAFT-02**: `AddEditTransactionDialog` accepts an optional `initialDraft: TransactionDraft? = null` parameter; all existing call sites pass `null` — no existing behavior changes
+- [x] **DRAFT-03**: A `LaunchedEffect(initialDraft)` inside `AddEditTransactionDialog` applies draft field values to form state via the existing `onTypeSelected()` path before any user interaction
 - [ ] **DRAFT-04**: AI-suggested fields are visually distinguished (tinted container background + small sparkle badge icon); the tint and badge clear automatically when the user edits that specific field
-- [ ] **DRAFT-05**: A source banner is shown at the top of `AddEditTransactionDialog` when opened from an AI flow (e.g. "Draft from SMS · HDFCBK · 2 minutes ago"); absent for manually opened dialogs
-- [ ] **DRAFT-06**: AI draft fields with low confidence are left empty (never guessed); user must fill them manually
-- [ ] **DRAFT-07**: Draft does not re-populate form state on a second dialog open after dismiss; `clearDraft()` is called on `onDismiss`
+- [x] **DRAFT-05**: A source banner is shown at the top of `AddEditTransactionDialog` when opened from an AI flow (e.g. "Draft from SMS · HDFCBK · 2 minutes ago"); absent for manually opened dialogs
+- [x] **DRAFT-06**: AI draft fields with low confidence are left empty (never guessed); user must fill them manually
+- [x] **DRAFT-07**: Draft does not re-populate form state on a second dialog open after dismiss; `clearDraft()` is called on `onDismiss`
 - [x] **DRAFT-08**: Three new routes in `MoneyManagerNavHost` for `SmsPickerScreen`, `ReceiptScanScreen`, `VoiceMemoScreen`; routes pass `TransactionDraft` as a JSON-serialized optional navigation argument to `AddTransactionScreen`
-- [ ] **DRAFT-09**: AI-drafted transactions go through the same save and validation path as manually entered transactions — no separate AI save code path
+- [x] **DRAFT-09**: AI-drafted transactions go through the same save and validation path as manually entered transactions — no separate AI save code path
 
 ---
 
@@ -176,15 +176,15 @@
 | STD-01 | Phase 35 — AI Draft Source Screens | Pending |
 | STD-02 | Phase 35 — AI Draft Source Screens | Pending |
 | STD-03 | Phase 35 — AI Draft Source Screens | Pending |
-| DRAFT-01 | Phase 36 — Dialog Integration & FAB | Pending |
-| DRAFT-02 | Phase 36 — Dialog Integration & FAB | Pending |
-| DRAFT-03 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-01 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
+| DRAFT-02 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
+| DRAFT-03 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
 | DRAFT-04 | Phase 36 — Dialog Integration & FAB | Pending |
-| DRAFT-05 | Phase 36 — Dialog Integration & FAB | Pending |
-| DRAFT-06 | Phase 36 — Dialog Integration & FAB | Pending |
-| DRAFT-07 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-05 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
+| DRAFT-06 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
+| DRAFT-07 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
 | DRAFT-08 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
-| DRAFT-09 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-09 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
 | STD-04 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
 
 **Coverage:**
