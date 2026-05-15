@@ -29,47 +29,47 @@ Comprehensive money management \ app with:
 - **Monetization**: Free (all features)
 ## Current State
 
-v2.2 Insights Dashboard phases 27–30 complete (Data Layer, Navigation Shell, Status Pane, Risks Pane). Phase 31 Trends Pane pending. v3.0 AI-Assisted Transaction Drafting defined — research and roadmap in progress.
+v3.0 AI-Assisted Transaction Drafting complete — all 5 phases (32–36) shipped. v3.1 Hybrid AI Backend in planning — extends AI layer from AICore-only to 3-tier: AICore, local Gemma 3 1B (user opt-in), or None.
 
-## Previous Milestone: v2.2 Insights Dashboard
+## Previous Milestone: v3.0 AI-Assisted Transaction Drafting
 
-**Goal:** Add a 3-screen swipeable Insights section that derives financial summaries purely from transaction records — no budgets, categories, or AI assumptions.
+**Goal:** Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant — SMS, receipt OCR, and voice memo flows all pre-fill AddEditTransactionDialog. App 100% functional without AI.
 
-**Completed:** Phases 27–30 (Data Layer, Navigation, Status Pane, Risks Pane). Phase 31 (Trends Pane) pending at v2.2 close.
+**Completed:** Phases 32–36 (Domain Foundation, Data AI, DI Wiring, Source Screens, Dialog Integration).
 
-## Current Milestone: v3.0 AI-Assisted Transaction Drafting
+## Current Milestone: v3.1 Hybrid AI Backend
 
-**Goal:** Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant so users can create transaction drafts from SMS, receipt images, or voice memos — with the AI suggesting a pre-filled form the user reviews and confirms. App remains 100% functional without AI.
+**Goal:** Extend the AI layer from AICore-only to a 3-tier system — AICore (preferred), Gemma 3 1B local model via MediaPipe (fallback for capable hardware, user opt-in download), and None (graceful degradation) — so devices like the Samsung Galaxy S24 Ultra without AICore can use AI transaction drafting.
 
 **Target features:**
 
-*AI Infrastructure:*
-- `DeviceCapabilityManager`: checks AICore availability on first launch, caches `isAiAssistAvailable` Boolean in DataStore
-- `GenAiClient` interface (domain) + `NanoAiClient` implementation (data/ai/)
-- `TransactionDraft` domain model aligned to existing entity IDs (categoryId, accountId, peerContactId)
-- `GenerateDraftFromTextUseCase`: nullable AI client injection via Hilt — returns failure when AI unavailable
-- Dynamic prompt builder: injects user's live master data (categories by type, account names, peer names, tags, transaction types from registry) — extensible as new types are added
+*Backend Detection & Routing:*
+- 3-tier detection at startup: AICore (ML Kit API) → Local Model (≥6 GB RAM) → None
+- `AiBackend` enum: `AICORE`, `LOCAL_MODEL`, `NONE`
+- Extended PreferencesManager keys: `ai_backend`, `ai_availability`, `local_model_downloaded`, `local_model_path`, `user_opted_in_ai`
+- Updated `DeviceCapabilityManager` — 3-tier detection, never uses PackageManager as AICore proxy
 
-*User-facing flows:*
-- SMS picker: select financial SMS → "AI Fill" → draft populated in existing AddEditTransactionDialog
-- Receipt OCR: camera/gallery capture → unbundled ML Kit OCR → "AI Fill" → draft review
-- Voice memo: offline SpeechRecognizer (EXTRA_PREFER_OFFLINE) → "AI Fill" → draft review
+*Local Model Infrastructure:*
+- `LocalModelAiClient` — wraps `com.google.mediapipe:tasks-genai:0.10.22`, NPU → GPU → CPU delegate cascade, temperature=0.0/topK=1 for deterministic JSON
+- Lazy initialization: model loaded on first inference call, not at Hilt startup
+- `close()` releases ~1.5 GB RAM — called on Activity.onStop(), onTrimMemory(CRITICAL), or 5-min idle
 
-*Graceful degradation:*
-- All "AI Fill" buttons hidden when AICore unavailable (Flow<Boolean> drives visibility)
-- Runtime AI errors show Snackbar; form stays editable manually
-- Manual entry always primary — AI never required
+*Download Flow:*
+- `ModelDownloadManager` — downloads ~529 MB Gemma 3 1B int4 .task file, stores in `filesDir/models/`, WiFi-only default
+- Progress as `Flow<DownloadProgress>`, survives config changes/backgrounding
+- User opt-in dialog: discloses 529 MB size + privacy assurance before any download begins
+- Download progress via persistent notification or in-app indicator
 
-*Code standards:*
-- New packages: `data/ai/`, `domain/ai/`, `ui/aidraft/`
-- Hilt `AiModule` with conditional `GenAiClient?` provision
-- Transaction types resolved from a centralized `TransactionType` registry (not hardcoded in prompts)
+*DI & Availability:*
+- Updated `AiModule` — provides `GenAiClient?` based on cached backend + download state
+- `AiModule` returns null (AI buttons hidden) when no backend available or model not yet downloaded
 
 **Key constraints:**
-- Zero APK bloat — AICore is system-managed (Snapdragon 8 Gen 3 NPU acceleration automatic)
-- 100% offline, privacy-preserving (Gemini Nano runs in Private Compute Core)
-- Min SDK 26, Clean Architecture / MVVM / Hilt / Room / DataStore patterns unchanged
-- All existing features unchanged — AI is additive only
+- 100% offline inference — local model never touches network after download
+- Zero APK bloat — model downloaded post-install; `tasks-genai` adds ~15 MB (acceptable)
+- Min SDK 26, all existing Clean Architecture / MVVM / Hilt / Room / DataStore patterns unchanged
+- All changes additive — existing manual entry and non-AI flows completely unaffected
+- Explicit user opt-in for download — nothing auto-downloads
 
 ## Evolution
 
@@ -90,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-05-15 — Milestone v3.0 started*
+*Last updated: 2026-05-16 — Milestone v3.1 started*
