@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: AI-Assisted Transaction Drafting
 status: in_progress
-stopped_at: Completed 36-01-PLAN.md
-last_updated: "2026-05-15"
-last_activity: 2026-05-15 - 36-01 executed: Navigation foundation (AiDraft routes, draftJson nav arg, isAiAvailable wiring)
+stopped_at: Completed 36-03-PLAN.md
+last_updated: "2026-05-16"
+last_activity: 2026-05-16 - 36-03 executed: AddEditTransactionDialog initialDraft wiring + source banner
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 16
-  completed_plans: 13
+  completed_plans: 15
 ---
 
 # Project State
@@ -18,10 +18,10 @@ progress:
 ## Current Milestone: v3.0 AI-Assisted Transaction Drafting
 
 Phase: 36 — Dialog Integration & FAB
-Plan: 1/4 — 36-01 complete
+Plan: 3/4 — 36-01, 36-02, 36-03 complete
 Status: In Progress
 
-Last activity: 2026-05-15 — 36-01 executed: Navigation foundation (AiDraft routes, draftJson nav arg, isAiAvailable wiring)
+Last activity: 2026-05-16 — 36-03 executed: AddEditTransactionDialog initialDraft wiring + source banner
 
 ## Milestone Goal
 
@@ -35,7 +35,7 @@ Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant. User
 | 33 | Data AI Implementation | AIFND-01, AIFND-04, AIFND-09, AIFND-10 | ✅ Complete |
 | 34 | DI Wiring & AI Availability | AIFND-02, AIFND-11, AIFND-12 | ✅ Complete |
 | 35 | AI Draft Source Screens | SMS-01–10, OCR-01–09, VOICE-01–10, STD-01, STD-02, STD-03 | ✅ Complete |
-| 36 | Dialog Integration & FAB | DRAFT-01–09, STD-04 | In Progress — 1/4 plans complete |
+| 36 | Dialog Integration & FAB | DRAFT-01–09, STD-04 | In Progress — 3/4 plans complete |
 
 ## Previous Milestone
 
@@ -63,6 +63,9 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 - No LaunchedEffect collecting navigationEvent in Transactions composable block — each AI source screen's composable drives its own nav via onNavigateToConfirm lambda, preventing double-navigation race on replay=0 SharedFlow (36-01)
 - onDraftDismiss wired as empty lambda stub in NavHost; Plan 36-03 replaces with clearDraft() (36-01)
 - draftJson nav arg deserialized with try/catch; malformed JSON produces null draft per threat model T-36-01 (36-01)
+- Expandable AI Draft FAB: Column layout with AnimatedVisibility, tertiaryContainer toggle FAB, secondaryContainer mini-FABs; voice FAB conditionally hidden via SpeechRecognizer.isRecognitionAvailable(); existing + FAB behavior preserved (36-02)
+- clearDraft() on AiDraftViewModel resets _uiState to AiDraftUiState(); called on dialog dismiss from NavHost via local hiltViewModel<AiDraftViewModel>() instance in AddTransaction composable block (36-03)
+- initialDraft + onDraftDismiss params on AddEditTransactionDialog use null defaults; LaunchedEffect populates form state vars; source banner renders at top when sourceType non-null (36-03, DRAFT-02/03/05/06/07/09)
 
 ### Research flags (verify at integration time)
 
@@ -99,6 +102,6 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 
 ## Session Info
 
-- **Last session:** 2026-05-15
-- **Stopped at:** Completed 36-01-PLAN.md — Navigation foundation
-- **Next phase:** Phase 36, Plan 36-02 — Expandable AI Draft FAB
+- **Last session:** 2026-05-16
+- **Stopped at:** Completed 36-03-PLAN.md — AddEditTransactionDialog initialDraft wiring + source banner
+- **Next phase:** Phase 36, Plan 36-04 — AI field highlighting

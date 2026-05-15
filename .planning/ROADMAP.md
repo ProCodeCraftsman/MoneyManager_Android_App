@@ -607,8 +607,8 @@ Plans:
 
 Plans:
 - [x] 36-01-PLAN.md — Navigation foundation: AI source screen routes + AddTransaction draftJson arg
-- [ ] 36-02-PLAN.md — Expandable AI Draft FAB group in TransactionsScreen
-- [ ] 36-03-PLAN.md — AddEditTransactionDialog initialDraft wiring + source banner
+- [x] 36-02-PLAN.md — Expandable AI Draft FAB group in TransactionsScreen
+- [x] 36-03-PLAN.md — AddEditTransactionDialog initialDraft wiring + source banner
 - [ ] 36-04-PLAN.md — AI field highlighting (tinted container + sparkle badge)
 
 **UI hint**: yes
@@ -621,7 +621,7 @@ Plans:
 | 33. Data AI Implementation | 3/3 | ✅ Complete | 2026-05-15 |
 | 34. DI Wiring & AI Availability | 2/2 | ✅ Complete | 2026-05-15 |
 | 35. AI Draft Source Screens | 4/4 | ✅ Complete | 2026-05-15 |
-| 36. Dialog Integration & FAB | 1/4 | In Progress | — |
+| 36. Dialog Integration & FAB | 3/4 | In Progress | — |
 
 ---
 
