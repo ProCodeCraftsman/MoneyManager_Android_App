@@ -101,7 +101,11 @@ fun TransactionsScreen(
     initialEndDate: Long? = null,
     initialGoalId: Long? = null,
     initialCategoryId: Long? = null,
-    initialPeerId: Long? = null
+    initialPeerId: Long? = null,
+    isAiAssistAvailable: Boolean = false,
+    onNavigateToAiDraftSms: () -> Unit = {},
+    onNavigateToAiDraftReceipt: () -> Unit = {},
+    onNavigateToAiDraftVoice: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

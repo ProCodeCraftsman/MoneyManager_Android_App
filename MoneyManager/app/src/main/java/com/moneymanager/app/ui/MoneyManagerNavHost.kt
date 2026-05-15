@@ -54,7 +54,14 @@ import com.moneymanager.app.ui.util.AppLockState
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.data.security.BiometricAuthManager
 import com.moneymanager.data.security.SecurityManager
+import android.net.Uri
 import androidx.compose.material.icons.rounded.*
+import com.moneymanager.app.ui.aidraft.AiDraftViewModel
+import com.moneymanager.app.ui.aidraft.ReceiptScanScreen
+import com.moneymanager.app.ui.aidraft.SmsPickerScreen
+import com.moneymanager.app.ui.aidraft.VoiceMemoScreen
+import com.moneymanager.domain.ai.TransactionDraft
+import kotlinx.serialization.json.Json
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector?) {
     data object Accounts : Screen("accounts", "Accounts", Icons.Default.AccountBalance)
@@ -94,7 +101,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object RecurringForm : Screen("recurring_form?recurringId={recurringId}", "Recurring Form", null)
     data object Peers : Screen("peers", "Peers", Icons.Default.People)
     data object BorrowLend : Screen("borrow_lend", "Borrow/Lend", null)
-    data object AddTransaction : Screen("add_transaction?type={type}", "Add Transaction", null)
+    data object AiDraftSms : Screen("ai_draft_sms", "AI Draft from SMS", null)
+    data object AiDraftReceipt : Screen("ai_draft_receipt", "AI Draft from Receipt", null)
+    data object AiDraftVoice : Screen("ai_draft_voice", "AI Draft from Voice", null)
+    data object AddTransaction : Screen("add_transaction?type={type}&draftJson={draftJson}", "Add Transaction", null)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -223,6 +233,8 @@ fun MoneyManagerNavHost(
                     val goalId = backStackEntry.arguments?.getString("goalId")?.toLongOrNull()
                     val categoryId = backStackEntry.arguments?.getString("categoryId")?.toLongOrNull()
                     val peerId = backStackEntry.arguments?.getString("peerId")?.toLongOrNull()
+                    val aiDraftViewModel = hiltViewModel<AiDraftViewModel>()
+                    val isAiAvailable by aiDraftViewModel.isAiAvailable.collectAsState()
 
                     TransactionsScreen(
                         viewModel = hiltViewModel(),
@@ -232,7 +244,11 @@ fun MoneyManagerNavHost(
                         initialEndDate = endDate,
                         initialGoalId = goalId,
                         initialCategoryId = categoryId,
-                        initialPeerId = peerId
+                        initialPeerId = peerId,
+                        isAiAssistAvailable = isAiAvailable,
+                        onNavigateToAiDraftSms = { navController.navigate(Screen.AiDraftSms.route) },
+                        onNavigateToAiDraftReceipt = { navController.navigate(Screen.AiDraftReceipt.route) },
+                        onNavigateToAiDraftVoice = { navController.navigate(Screen.AiDraftVoice.route) }
                     )
                 }
                 composable(Screen.Budgets.route) {
@@ -328,12 +344,53 @@ fun MoneyManagerNavHost(
                     )
                 ) { backStackEntry ->
                     val type = backStackEntry.arguments?.getString("type")
+                    val draftJson = backStackEntry.arguments?.getString("draftJson")
+                    val initialDraft: TransactionDraft? = draftJson?.let {
+                        try { Json.decodeFromString<TransactionDraft>(Uri.decode(it)) } catch (e: Exception) { null }
+                    }
                     AddTransactionScreen(
                         type = type,
-                        onDismiss = { navController.popBackStack() }
+                        onDismiss = { navController.popBackStack() },
+                        initialDraft = initialDraft,
+                        onDraftDismiss = { /* TODO 36-03: replace with aiDraftViewModel.clearDraft() once added */ }
                     )
                 }
-
+                composable(Screen.AiDraftSms.route) {
+                    val screenViewModel = hiltViewModel<AiDraftViewModel>()
+                    SmsPickerScreen(
+                        viewModel = screenViewModel,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToConfirm = { draft ->
+                            navController.navigate(
+                                "add_transaction?type=${draft.typeId ?: ""}&draftJson=${Uri.encode(Json.encodeToString(draft))}"
+                            )
+                        }
+                    )
+                }
+                composable(Screen.AiDraftReceipt.route) {
+                    val screenViewModel = hiltViewModel<AiDraftViewModel>()
+                    ReceiptScanScreen(
+                        viewModel = screenViewModel,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToConfirm = { draft ->
+                            navController.navigate(
+                                "add_transaction?type=${draft.typeId ?: ""}&draftJson=${Uri.encode(Json.encodeToString(draft))}"
+                            )
+                        }
+                    )
+                }
+                composable(Screen.AiDraftVoice.route) {
+                    val screenViewModel = hiltViewModel<AiDraftViewModel>()
+                    VoiceMemoScreen(
+                        viewModel = screenViewModel,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToConfirm = { draft ->
+                            navController.navigate(
+                                "add_transaction?type=${draft.typeId ?: ""}&draftJson=${Uri.encode(Json.encodeToString(draft))}"
+                            )
+                        }
+                    )
+                }
             }
         }
     }
