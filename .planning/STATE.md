@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: AI-Assisted Transaction Drafting
 status: in_progress
-stopped_at: Phase 36 planned — ready to execute
+stopped_at: Completed 36-01-PLAN.md
 last_updated: "2026-05-15"
-last_activity: 2026-05-15 - Phase 36 planned: 36-01 (Navigation foundation), 36-02 (Expandable FAB), 36-03 (Dialog draft integration), 36-04 (AI field highlighting)
+last_activity: 2026-05-15 - 36-01 executed: Navigation foundation (AiDraft routes, draftJson nav arg, isAiAvailable wiring)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 16
+  completed_plans: 13
 ---
 
 # Project State
@@ -18,10 +18,10 @@ progress:
 ## Current Milestone: v3.0 AI-Assisted Transaction Drafting
 
 Phase: 36 — Dialog Integration & FAB
-Plan: 0/4 — Ready to execute
-Status: Planned
+Plan: 1/4 — 36-01 complete
+Status: In Progress
 
-Last activity: 2026-05-15 — Phase 35 executed: 35-01 (AiDraftUiState + AiDraftViewModel), 35-02 (SmsPickerScreen), 35-03 (ReceiptScanScreen), 35-04 (VoiceMemoScreen)
+Last activity: 2026-05-15 — 36-01 executed: Navigation foundation (AiDraft routes, draftJson nav arg, isAiAvailable wiring)
 
 ## Milestone Goal
 
@@ -35,7 +35,7 @@ Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant. User
 | 33 | Data AI Implementation | AIFND-01, AIFND-04, AIFND-09, AIFND-10 | ✅ Complete |
 | 34 | DI Wiring & AI Availability | AIFND-02, AIFND-11, AIFND-12 | ✅ Complete |
 | 35 | AI Draft Source Screens | SMS-01–10, OCR-01–09, VOICE-01–10, STD-01, STD-02, STD-03 | ✅ Complete |
-| 36 | Dialog Integration & FAB | DRAFT-01–09, STD-04 | Planned — ready to execute |
+| 36 | Dialog Integration & FAB | DRAFT-01–09, STD-04 | In Progress — 1/4 plans complete |
 
 ## Previous Milestone
 
@@ -60,6 +60,9 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 - DraftParser strips markdown fences, extracts JSON between first { and last }, uses ignoreUnknownKeys=true (PITFALL-07)
 - clearDraft() called on dialog dismiss — prevents re-population on second open (PITFALL-15)
 - 4 new Gradle lines only: genai-prompt:1.0.0-beta2, genai-common:1.0.0-beta3, play-services-mlkit-text-recognition:19.0.1, kotlinx-serialization-json:1.8.1
+- No LaunchedEffect collecting navigationEvent in Transactions composable block — each AI source screen's composable drives its own nav via onNavigateToConfirm lambda, preventing double-navigation race on replay=0 SharedFlow (36-01)
+- onDraftDismiss wired as empty lambda stub in NavHost; Plan 36-03 replaces with clearDraft() (36-01)
+- draftJson nav arg deserialized with try/catch; malformed JSON produces null draft per threat model T-36-01 (36-01)
 
 ### Research flags (verify at integration time)
 
@@ -97,5 +100,5 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 ## Session Info
 
 - **Last session:** 2026-05-15
-- **Stopped at:** Roadmap created for v3.0 — 54/54 requirements mapped, phases 32–36 defined
-- **Next phase:** Phase 35 — AI Draft Source Screens
+- **Stopped at:** Completed 36-01-PLAN.md — Navigation foundation
+- **Next phase:** Phase 36, Plan 36-02 — Expandable AI Draft FAB

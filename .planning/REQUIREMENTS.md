@@ -42,7 +42,7 @@
 ### Receipt OCR Flow (OCR)
 
 - [ ] **OCR-01**: User can capture a receipt/invoice via camera (primary action via `ActivityResultContracts.TakePicture`) or select an image from the gallery (secondary) on ReceiptScanScreen
-- [ ] **OCR-02**: Unbundled ML Kit Text Recognition (`play-services-mlkit-text-recognition:19.0.1`) performs on-device OCR on `Dispatchers.IO`; `ImageProxy.close()` is called synchronously before any coroutine is launched
+- [ ] **OCR-02**: Unbundled ML Kit Text Recognition (`play-services-mlkit-text-recognition:19.0.1`) performs on-device OCR on `Dispatchers.IO` via `InputImage.fromFilePath(context, uri)` — the `ActivityResultContracts.TakePicture` URI path means no `ImageProxy` is involved; if CameraX/ImageAnalysis were used instead, `ImageProxy.close()` would be required before any coroutine launch (PITFALL-08)
 - [ ] **OCR-03**: A pre-processing normalization pass runs on OCR output before AI prompt: rupee symbol variants → `₹`, digit–letter confusion (0↔O) in numeric contexts, thousands separators, boilerplate merchant/header stripping
 - [ ] **OCR-04**: User sees image thumbnail alongside a scrollable read-only OCR text pane on ReceiptScanScreen before tapping "AI Fill"
 - [ ] **OCR-05**: Captured image is auto-attached as `receiptPath` via the existing `FileHelper.saveReceipt()` — no parallel storage path created
@@ -77,7 +77,7 @@
 - [ ] **DRAFT-05**: A source banner is shown at the top of `AddEditTransactionDialog` when opened from an AI flow (e.g. "Draft from SMS · HDFCBK · 2 minutes ago"); absent for manually opened dialogs
 - [ ] **DRAFT-06**: AI draft fields with low confidence are left empty (never guessed); user must fill them manually
 - [ ] **DRAFT-07**: Draft does not re-populate form state on a second dialog open after dismiss; `clearDraft()` is called on `onDismiss`
-- [ ] **DRAFT-08**: Three new routes in `MoneyManagerNavHost` for `SmsPickerScreen`, `ReceiptScanScreen`, `VoiceMemoScreen`; routes pass `TransactionDraft` as a JSON-serialized optional navigation argument to `AddTransactionScreen`
+- [x] **DRAFT-08**: Three new routes in `MoneyManagerNavHost` for `SmsPickerScreen`, `ReceiptScanScreen`, `VoiceMemoScreen`; routes pass `TransactionDraft` as a JSON-serialized optional navigation argument to `AddTransactionScreen`
 - [ ] **DRAFT-09**: AI-drafted transactions go through the same save and validation path as manually entered transactions — no separate AI save code path
 
 ---
@@ -87,7 +87,7 @@
 - [ ] **STD-01**: All new AI-related files follow the package hierarchy: `domain/ai/` (interfaces, models, use cases, enums), `data/ai/` (implementations, builders, parsers, managers), `app/ui/aidraft/` (screens, ViewModels, UiState)
 - [ ] **STD-02**: New files use existing project naming conventions: `*Screen.kt`, `*ViewModel.kt`, `*UiState.kt`, `*UseCase.kt`, `*Client.kt`, `*Manager.kt`, `*Builder.kt`, `*Parser.kt`
 - [ ] **STD-03**: `AiDraftViewModel` is a single shared `@HiltViewModel` used by all three source screens — not three separate ViewModels
-- [ ] **STD-04**: All modifications to existing files (`AddEditTransactionDialog`, `AddTransactionViewModel`, `AddTransactionScreen`, `MoneyManagerNavHost`, `PreferencesManager`) are strictly additive (null-default parameters, new DataStore keys, new routes); no existing behavior is altered
+- [x] **STD-04**: All modifications to existing files (`AddEditTransactionDialog`, `AddTransactionViewModel`, `AddTransactionScreen`, `MoneyManagerNavHost`, `PreferencesManager`) are strictly additive (null-default parameters, new DataStore keys, new routes); no existing behavior is altered
 
 ---
 
@@ -183,9 +183,9 @@
 | DRAFT-05 | Phase 36 — Dialog Integration & FAB | Pending |
 | DRAFT-06 | Phase 36 — Dialog Integration & FAB | Pending |
 | DRAFT-07 | Phase 36 — Dialog Integration & FAB | Pending |
-| DRAFT-08 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-08 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
 | DRAFT-09 | Phase 36 — Dialog Integration & FAB | Pending |
-| STD-04 | Phase 36 — Dialog Integration & FAB | Pending |
+| STD-04 | Phase 36 — Dialog Integration & FAB | ✅ Complete |
 
 **Coverage:**
 - v3.0 requirements: 54 total (12 AIFND + 10 SMS + 9 OCR + 10 VOICE + 9 DRAFT + 4 STD)
