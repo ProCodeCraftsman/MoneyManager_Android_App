@@ -491,7 +491,7 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
 ## Phases
 
 - [x] **Phase 32: Domain AI Foundation** - GenAiClient interface, TransactionDraft, TransactionType enum, PromptContextBuilder, GenerateDraftFromTextUseCase — zero Android imports ✅
-- [ ] **Phase 33: Data AI Implementation** - Gradle dependencies, PreferencesManager extension, PromptBuilder, DraftParser, NanoAiClient, DeviceCapabilityManager (4-state)
+- [x] **Phase 33: Data AI Implementation** - Gradle dependencies, PreferencesManager extension, PromptBuilder, DraftParser, NanoAiClient, DeviceCapabilityManager (4-state) ✅
 - [ ] **Phase 34: DI Wiring & AI Availability** - AiModule nullable @Provides, MoneyManagerApp startup hook, Flow<Boolean> availability repository
 - [ ] **Phase 35: AI Draft Source Screens** - AiDraftViewModel, SmsPickerScreen, ReceiptScanScreen, VoiceMemoScreen, shared UI state
 - [ ] **Phase 36: Dialog Integration & FAB** - Expandable 3-source FAB, AddEditTransactionDialog initialDraft, source banner, AI field highlighting, nav routes
@@ -536,11 +536,11 @@ Plans:
 **Plans**: 3 plans
 
 **Wave 1**
-- [ ] 33-01-PLAN.md — Add 4 Gradle dependencies + extend PreferencesManager with ai_availability_status key
+- [x] 33-01-PLAN.md — Add 4 Gradle dependencies + extend PreferencesManager with ai_availability_status key ✅
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 33-02-PLAN.md — Create DraftParser + PromptBuilder; replace placeholder in GenerateDraftFromTextUseCase
-- [ ] 33-03-PLAN.md — Create NanoAiClient + DeviceCapabilityManager
+- [x] 33-02-PLAN.md — Create DraftParser + PromptBuilder; replace placeholder in GenerateDraftFromTextUseCase ✅
+- [x] 33-03-PLAN.md — Create NanoAiClient + DeviceCapabilityManager ✅
 
 **Cross-cutting constraints:** DeviceCapabilityManager writes String "READY"/"NEVER"/"PENDING" — never Boolean; exactly 1 preferencesDataStore delegate throughout
 
@@ -603,7 +603,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 32. Domain AI Foundation | 3/3 | ✅ Complete | 2026-05-15 |
-| 33. Data AI Implementation | 0/3 | Ready to execute | — |
+| 33. Data AI Implementation | 3/3 | ✅ Complete | 2026-05-15 |
 | 34. DI Wiring & AI Availability | 0/? | Not started | — |
 | 35. AI Draft Source Screens | 0/? | Not started | — |
 | 36. Dialog Integration & FAB | 0/? | Not started | — |
