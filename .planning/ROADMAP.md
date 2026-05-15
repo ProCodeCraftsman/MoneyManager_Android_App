@@ -8,10 +8,11 @@
 | [v2.0](milestones/v2.0-ROADMAP.md) | ✅ Shipped | 2026-04-25 |
 | [v2.1](milestones/v2.1-ROADMAP.md) | In Progress | 2026-04-25 |
 | v2.2 | In Progress | 2026-04-28 |
+| v3.0 | In Progress | 2026-05-15 |
 
 ## Next Milestone
 
-v2.2: Insights Dashboard — 24 requirements across 5 phases (27–31)
+v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32–36)
 
 ---
 
@@ -26,7 +27,7 @@ v2.2: Insights Dashboard — 24 requirements across 5 phases (27–31)
 - [x] **Phase 14: Theme Infrastructure** - Material 3 theming, DataStore persistence, dark mode support ✅
 - [x] **Phase 15: Complete Theme System** - All 5 themes with light and dark mode variants ✅
 - [x] **Phase 16: Theme Settings UI** - Theme selector dropdown, dark mode toggle, immediate updates ✅
-- [x] **Phase 17: Income/Expense Coloring** - Consistent color usage throughout app ✅
+- [x] **Phase 17: Income/Expense Coloring** - Consistent color coding for income and expense ✅
 - [x] **Phase 18: Split Transaction Expandable View** - Expandable split transactions with child items visible on demand ✅
 - [x] **Phase 19: Transactions UI Fixes** - Visual corrections to TransactionsScreen (header, sticky date headers, search bar, filters) ✅
 - [ ] **Phase 21: Transactions UI Polish** - Complete visual redesign of TransactionsScreen scroll behavior, search, surface discipline, and nav separation
@@ -480,3 +481,123 @@ v2.2: Insights Dashboard — 24 requirements across 5 phases (27–31)
 **Requirements:** 24 total | **Phases:** 5 | **Mapped:** 24/24 ✓
 
 <!-- END: v2.2.milestone -->
+
+<!-- START: v3.0.milestone -->
+# Milestone v3.0: AI-Assisted Transaction Drafting
+
+**Started:** 2026-05-15
+**Goal:** Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant. Users create transaction drafts from SMS, receipt images, or voice memos — AI suggests a pre-filled form, user reviews and confirms. App stays 100% functional without AI. All existing features unchanged.
+
+## Phases
+
+- [ ] **Phase 32: Domain AI Foundation** - GenAiClient interface, TransactionDraft, TransactionType enum, PromptContextBuilder, GenerateDraftFromTextUseCase — zero Android imports
+- [ ] **Phase 33: Data AI Implementation** - Gradle dependencies, PreferencesManager extension, PromptBuilder, DraftParser, NanoAiClient, DeviceCapabilityManager (4-state)
+- [ ] **Phase 34: DI Wiring & AI Availability** - AiModule nullable @Provides, MoneyManagerApp startup hook, Flow<Boolean> availability repository
+- [ ] **Phase 35: AI Draft Source Screens** - AiDraftViewModel, SmsPickerScreen, ReceiptScanScreen, VoiceMemoScreen, shared UI state
+- [ ] **Phase 36: Dialog Integration & FAB** - Expandable 3-source FAB, AddEditTransactionDialog initialDraft, source banner, AI field highlighting, nav routes
+
+## Phase Details
+
+### Phase 32: Domain AI Foundation
+**Goal**: All AI domain contracts exist as pure Kotlin — zero Android runtime imports, fully unit-testable on JVM
+
+**Depends on**: Phase 31
+
+**Requirements**: AIFND-03, AIFND-05, AIFND-06, AIFND-07, AIFND-08
+
+**Success Criteria** (what must be TRUE):
+  1. All domain/ai/ classes compile without any Android runtime imports — verified by import scan
+  2. GenerateDraftFromTextUseCase returns Result.failure(AiUnavailableException) when GenAiClient is null — no silent no-op
+  3. TransactionType.allIds() returns all current transaction type strings matching TransactionEntity.VALID_TYPES
+  4. PromptContextBuilder builds a PromptContext from 3 mock repositories without touching Room or Android Context
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 33: Data AI Implementation
+**Goal**: All data-layer AI components are implemented and Gradle sync succeeds with the 4 new dependencies
+
+**Depends on**: Phase 32
+
+**Requirements**: AIFND-01, AIFND-04, AIFND-09, AIFND-10
+
+**Success Criteria** (what must be TRUE):
+  1. Gradle sync succeeds with 4 new dependencies; APK size increase is 0 MB for genai-prompt + genai-common (system-managed model)
+  2. DeviceCapabilityManager writes "READY", "NEVER", or "PENDING" to PreferencesManager — never a Boolean
+  3. DraftParser correctly strips markdown fences and extracts valid TransactionDraft from 3 test JSON variants (clean, fenced, partial)
+  4. NanoAiClient.generateDraft() returns Result.failure on AICore exception without crashing
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 34: DI Wiring & AI Availability
+**Goal**: Full Hilt graph compiles cleanly with nullable GenAiClient — build gate passes before any UI is touched
+
+**Depends on**: Phase 33
+
+**Requirements**: AIFND-02, AIFND-11, AIFND-12
+
+**Success Criteria** (what must be TRUE):
+  1. Full Hilt graph compiles with nullable GenAiClient? — no KSP annotation processor errors
+  2. On a non-AICore device (or emulator), GenAiClient resolves to null and the app starts without crash
+  3. Flow<Boolean> from AiAvailabilityRepository emits false on non-AICore device and true on READY device
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 35: AI Draft Source Screens
+**Goal**: Users can reach all three AI draft source screens; each flow reaches AddEditTransactionDialog with pre-filled fields on AICore devices and falls back to manual entry gracefully on non-AICore devices
+
+**Depends on**: Phase 34
+
+**Requirements**: SMS-01, SMS-02, SMS-03, SMS-04, SMS-05, SMS-06, SMS-07, SMS-08, SMS-09, SMS-10, OCR-01, OCR-02, OCR-03, OCR-04, OCR-05, OCR-06, OCR-07, OCR-08, OCR-09, VOICE-01, VOICE-02, VOICE-03, VOICE-04, VOICE-05, VOICE-06, VOICE-07, VOICE-08, VOICE-09, VOICE-10, STD-01, STD-02, STD-03
+
+**Success Criteria** (what must be TRUE):
+  1. User can paste SMS text and tap "AI Fill" to reach AddEditTransactionDialog with pre-filled fields
+  2. User can capture or select a receipt image; OCR text appears in the scrollable pane; "AI Fill" pre-fills the dialog
+  3. User can record a voice memo; transcription appears in editable field; "AI Fill" pre-fills the dialog
+  4. On a non-AICore device all three screens are reachable; "AI Fill" is absent; manual entry works end-to-end
+  5. VoiceMemoScreen is hidden entirely when SpeechRecognizer.isRecognitionAvailable() returns false
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+### Phase 36: Dialog Integration & FAB
+**Goal**: The existing AddEditTransactionDialog accepts AI drafts transparently; all changes to existing files are strictly additive with null-default parameters
+
+**Depends on**: Phase 35
+
+**Requirements**: DRAFT-01, DRAFT-02, DRAFT-03, DRAFT-04, DRAFT-05, DRAFT-06, DRAFT-07, DRAFT-08, DRAFT-09, STD-04
+
+**Success Criteria** (what must be TRUE):
+  1. Existing + FAB opens AddEditTransactionDialog with no change in behavior (null initialDraft path unchanged)
+  2. Opening dialog from SMS, OCR, or Voice flow shows source banner and AI field highlighting
+  3. Editing an AI-highlighted field removes its tint and badge for that field only
+  4. Dismissing and reopening the dialog shows blank form — clearDraft() fired on dismiss
+  5. AI-drafted transaction saves successfully using the existing validation path with no separate AI save code path
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 32. Domain AI Foundation | 0/? | Not started | — |
+| 33. Data AI Implementation | 0/? | Not started | — |
+| 34. DI Wiring & AI Availability | 0/? | Not started | — |
+| 35. AI Draft Source Screens | 0/? | Not started | — |
+| 36. Dialog Integration & FAB | 0/? | Not started | — |
+
+---
+
+## Milestone v3.0 Progress
+
+**Requirements:** 54 total (12 AIFND + 10 SMS + 9 OCR + 10 VOICE + 9 DRAFT + 4 STD) | **Phases:** 5 | **Mapped:** 54/54 ✓
+
+<!-- END: v3.0.milestone -->
