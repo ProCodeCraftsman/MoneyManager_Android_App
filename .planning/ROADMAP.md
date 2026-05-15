@@ -535,10 +535,14 @@ Plans:
 
 **Plans**: 3 plans
 
-Plans:
-- [ ] 33-01-PLAN.md -- Add 4 Gradle dependencies and extend PreferencesManager with ai_availability_status key
-- [ ] 33-02-PLAN.md -- Create DraftParser and PromptBuilder; update GenerateDraftFromTextUseCase
-- [ ] 33-03-PLAN.md -- Create NanoAiClient and DeviceCapabilityManager
+**Wave 1**
+- [ ] 33-01-PLAN.md — Add 4 Gradle dependencies + extend PreferencesManager with ai_availability_status key
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 33-02-PLAN.md — Create DraftParser + PromptBuilder; replace placeholder in GenerateDraftFromTextUseCase
+- [ ] 33-03-PLAN.md — Create NanoAiClient + DeviceCapabilityManager
+
+**Cross-cutting constraints:** DeviceCapabilityManager writes String "READY"/"NEVER"/"PENDING" — never Boolean; exactly 1 preferencesDataStore delegate throughout
 
 **UI hint**: no
 
@@ -599,7 +603,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 32. Domain AI Foundation | 3/3 | ✅ Complete | 2026-05-15 |
-| 33. Data AI Implementation | 0/? | Not started | — |
+| 33. Data AI Implementation | 0/3 | Ready to execute | — |
 | 34. DI Wiring & AI Availability | 0/? | Not started | — |
 | 35. AI Draft Source Screens | 0/? | Not started | — |
 | 36. Dialog Integration & FAB | 0/? | Not started | — |
