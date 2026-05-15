@@ -348,11 +348,12 @@ fun MoneyManagerNavHost(
                     val initialDraft: TransactionDraft? = draftJson?.let {
                         try { Json.decodeFromString<TransactionDraft>(Uri.decode(it)) } catch (e: Exception) { null }
                     }
+                    val addTxAiDraftViewModel = hiltViewModel<AiDraftViewModel>()
                     AddTransactionScreen(
                         type = type,
                         onDismiss = { navController.popBackStack() },
                         initialDraft = initialDraft,
-                        onDraftDismiss = { /* TODO 36-03: replace with aiDraftViewModel.clearDraft() once added */ }
+                        onDraftDismiss = { addTxAiDraftViewModel.clearDraft() }
                     )
                 }
                 composable(Screen.AiDraftSms.route) {

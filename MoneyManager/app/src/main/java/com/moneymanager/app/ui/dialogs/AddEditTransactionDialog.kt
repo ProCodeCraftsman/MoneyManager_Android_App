@@ -471,6 +471,43 @@ fun AddEditTransactionDialog(
                 ) {
                     Spacer(Modifier.height(2.dp))
 
+                    // ── Source Banner ──
+                    if (initialDraft?.sourceType != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                buildString {
+                                    append("Draft from ")
+                                    append(initialDraft.sourceType.replaceFirstChar { it.uppercase() })
+                                    if (initialDraft.sourceSender != null) {
+                                        append(" · ${initialDraft.sourceSender}")
+                                    }
+                                    if (initialDraft.date != null) {
+                                        val minutesAgo = ((System.currentTimeMillis() - initialDraft.date) / 60_000).toInt()
+                                        if (minutesAgo >= 1) {
+                                            append(" · ${minutesAgo} minutes ago")
+                                        } else {
+                                            append(" · just now")
+                                        }
+                                    }
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
                     // 1. Amount, Date & Account Card
                     Box {
                         FormAmountDateAccountCard(
