@@ -3,25 +3,25 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: AI-Assisted Transaction Drafting
 status: in_progress
-stopped_at: Phase 34 complete — ready for Phase 35
+stopped_at: Phase 36 planned — ready to execute
 last_updated: "2026-05-15"
-last_activity: 2026-05-15 - Phase 34 executed: 34-01 (AiModule + AiAvailabilityRepository), 34-02 (MoneyManagerApp startup hook)
+last_activity: 2026-05-15 - Phase 36 planned: 36-01 (Navigation foundation), 36-02 (Expandable FAB), 36-03 (Dialog draft integration), 36-04 (AI field highlighting)
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 12
 ---
 
 # Project State
 
 ## Current Milestone: v3.0 AI-Assisted Transaction Drafting
 
-Phase: 34 — DI Wiring & AI Availability ✅
-Plan: 2/2 complete
-Status: Complete
+Phase: 36 — Dialog Integration & FAB
+Plan: 0/4 — Ready to execute
+Status: Planned
 
-Last activity: 2026-05-15 — Phase 34 executed: 34-01 (AiModule + AiAvailabilityRepository), 34-02 (MoneyManagerApp startup hook)
+Last activity: 2026-05-15 — Phase 35 executed: 35-01 (AiDraftUiState + AiDraftViewModel), 35-02 (SmsPickerScreen), 35-03 (ReceiptScanScreen), 35-04 (VoiceMemoScreen)
 
 ## Milestone Goal
 
@@ -34,8 +34,8 @@ Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant. User
 | 32 | Domain AI Foundation | AIFND-03, AIFND-05, AIFND-06, AIFND-07, AIFND-08 | Not started |
 | 33 | Data AI Implementation | AIFND-01, AIFND-04, AIFND-09, AIFND-10 | ✅ Complete |
 | 34 | DI Wiring & AI Availability | AIFND-02, AIFND-11, AIFND-12 | ✅ Complete |
-| 35 | AI Draft Source Screens | SMS-01–10, OCR-01–09, VOICE-01–10, STD-01, STD-02, STD-03 | Not started |
-| 36 | Dialog Integration & FAB | DRAFT-01–09, STD-04 | Not started |
+| 35 | AI Draft Source Screens | SMS-01–10, OCR-01–09, VOICE-01–10, STD-01, STD-02, STD-03 | ✅ Complete |
+| 36 | Dialog Integration & FAB | DRAFT-01–09, STD-04 | Planned — ready to execute |
 
 ## Previous Milestone
 
