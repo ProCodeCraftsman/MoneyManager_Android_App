@@ -1,99 +1,222 @@
-# Stack Research — Insights Dashboard
+# Stack Research — AI-Assisted Transaction Drafting (v3.0)
 
-**Project:** MoneyManager — v2.2 Insights Dashboard
-**Researched:** 2026-04-28
-**Overall Confidence:** HIGH (based on direct codebase inspection + training knowledge of stable APIs)
+**Project:** MoneyManager — v3.0 AI-Assisted Transaction Drafting
+**Researched:** 2026-05-15
+**Overall Confidence:** HIGH (all artifacts verified via Google Maven metadata, official Google sample build.gradle, and AAR manifest inspection)
 
 ---
 
-## Existing Stack (Relevant to Insights Dashboard)
+## Existing Stack (Unchanged — Do Not Re-research)
 
-Everything the Insights Dashboard needs is already in the project. The table below lists only what will be actively used, based on direct inspection of build.gradle.kts and source files.
+The v3.0 milestone inherits the full v2.x stack. These are confirmed in `app/build.gradle.kts`:
 
-| Component | Version | Role in Insights |
+| Component | Version | Relevant to v3.0 |
 |-----------|---------|-----------------|
-| Jetpack Compose BOM | 2024.12.01 | All three screen UIs |
-| Material Design 3 | via BOM | Typography, color system, icons |
-| Room + room-ktx | 2.8.4 | `getAllTransactions()` Flow source |
-| Hilt | 2.59.2 | InsightsViewModel injection |
-| lifecycle-viewmodel-compose | 2.10.0 | `collectAsStateWithLifecycle` in screens |
-| navigation-compose | 2.9.7 | Adding Insights as a destination |
-| Paging 3 | 3.3.0 | NOT needed — Insights loads full month, not paginated |
-| java.util.Calendar | stdlib | Date range calculation (already used in DashboardViewModel) |
-| SimpleDateFormat | stdlib | Month label formatting (already used in DashboardViewModel) |
-
-**Critical codebase finding:** MPAndroidChart (com.github.PhilJay:MPAndroidChart:v3.1.0) is declared in build.gradle.kts but is **not used anywhere in the codebase**. All existing charts are implemented as pure Compose composables — `AccountComparisonChart` uses Box/Column/fillMaxHeight proportional layout. `PieChartEntry` is a plain data class with no MPAndroidChart import. The project has de facto standardized on custom Compose drawing, not MPAndroidChart.
+| Kotlin (via `kotlin.plugin.compose`) | 2.3.20 | Must match serialization plugin version |
+| Compose BOM | 2024.12.01 | Camera preview composable, permission dialogs |
+| Hilt | 2.59.2 | `AiModule` for conditional `GenAiClient?` provision |
+| Room | 2.8.4 | Reads existing Category/Account/Tag/Peer data for prompt context |
+| DataStore Preferences | 1.1.1 | Caches `isAiAssistAvailable: Boolean` |
+| Firebase BOM | 34.12.0 | Already present — no new Firebase additions needed |
+| WorkManager | 2.11.2 | Available for background model download monitoring if needed |
+| minSdk | 26 | GenAI AAR declares minSdkVersion 26 — compatible |
+| compileSdk | 36 | Compatible with all new dependencies |
 
 ---
 
-## Recommended Additions
+## New Dependencies Required for v3.0
 
-**None.** Zero new library additions are needed.
+### 1. ML Kit GenAI Prompt API (On-Device Gemini Nano)
 
-| Capability | Solution | Source |
-|------------|----------|--------|
-| Daily line chart (TRENDS screen) | Custom `Canvas`-based Compose composable | Pure Compose, already proven in this codebase |
-| Financial calculations (net position, % change, dominant activity) | Pure Kotlin arithmetic | Same pattern as `overviewFlow` and `getMetrics()` in DashboardViewModel |
-| Month boundary dates | `java.util.Calendar` + existing `getDateRangeForFilter()` | Already implemented, reusable |
-| Month label ("April 2026") | `SimpleDateFormat("MMMM yyyy")` | Already used in `getFilterDisplayDate()` |
-| Rule-based alerts (RISKS screen) | Kotlin `when`/`if` logic | No library needed |
-| Swipeable 3-screen layout | `HorizontalPager` from `androidx.compose.foundation.pager` | Already in Compose BOM 2024.12.01 |
+**Confirmed via:** Google Maven metadata XML, official `googlesamples/mlkit` sample `build.gradle`, AAR AndroidManifest inspection.
 
-`HorizontalPager` is the only component that may be new to the implementation team, but it ships with the Compose Foundation library already declared via the BOM — no gradle line required.
+| Group:Artifact:Version | Purpose | APK Impact | Notes |
+|------------------------|---------|------------|-------|
+| `com.google.mlkit:genai-prompt:1.0.0-beta2` | Core Prompt API — `GenerativeModel`, `GenerateContentRequest`, `TextPart`, `ImagePart`, streaming callbacks | ~856KB AAR, but model is system-managed | Latest as of 2026-04-01. No stable `1.0.0` yet — beta2 is the release channel |
+| `com.google.mlkit:genai-common:1.0.0-beta3` | Transitive — `DownloadCallback`, `FeatureStatus`, `StreamingCallback` | ~61KB AAR | Pulled transitively by `genai-prompt`; declare explicitly to control version and access `FeatureStatus` API for availability checks |
 
----
-
-## Charting Decision
-
-**Recommendation: Custom Canvas composable. Do not use MPAndroidChart for the line chart.**
-
-### MPAndroidChart (v3.1.0 — already declared)
-
-**Verdict: Do not use for this feature.**
-
-- Last release was 2021. The library is in maintenance-only mode with no active development (HIGH confidence — training knowledge confirmed by version in deps being 3.1.0, unchanged for years).
-- Requires wrapping in `AndroidView {}` inside a Compose composable. This creates an impedance mismatch: theming must be done imperatively via MPAndroidChart's Java API rather than declaratively via MaterialTheme.
-- Cannot inherit `MaterialTheme.colorScheme` colors, `MaterialTheme.typography` text styles, or respond to dark/light mode without manual bridging.
-- The line chart needed for TRENDS screen is a simple 28–31 data point dual-series chart (income + expense by calendar day). This is not complex enough to justify a third-party charting library's overhead.
-- It is already in the project but **never used** — introducing it now would be a regression against the established pure-Compose pattern.
-
-### Vico (patrykandpatrick/vico)
-
-**Verdict: Worth knowing about, but not needed here.**
-
-- Vico is a Compose-native charting library that supports full Material You theming. It is the leading Compose-native chart library as of training cutoff (Aug 2025).
-- It would be the correct choice if the chart requirements were complex: interactive tooltips, animated transitions, scroll, zoom, logarithmic scales.
-- The Insights TRENDS chart needs none of these. It is a static, read-only line chart showing daily totals for the current month. Custom Canvas is 30–50 lines of Kotlin and has zero additional APK size.
-- If chart requirements grow significantly in a future milestone, Vico is the right addition at that point.
-
-### YCharts (co.yml:ycharts)
-
-**Verdict: Avoid.**
-
-- Previous STACK.md suggested YCharts 2.1.0. However, YCharts is a smaller community library with narrower maintenance bandwidth compared to Vico. For a line chart, it offers no meaningful advantage over a Canvas composable. Do not add it.
-
-### Custom Canvas Composable (Recommended)
-
-The codebase already demonstrates competency with custom Compose drawing. `AccountComparisonChart` implements a proportional bar chart using only `Box`, `fillMaxHeight()`, and `weight()`. A daily line chart uses the same principle with `Canvas`, `drawLine()`, and coordinate math.
-
-**Implementation sketch:**
-
+**Gradle declaration:**
 ```kotlin
-@Composable
-fun DailyLineChart(
-    incomePoints: List<Float>,   // index = day-of-month - 1
-    expensePoints: List<Float>,
-    modifier: Modifier = Modifier
-) {
-    val incomeColor = MaterialTheme.colorScheme.primary
-    val expenseColor = MaterialTheme.colorScheme.error
-    Canvas(modifier = modifier) {
-        // normalize to canvas height, draw polylines
+// ML Kit GenAI — Gemini Nano on-device inference
+implementation("com.google.mlkit:genai-prompt:1.0.0-beta2")
+implementation("com.google.mlkit:genai-common:1.0.0-beta3")
+```
+
+**Runtime SDK requirement:** The AAR itself declares `android:minSdkVersion="26"` — compatible with this project. However, AICore (the system service providing Gemini Nano) only exists on supported devices running Android 12+ (API 31) with a Snapdragon 8 Gen 3 or equivalent NPU. The availability check API (`generativeModel.checkFeatureStatus()` returning a `ListenableFuture<@FeatureStatus Int>`) handles unsupported devices at runtime — the `DeviceCapabilityManager` component must call this and cache the Boolean result in DataStore. No hard minSdk bump is needed.
+
+**Key API classes** (from `com.google.mlkit.genai.prompt`):
+- `GenerativeModel` — entry point, created via a factory/options builder
+- `GenerateContentRequest` / `generateContentRequest { }` DSL builder
+- `TextPart`, `ImagePart` — content parts
+- `PromptPrefix` — system prompt / context injection
+- `GenerateContentResponse`, `CountTokensResponse`
+- `FinishReason` enum on `Candidate`
+
+**Key API classes** (from `com.google.mlkit.genai.common`):
+- `FeatureStatus` — `UNAVAILABLE`, `DOWNLOADABLE`, `DOWNLOADING`, `AVAILABLE`
+- `DownloadCallback` — progress tracking for model download
+- `StreamingCallback` — for streaming token output
+
+**Hilt integration pattern:**
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object AiModule {
+    @Provides
+    @Singleton
+    fun provideGenAiClient(
+        @ApplicationContext context: Context,
+        deviceCapabilityManager: DeviceCapabilityManager
+    ): GenAiClient? {
+        // Returns null when AICore unavailable; callers use nullable injection
+        return if (deviceCapabilityManager.isAiAssistAvailable.value) {
+            NanoAiClient(context)
+        } else null
     }
 }
 ```
 
-MaterialTheme colors flow in naturally. No `AndroidView`, no interop, no extra dependency.
+**No special manifest permissions required.** The AAR's merged manifest already declares:
+```xml
+<uses-permission android:name="com.google.android.apps.aicore.service.BIND_SERVICE" />
+<queries>
+    <package android:name="com.google.android.aicore" />
+</queries>
+```
+These are merged from the AAR automatically by the Android Gradle Plugin. No manual addition needed.
+
+---
+
+### 2. Unbundled ML Kit Text Recognition (OCR for Receipts)
+
+**Confirmed via:** Google Maven metadata XML (`latest: 19.0.1`), official Google sample `build.gradle` (shows bundled vs unbundled pair), AAR size comparison.
+
+| Group:Artifact:Version | Purpose | APK Impact | Notes |
+|------------------------|---------|------------|-------|
+| `com.google.android.gms:play-services-mlkit-text-recognition:19.0.1` | OCR — recognizes Latin text in receipt images via camera or gallery | +78KB to APK | Model (~7MB) downloaded via Google Play Services at app install — zero APK bloat. Requires Google Play Services on device. |
+
+**Gradle declaration:**
+```kotlin
+// Unbundled ML Kit OCR — model delivered via Google Play Services (no APK size increase)
+implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+```
+
+**Do NOT use the bundled alternative:**
+```kotlin
+// AVOID — bundles 1.38MB model inside the APK
+// implementation("com.google.mlkit:text-recognition:16.0.1")
+```
+
+The bundled version (`com.google.mlkit:text-recognition:16.0.1`) ships the OCR model inside your APK, adding ~1.38MB to the download size. The unbundled GMS version delivers the same model via Google Play Services on first use. Since this app targets Google Play, the unbundled version is the correct choice.
+
+**API compatibility:** `minSdkVersion 21` in the AAR manifest — fully compatible with this project's `minSdk 26`.
+
+**Required manifest permission for camera:**
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+```
+The `android:required="false"` on the feature declaration ensures the app remains installable on devices without a rear camera (tablets, Chromebooks). Camera permission must be requested at runtime (API 23+).
+
+**Integration pattern:** The OCR flow calls `TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)`, processes a `InputImage.fromBitmap()` or `InputImage.fromMediaImage()`, and returns a `Task<Text>` with `Text.TextBlock` / `Text.Line` / `Text.Element` results. The recognized string is passed to `GenerateDraftFromTextUseCase`.
+
+---
+
+### 3. kotlinx.serialization — JSON Parsing for AI Output
+
+**Confirmed via:** Maven Central metadata (latest stable: `1.8.1` as of 2026-04-09), Kotlin serialization plugin version must match Kotlin version (`2.3.20`).
+
+**Assessment: The project does NOT already have kotlinx.serialization.** Inspecting `app/build.gradle.kts`, there is no `kotlinx-serialization-json` dependency and no `org.jetbrains.kotlin.plugin.serialization` plugin. It must be added.
+
+**Two changes required:**
+
+**Change 1 — Root `build.gradle.kts` plugins block** (add the serialization plugin):
+```kotlin
+// Add to root build.gradle.kts plugins block
+id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20" apply false
+```
+The plugin version MUST match the Kotlin version already in the project (`2.3.20` from `kotlin.plugin.compose`). Mismatching versions cause compilation errors.
+
+**Change 2 — App `app/build.gradle.kts`** (apply plugin + add runtime):
+```kotlin
+// Apply in app/build.gradle.kts plugins block
+id("org.jetbrains.kotlin.plugin.serialization")
+
+// Add to dependencies block
+implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+```
+
+| Group:Artifact:Version | Purpose | APK Impact | Notes |
+|------------------------|---------|------------|-------|
+| `org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1` | Parse AI-generated JSON output into `TransactionDraft` domain model | +~300KB to APK (runtime library only, minification reduces to ~80KB with R8) | Version-matched to Kotlin 2.3.20 |
+| `org.jetbrains.kotlin.plugin.serialization` (Gradle plugin) | Code generation for `@Serializable` data classes | Zero APK impact | Must equal Kotlin version: `2.3.20` |
+
+**Why needed:** The `GenerateDraftFromTextUseCase` receives a text response from Gemini Nano. For reliable field extraction (amount, category, date, memo), the prompt instructs the model to return JSON. `@Serializable` + `Json.decodeFromString<TransactionDraft>()` is the correct parsing pattern. Manual string parsing of AI output is fragile and should be avoided.
+
+**Alternative considered:** Gson / Moshi. Both are viable, but kotlinx.serialization is the idiomatic Kotlin-first choice, is compile-time safe with `@Serializable`, works with Kotlin value classes, and is already the de facto standard in new Kotlin/Android projects. No reason to add a Java-based JSON library when the Kotlin-native solution exists.
+
+---
+
+### 4. Android SpeechRecognizer (Voice Memo) — No New Dependency
+
+**The Android `SpeechRecognizer` API is part of the Android SDK.** No Gradle dependency required.
+
+```kotlin
+// Built-in — no implementation() line needed
+import android.speech.SpeechRecognizer
+import android.speech.RecognizerIntent
+import android.speech.RecognitionListener
+```
+
+**Offline operation:** Pass `RecognizerIntent.EXTRA_PREFER_OFFLINE = true` in the Intent extras. On Android 10+ (API 29), this reliably routes to the on-device recognizer if available. Devices that downloaded the offline speech model via Google Assistant or Google app will work fully offline.
+
+**Required manifest permission:**
+```xml
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+```
+Must be requested at runtime (API 23+). The permission dialog should be shown only when the user taps the voice input button.
+
+---
+
+### 5. SMS Reading — No New Dependency
+
+Reading SMS messages uses the Android `ContentResolver` API against `Telephony.Sms.Inbox`. No Gradle dependency required.
+
+```kotlin
+// Built-in — no implementation() line needed
+import android.provider.Telephony
+```
+
+**Required manifest permissions:**
+```xml
+<uses-permission android:name="android.permission.READ_SMS" />
+```
+
+**Important warning:** `READ_SMS` is a "Special" dangerous permission. Google Play policy restricts SMS access to apps whose core function requires it (e.g., SMS managers, financial apps). For a personal finance app, SMS reading for transaction import is a defensible use case, but the **Default SMS App** status is NOT required — READ_SMS as a regular permission with a clear user-facing purpose statement is sufficient. The permission request dialog must clearly explain why SMS access is needed. Prepare a privacy policy disclosure.
+
+---
+
+## Complete Manifest Permissions Summary for v3.0
+
+Add these to `AndroidManifest.xml`. The AICore permissions are auto-merged from the AAR and are listed here for documentation only.
+
+```xml
+<!-- Camera — for receipt scanning -->
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+
+<!-- Audio — for voice memo input -->
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+<!-- SMS — for financial SMS parsing (runtime, user-initiated only) -->
+<uses-permission android:name="android.permission.READ_SMS" />
+
+<!-- AICore — auto-merged from genai-prompt AAR manifest, listed for awareness -->
+<!-- <uses-permission android:name="com.google.android.apps.aicore.service.BIND_SERVICE" /> -->
+<!-- <queries><package android:name="com.google.android.aicore" /></queries> -->
+```
+
+All three runtime permissions (CAMERA, RECORD_AUDIO, READ_SMS) must be requested at runtime using `ActivityResultContracts.RequestPermission()`. Request each permission only at the moment the user initiates the relevant action — do not request all three at app launch.
 
 ---
 
@@ -101,70 +224,85 @@ MaterialTheme colors flow in naturally. No `AndroidView`, no interop, no extra d
 
 | Library | Why Not |
 |---------|---------|
-| MPAndroidChart (actual usage) | Already in deps but never used. Continues to not be used — pure Compose maintains the established pattern. |
-| Vico | Justified only for interactive/animated charts. TRENDS chart is static and simple. |
-| YCharts | Previous research artifact. Narrower ecosystem than Vico; no advantage over Canvas for this use case. |
-| kotlinx-datetime | Overkill. The project uses `java.util.Calendar` + `SimpleDateFormat` consistently throughout DashboardViewModel. Introducing a second date abstraction creates inconsistency. |
-| Any "financial math" library | All calculations are simple arithmetic: sums, percent change = `(current - prev) / prev * 100`. No library adds value here. |
-| Paging 3 (for Insights) | Insights aggregates data, not pages through it. Load all transactions for current + previous month into memory — same pattern as `overviewFlow`. |
+| `com.google.mlkit:text-recognition:16.0.1` (bundled OCR) | Adds ~1.38MB model to APK. Use unbundled GMS version instead |
+| `com.google.android.aicore:aicore-client-api` | This group/artifact does NOT exist on Google Maven. The AICore client API is accessed exclusively through `com.google.mlkit:genai-*` artifacts |
+| `com.google.android.gms:play-services-mlkit-genai-inference` | Does NOT exist on Google Maven. This artifact ID appears in some outdated blog posts; the correct artifacts are `com.google.mlkit:genai-prompt` and siblings |
+| `com.google.android.gms:play-services-mlkit-language-id` | Not needed for transaction drafting |
+| MediaPipe LLM Inference (`com.google.mediapipe:tasks-genai`) | Requires bundling the model file inside the APK (~1-4GB) — incompatible with zero-bloat constraint. Use ML Kit GenAI (system-managed model) instead |
+| Google AI SDK (`com.google.ai.client.generativeai`) | This is the Gemini API SDK for cloud inference (requires API key, internet, sends data to Google servers). Incompatible with the offline/privacy-preserving requirement |
+| Firebase ML | Firebase ML Vision is deprecated. All ML features now route through ML Kit directly |
+| `androidx.camera:camera-*` | CameraX adds ~500KB. For this milestone, the receipt capture can use `ActivityResultContracts.TakePicture()` (system camera intent) which requires zero new dependencies. CameraX would only be justified if a live viewfinder composable is required |
+| Moshi / Gson | Redundant with kotlinx.serialization which is the idiomatic Kotlin choice |
+| `kotlinx-datetime` | Not needed for v3.0 AI features. Date extraction from AI output can use `java.time.LocalDate` (available since API 26, matching minSdk) |
+| `com.google.mlkit:genai-summarization`, `genai-proofreading`, `genai-rewriting` | Not needed for transaction drafting use case — only `genai-prompt` is required |
 
 ---
 
-## Integration Notes
+## Dependency Version Compatibility Matrix
 
-### Data Layer
+| Dependency | Version | Compatible With | Risk |
+|------------|---------|-----------------|------|
+| `com.google.mlkit:genai-prompt` | 1.0.0-beta2 | minSdk 26, Kotlin 2.x | MEDIUM — beta API, no stability guarantee until 1.0.0 stable |
+| `com.google.mlkit:genai-common` | 1.0.0-beta3 | minSdk 26 | MEDIUM — same beta channel |
+| `com.google.android.gms:play-services-mlkit-text-recognition` | 19.0.1 | minSdk 21, GMS required | LOW — stable, widely deployed |
+| `org.jetbrains.kotlinx:kotlinx-serialization-json` | 1.8.1 | Kotlin 2.3.20 | LOW — stable release |
+| `org.jetbrains.kotlin.plugin.serialization` (plugin) | 2.3.20 | Kotlin 2.3.20 (must match) | LOW if versions match |
 
-`InsightsViewModel` should follow the exact pattern of `overviewFlow` in `DashboardViewModel`:
+---
 
-1. Inject `TransactionRepository`.
-2. Collect `transactionRepository.getAllTransactions()` as a Flow.
-3. Filter in-memory for current month (day 1 → last day) and previous month using `java.util.Calendar` — reuse `getDateRangeForFilter()` or extract it to a shared utility.
-4. Emit a sealed `InsightsUiState` with STATUS/RISKS/TRENDS data classes.
+## Build Configuration Changes Summary
 
-The ViewModel does not need to reach into Room with a new DAO query. `getAllTransactions()` already returns the full dataset as a `Flow<List<TransactionEntity>>`. The filtering and aggregation happens in the ViewModel operator chain.
-
-### UI Layer
-
-The 3-screen swipeable layout maps directly to `HorizontalPager` + `PagerState`:
-
+### Root `build.gradle.kts` — add one plugin:
 ```kotlin
-val pagerState = rememberPagerState(pageCount = { 3 })
-HorizontalPager(state = pagerState) { page ->
-    when (page) {
-        0 -> StatusScreen(uiState.status)
-        1 -> RisksScreen(uiState.risks)
-        2 -> TrendsScreen(uiState.trends)
-    }
-}
+id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20" apply false
 ```
 
-`HorizontalPager` is in `androidx.compose.foundation` which is already on the classpath via the BOM.
+### App `app/build.gradle.kts` — apply plugin + add 4 implementation lines:
+```kotlin
+// plugins block
+id("org.jetbrains.kotlin.plugin.serialization")
 
-### Transaction Type Mapping for Insights
+// dependencies block
+// AI — Gemini Nano on-device via AICore
+implementation("com.google.mlkit:genai-prompt:1.0.0-beta2")
+implementation("com.google.mlkit:genai-common:1.0.0-beta3")
 
-Based on `TransactionEntity.VALID_TYPES = ["income", "expense", "savings", "transfer", "lend", "receive", "borrow", "repay"]`:
+// OCR — unbundled ML Kit text recognition (model via Play Services, zero APK bloat)
+implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 
-- **Net Position** = `income + receive + repay - expense - savings - lend - borrow`  
-  (or simpler: sum of account balances via `accountRepository.getTotalBalance()` — already computed in DashboardViewModel)
-- **Net Cash Flow** = `income - expense` (current month)
-- **Total Income** = type == "income"
-- **Total Expense** = type == "expense"
-- **Total Savings** = type == "savings"
-- **Dominant activity** = whichever of {income, expense, savings, lend, borrow} has the highest `.sumOf { it.amount }`
+// JSON — parsing AI output into TransactionDraft
+implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+```
 
-### Alerts Logic (RISKS screen)
-
-All five rules from the spec are pure Kotlin comparisons on the aggregated values from STATUS. No library, no ML, no external data. Implement as a `List<InsightAlert>` computed from a single `fun computeAlerts(status: StatusData, prevStatus: StatusData): List<InsightAlert>` function in the ViewModel or a domain use case.
+No changes to `settings.gradle.kts` — `google()` and `mavenCentral()` repositories are already declared.
 
 ---
 
-## Summary
+## Confidence Assessment
 
-The Insights Dashboard requires **zero new gradle dependencies**. The full feature is buildable from:
-- Existing Room Flow (`getAllTransactions()`)
-- Existing `java.util.Calendar` date math pattern
-- Compose `HorizontalPager` (already on classpath via BOM)
-- Custom `Canvas` composable for the line chart (30–50 lines, matches codebase pattern)
-- Pure Kotlin arithmetic for all financial metrics
+| Area | Confidence | Basis |
+|------|------------|-------|
+| GenAI artifact IDs and versions | HIGH | Verified via Google Maven group-index.xml, maven-metadata.xml, and AAR inspection |
+| genai-prompt minSdk compatibility | HIGH | AAR AndroidManifest declares `android:minSdkVersion="26"` — directly inspected |
+| AICore runtime availability | HIGH | `com.google.android.aicore` package query in AAR manifest; `FeatureStatus` API confirmed in official sample source |
+| Unbundled OCR artifact and version | HIGH | Google Maven metadata confirms `play-services-mlkit-text-recognition:19.0.1` as latest stable |
+| APK size comparison (bundled vs unbundled) | HIGH | AAR file sizes measured directly: bundled 1.38MB vs unbundled 78KB |
+| kotlinx.serialization version | HIGH | Maven Central metadata confirms `1.8.1` as latest stable (updated 2026-04-09) |
+| Kotlin plugin version match requirement | HIGH | Kotlin serialization plugin must match Kotlin version — fundamental requirement from JetBrains |
+| `play-services-mlkit-genai-inference` non-existence | HIGH | 404 on Google Maven, confirmed absent from group-index.xml |
+| `aicore-client-api` non-existence | HIGH | Absent from Google Maven — not a real artifact |
+| SpeechRecognizer / SMS — no dependency needed | HIGH | Both are standard Android SDK APIs |
 
-Confidence: HIGH for all decisions above. The existing stack evidence is derived from direct file inspection of build.gradle.kts and all relevant .kt source files.
+---
+
+## Sources
+
+- Google Maven group index: `https://dl.google.com/dl/android/maven2/com/google/mlkit/group-index.xml`
+- Google Maven group index (GMS): `https://dl.google.com/dl/android/maven2/com/google/android/gms/group-index.xml`
+- Official ML Kit GenAI sample (2025): `https://github.com/googlesamples/mlkit/tree/master/android/genai`
+- Official ML Kit GenAI sample `build.gradle` (minSdk 31, genai-prompt:1.0.0-beta1): `https://raw.githubusercontent.com/googlesamples/mlkit/master/android/genai/app/build.gradle`
+- `genai-prompt:1.0.0-beta2` AAR AndroidManifest (direct inspection): declares `minSdkVersion 26`, `BIND_SERVICE` permission, AICore package query
+- `genai-common:1.0.0-beta3` AAR AndroidManifest (direct inspection): declares `minSdkVersion 26`, AICore package query
+- `play-services-mlkit-text-recognition:19.0.1` AAR AndroidManifest (direct inspection): declares `minSdkVersion 21`
+- Maven Central metadata for `kotlinx-serialization-json`: latest 1.8.1, lastUpdated 20260409
+- Maven Central metadata for `kotlin-serialization` plugin: latest 2.4.0-RC (stable = 2.3.21, but project uses 2.3.20 — use 2.3.20 to match)
