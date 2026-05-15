@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: AI-Assisted Transaction Drafting
-status: planning
-stopped_at: Milestone v3.0 started — defining requirements
+status: roadmap_ready
+stopped_at: Roadmap created — Phase 32 is next
 last_updated: "2026-05-15T00:00:00.000Z"
-last_activity: 2026-05-15 - Milestone v3.0 started, research in progress
+last_activity: 2026-05-15 - Milestone v3.0 roadmap created (54 requirements, 5 phases)
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,11 +17,11 @@ progress:
 
 ## Current Milestone: v3.0 AI-Assisted Transaction Drafting
 
-Phase: Not started (defining requirements)
+Phase: 32 — Domain AI Foundation (not started)
 Plan: —
-Status: Defining requirements
+Status: Roadmap ready — awaiting phase planning
 
-Last activity: 2026-05-15 — Milestone v3.0 started
+Last activity: 2026-05-15 — Roadmap created, 54/54 requirements mapped across phases 32–36
 
 ## Milestone Goal
 
@@ -29,7 +29,13 @@ Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant. User
 
 ## Phase Structure
 
-TBD — roadmap being created (phases continue from 31+)
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 32 | Domain AI Foundation | AIFND-03, AIFND-05, AIFND-06, AIFND-07, AIFND-08 | Not started |
+| 33 | Data AI Implementation | AIFND-01, AIFND-04, AIFND-09, AIFND-10 | Not started |
+| 34 | DI Wiring & AI Availability | AIFND-02, AIFND-11, AIFND-12 | Not started |
+| 35 | AI Draft Source Screens | SMS-01–10, OCR-01–09, VOICE-01–10, STD-01, STD-02, STD-03 | Not started |
+| 36 | Dialog Integration & FAB | DRAFT-01–09, STD-04 | Not started |
 
 ## Previous Milestone
 
@@ -39,7 +45,39 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 
 ### Architecture decisions locked in by research
 
-- Single InsightsViewModel; all panes share one StateFlow<InsightsUiState>
+- Domain layer (Phase 32) has zero Android imports — pure Kotlin, fully JVM-testable
+- TransactionType enum is the single source of truth for type strings in all new AI code — prevents PITFALL-21 (prompt/registry drift)
+- DeviceCapabilityManager stores "READY" / "NEVER" / "PENDING" string enum — NOT Boolean (PITFALL-01)
+- PreferencesManager extended with one new key (ai_availability_status) — second DataStore delegate is forbidden (PITFALL-04)
+- AiModule uses @javax.annotation.Nullable on nullable @Provides — Kotlin ? alone is insufficient for KSP (PITFALL-13)
+- MoneyManagerApp startup hook launches async on Dispatchers.IO — no blocking IPC on main thread (PITFALL-14)
+- AiDraftViewModel is a single shared @HiltViewModel for all 3 source screens (STD-03)
+- SMS flow is clipboard/paste-first; READ_SMS is feature-flagged pending Play Console declaration approval (PITFALL-12)
+- ImageProxy.close() called synchronously before any coroutine launch in OCR flow (PITFALL-08)
+- SpeechRecognizer.destroy() called in DisposableEffect.onDispose (PITFALL-10)
+- All changes to existing files use null-default parameters — strictly additive (STD-04, PITFALL-15)
+- PromptContextBuilder caps categories at top-20 by usage frequency — token budget guard (PITFALL-05)
+- DraftParser strips markdown fences, extracts JSON between first { and last }, uses ignoreUnknownKeys=true (PITFALL-07)
+- clearDraft() called on dialog dismiss — prevents re-population on second open (PITFALL-15)
+- 4 new Gradle lines only: genai-prompt:1.0.0-beta2, genai-common:1.0.0-beta3, play-services-mlkit-text-recognition:19.0.1, kotlinx-serialization-json:1.8.1
+
+### Research flags (verify at integration time)
+
+- Phase 33 (NanoAiClient): FeatureStatus constant names and PromptClient.create() / checkAvailability() signatures in genai-common:1.0.0-beta3 — beta API, verify against actual AAR
+- Phase 33 (PromptBuilder): call countTokens() on a representative prompt to confirm top-20 category cap is sufficient
+- Phase 35 (VoiceMemoScreen): offline speech model availability for hi-IN on target Indian market devices — test on real devices
+- Phase 35 (SMS): start Play Console Permission Declaration Form process for READ_SMS in parallel with Phase 35 development
+
+### Codebase context (from v2.2)
+
+- getAllTransactions() retained in DAO/Repository (used by DashboardViewModel, AccountsViewModel, BudgetsViewModel, ExportRepository)
+- TransactionsViewModel uses Paging 3 (LazyPagingItems); AI flows use non-paginated single-shot calls
+- ReportsScreen removed (phase 26) — chart components removed with it; Canvas pattern from AccountComparisonChart.kt is the model
+- Compose BOM 2024.12.01 already on classpath — all required Compose APIs available
+- categoryUsageCounts already computed in AddTransactionViewModel — PromptContextBuilder reuses this, no extra DB query
+
+### Previous milestone decisions (v2.2)
+
 - InsightsCalculator is a pure Kotlin object — no Android runtime, fully unit-testable
 - Data source: getTransactionsByDateRange() only — never getAllTransactions() (7 active subscribers already)
 - HorizontalPager with hardcoded pageCount=3; TabRow synced to pagerState
@@ -48,43 +86,7 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 - hasEnoughHistory = prevMonthTxs.isNotEmpty(); comparison-based rules suppressed when false
 - InsightsUiState decomposed into StatusUiState, RisksUiState, TrendsUiState sub-states
 
-### Phase 27 Key Decisions (completed 2026-04-29)
-
-- Q1 RESOLVED: SAVINGS only (not investment) for savings aggregation in InsightsCalculator
-- Q2 RESOLVED: Net Position = income − expense − savings + borrowing − lending
-- Q5 RESOLVED: Separate overspending (expense > income) and negative position (net < 0) rules
-- hasEnoughHistory=false suppresses RSK-03 (expense increase) and RSK-06 (savings improvement)
-- Max 3 alerts with WARNING severity before INFO (RSK-01)
-- InsightsCalculator is pure Kotlin object with no Android imports
-- InsightsViewModel uses getTransactionsByDateRange() ONLY — never getAllTransactions()
-
-### Codebase context
-
-- getAllTransactions() retained in DAO/Repository (used by DashboardViewModel, AccountsViewModel, BudgetsViewModel, ExportRepository)
-- TransactionsViewModel uses Paging 3 (LazyPagingItems); Insights uses non-paginated date-range Flow
-- ReportsScreen removed (phase 26) — chart components removed with it; Canvas pattern from AccountComparisonChart.kt is the model
-- Compose BOM 2024.12.01 already on classpath — HorizontalPager, Canvas all available
-
-### Open questions (resolved in Phase 27)
-
-- ~~Q1: Does SAVINGS aggregate include investment-type transactions?~~ **RESOLVED: SAVINGS only (not investment)**
-- ~~Q2: Net Position formula — income − expense − savings + borrowing − lending, or income − expense only?~~ **RESOLVED: income − expense − savings + borrowing − lending**
-- Q3: Savings rate denominator when income = 0 (include borrowing or show N/A)? *(Not in Phase 27 scope)*
-- ~~Q5: Overspending and negative net position — confirm as one consolidated alert rule~~ **RESOLVED: Separate rules — overspending (expense > income) and negative position (net < 0)**
-
-## Decisions
-
-### Phase 27 Key Decisions (completed 2026-04-29)
-
-- Q1 RESOLVED: SAVINGS only (not investment) for savings aggregation in InsightsCalculator
-- Q2 RESOLVED: Net Position = income − expense − savings + borrowing − lending
-- Q5 RESOLVED: Separate overspending (expense > income) and negative position (net < 0) rules
-- hasEnoughHistory=false suppresses RSK-03 (expense increase) and RSK-06 (savings improvement)
-- Max 3 alerts with WARNING severity before INFO (RSK-01)
-- InsightsCalculator is pure Kotlin object with no Android imports
-- InsightsViewModel uses getTransactionsByDateRange() ONLY — never getAllTransactions()
-
-### Quick Tasks Completed
+## Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
@@ -95,5 +97,5 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 ## Session Info
 
 - **Last session:** 2026-05-15
-- **Stopped at:** Milestone v3.0 started — research agents launched, requirements and roadmap pending
-- **Next phase:** TBD — awaiting research completion and roadmap creation
+- **Stopped at:** Roadmap created for v3.0 — 54/54 requirements mapped, phases 32–36 defined
+- **Next phase:** Phase 32 — Domain AI Foundation (`/gsd-plan-phase 32`)

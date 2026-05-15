@@ -132,20 +132,66 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AIFND-01–12 | Phase 32 (AI Foundation) | Pending |
-| SMS-01–10 | Phase 34 (SMS Flow) | Pending |
-| OCR-01–09 | Phase 35 (OCR Flow) | Pending |
-| VOICE-01–10 | Phase 36 (Voice Flow) | Pending |
-| DRAFT-01–09 | Phase 37 (Dialog Integration) | Pending |
-| STD-01–04 | All phases | Pending |
-
-*Phase numbers TBD — assigned by roadmapper. Phases 32+ continue from v2.2's last phase (31).*
+| AIFND-03 | Phase 32 — Domain AI Foundation | Pending |
+| AIFND-05 | Phase 32 — Domain AI Foundation | Pending |
+| AIFND-06 | Phase 32 — Domain AI Foundation | Pending |
+| AIFND-07 | Phase 32 — Domain AI Foundation | Pending |
+| AIFND-08 | Phase 32 — Domain AI Foundation | Pending |
+| AIFND-01 | Phase 33 — Data AI Implementation | Pending |
+| AIFND-04 | Phase 33 — Data AI Implementation | Pending |
+| AIFND-09 | Phase 33 — Data AI Implementation | Pending |
+| AIFND-10 | Phase 33 — Data AI Implementation | Pending |
+| AIFND-02 | Phase 34 — DI Wiring & AI Availability | Pending |
+| AIFND-11 | Phase 34 — DI Wiring & AI Availability | Pending |
+| AIFND-12 | Phase 34 — DI Wiring & AI Availability | Pending |
+| SMS-01 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-02 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-03 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-04 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-05 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-06 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-07 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-08 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-09 | Phase 35 — AI Draft Source Screens | Pending |
+| SMS-10 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-01 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-02 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-03 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-04 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-05 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-06 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-07 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-08 | Phase 35 — AI Draft Source Screens | Pending |
+| OCR-09 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-01 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-02 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-03 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-04 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-05 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-06 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-07 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-08 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-09 | Phase 35 — AI Draft Source Screens | Pending |
+| VOICE-10 | Phase 35 — AI Draft Source Screens | Pending |
+| STD-01 | Phase 35 — AI Draft Source Screens | Pending |
+| STD-02 | Phase 35 — AI Draft Source Screens | Pending |
+| STD-03 | Phase 35 — AI Draft Source Screens | Pending |
+| DRAFT-01 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-02 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-03 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-04 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-05 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-06 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-07 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-08 | Phase 36 — Dialog Integration & FAB | Pending |
+| DRAFT-09 | Phase 36 — Dialog Integration & FAB | Pending |
+| STD-04 | Phase 36 — Dialog Integration & FAB | Pending |
 
 **Coverage:**
 - v3.0 requirements: 54 total (12 AIFND + 10 SMS + 9 OCR + 10 VOICE + 9 DRAFT + 4 STD)
-- Mapped to phases: pending roadmap
-- Unmapped: 54
+- Mapped to phases: 54/54
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-15*
-*Last updated: 2026-05-15 — initial definition*
+*Last updated: 2026-05-15 — traceability table populated (roadmap phases 32–36)*
