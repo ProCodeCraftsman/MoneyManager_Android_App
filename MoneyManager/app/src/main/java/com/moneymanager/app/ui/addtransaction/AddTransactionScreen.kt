@@ -7,10 +7,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.moneymanager.app.ui.dialogs.AddEditTransactionDialog
+import com.moneymanager.domain.ai.TransactionDraft
 
 @Composable
 fun AddTransactionScreen(
     type: String?,
+    initialDraft: TransactionDraft? = null,
+    onDraftDismiss: (() -> Unit)? = null,
     onDismiss: () -> Unit,
     viewModel: AddTransactionViewModel = hiltViewModel(),
 ) {
@@ -30,6 +33,9 @@ fun AddTransactionScreen(
             initialType = type,
             categoryUsageCounts = uiState.categoryUsageCounts,
             onDismiss = onDismiss,
+            // TODO 36-03: uncomment when AddEditTransactionDialog accepts initialDraft and onDraftDismiss
+            // initialDraft = initialDraft,
+            // onDraftDismiss = onDraftDismiss,
             onConfirm = { tx, children ->
                 if (children != null) viewModel.addSplitTransaction(tx, children)
                 else viewModel.addTransaction(tx)
