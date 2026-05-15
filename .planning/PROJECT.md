@@ -29,34 +29,47 @@ Comprehensive money management \ app with:
 - **Monetization**: Free (all features)
 ## Current State
 
-Phase 28 complete — Insights bottom nav entry wired (Screen.Insights, route "insights", ShowChart icon); InsightsScreen shell with TabRow + HorizontalPager (3 panes: Status, Risks, Trends); pager state persists across navigation via rememberSaveable. Compilation verified: BUILD SUCCESSFUL.
+v2.2 Insights Dashboard phases 27–30 complete (Data Layer, Navigation Shell, Status Pane, Risks Pane). Phase 31 Trends Pane pending. v3.0 AI-Assisted Transaction Drafting defined — research and roadmap in progress.
 
-## Current Milestone: v2.2 Insights Dashboard
+## Previous Milestone: v2.2 Insights Dashboard
 
 **Goal:** Add a 3-screen swipeable Insights section that derives financial summaries purely from transaction records — no budgets, categories, or AI assumptions.
 
+**Completed:** Phases 27–30 (Data Layer, Navigation, Status Pane, Risks Pane). Phase 31 (Trends Pane) pending at v2.2 close.
+
+## Current Milestone: v3.0 AI-Assisted Transaction Drafting
+
+**Goal:** Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant so users can create transaction drafts from SMS, receipt images, or voice memos — with the AI suggesting a pre-filled form the user reviews and confirms. App remains 100% functional without AI.
+
 **Target features:**
 
-*Screen 1 — STATUS:*
-- Net Position as hero number (large, prominent)
-- Net Cash Flow, Total Income, Total Expense, Total Savings
-- Current month label
-- No charts, no scrolling
+*AI Infrastructure:*
+- `DeviceCapabilityManager`: checks AICore availability on first launch, caches `isAiAssistAvailable` Boolean in DataStore
+- `GenAiClient` interface (domain) + `NanoAiClient` implementation (data/ai/)
+- `TransactionDraft` domain model aligned to existing entity IDs (categoryId, accountId, peerContactId)
+- `GenerateDraftFromTextUseCase`: nullable AI client injection via Hilt — returns failure when AI unavailable
+- Dynamic prompt builder: injects user's live master data (categories by type, account names, peer names, tags, transaction types from registry) — extensible as new types are added
 
-*Screen 2 — RISKS:*
-- Up to 3 rule-based financial alerts, negative alerts prioritized
-- Rules: overspending, spending spike (>20% vs prev month), negative position, high borrowing (>50% of income), savings improvement
-- Each alert: icon + title + short explanation
+*User-facing flows:*
+- SMS picker: select financial SMS → "AI Fill" → draft populated in existing AddEditTransactionDialog
+- Receipt OCR: camera/gallery capture → unbundled ML Kit OCR → "AI Fill" → draft review
+- Voice memo: offline SpeechRecognizer (EXTRA_PREFER_OFFLINE) → "AI Fill" → draft review
 
-*Screen 3 — TRENDS:*
-- Expense change % vs previous month with direction indicator
-- Dominant activity: transaction type with highest total + amount
-- Daily income/expense line chart for the month
+*Graceful degradation:*
+- All "AI Fill" buttons hidden when AICore unavailable (Flow<Boolean> drives visibility)
+- Runtime AI errors show Snackbar; form stays editable manually
+- Manual entry always primary — AI never required
 
-*Key constraints:*
-- Source of truth: transaction records only (date, amount, type)
-- All calculations deterministic (current month vs previous month)
-- Failsafe empty state: "No financial activity recorded yet"
+*Code standards:*
+- New packages: `data/ai/`, `domain/ai/`, `ui/aidraft/`
+- Hilt `AiModule` with conditional `GenAiClient?` provision
+- Transaction types resolved from a centralized `TransactionType` registry (not hardcoded in prompts)
+
+**Key constraints:**
+- Zero APK bloat — AICore is system-managed (Snapdragon 8 Gen 3 NPU acceleration automatic)
+- 100% offline, privacy-preserving (Gemini Nano runs in Private Compute Core)
+- Min SDK 26, Clean Architecture / MVVM / Hilt / Room / DataStore patterns unchanged
+- All existing features unchanged — AI is additive only
 
 ## Evolution
 
@@ -77,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-28 — Milestone v2.2 started*
+*Last updated: 2026-05-15 — Milestone v3.0 started*
