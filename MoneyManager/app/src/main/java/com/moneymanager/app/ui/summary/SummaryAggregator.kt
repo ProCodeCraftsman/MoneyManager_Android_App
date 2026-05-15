@@ -303,7 +303,7 @@ object SummaryAggregator {
                 
                 LendingPerson(
                     id = peer.id,
-                    name = peer.displayName,
+                    name = peer.effectiveDisplayName,
                     amount = Math.abs(net),
                     isOwed = net > 0,
                     avatar = peer.photoUri

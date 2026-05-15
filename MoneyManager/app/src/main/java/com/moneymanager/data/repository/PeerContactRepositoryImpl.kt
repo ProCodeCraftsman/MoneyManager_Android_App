@@ -21,6 +21,12 @@ class PeerContactRepositoryImpl @Inject constructor(
     override suspend fun getPeerByIdSync(id: Long): PeerContact? =
         peerContactDao.getPeerById(id)
 
+    override suspend fun getPeerByLookupKey(lookupKey: String): PeerContact? =
+        peerContactDao.getPeerByLookupKey(lookupKey)
+
+    override fun getPeerByLookupKeyFlow(lookupKey: String): Flow<PeerContact?> =
+        peerContactDao.getPeerByLookupKeyFlow(lookupKey)
+
     override fun getTotalLent(): Flow<Double?> =
         peerContactDao.getTotalLent()
 

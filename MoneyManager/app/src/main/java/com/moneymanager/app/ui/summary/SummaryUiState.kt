@@ -1,7 +1,7 @@
 package com.moneymanager.app.ui.summary
 
 import com.moneymanager.app.ui.components.PieChartEntry
-import com.moneymanager.app.ui.screens.TimeFilter
+import com.moneymanager.app.ui.constants.TimeFilter
 
 enum class SummaryTab { EXPENSE, INCOME, LENDING, TRANSFERS, SAVINGS }
 

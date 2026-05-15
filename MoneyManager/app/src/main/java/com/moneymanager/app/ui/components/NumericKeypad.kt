@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,8 +28,15 @@ fun NumericKeypad(
     onDeleteClick: () -> Unit,
     onClearClick: () -> Unit,
     onEvaluate: () -> Unit,
+    accentColor: Color = Color.Unspecified,
+    accentContainer: Color = Color.Unspecified,
     modifier: Modifier = Modifier
 ) {
+    val resolvedAccent = if (accentColor != Color.Unspecified) accentColor
+                         else MaterialTheme.colorScheme.primary
+    val resolvedContainer = if (accentContainer != Color.Unspecified) accentContainer
+                            else MaterialTheme.colorScheme.primaryContainer
+
     val rows = listOf(
         listOf("7", "8", "9", "/"),
         listOf("4", "5", "6", "*"),
@@ -56,27 +64,25 @@ fun NumericKeypad(
                         onClick = {
                             when (key) {
                                 "DEL" -> onDeleteClick()
-                                "C" -> onClearClick()
-                                else -> onNumberClick(key)
+                                "C"   -> onClearClick()
+                                else  -> onNumberClick(key)
                             }
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(56.dp),
+                            .height(52.dp),
                         contentPadding = PaddingValues(0.dp),
-                        shape = RoundedCornerShape(4.dp),
-                        colors = if (isOperator) {
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        shape = RoundedCornerShape(6.dp),
+                        colors = when {
+                            isOperator -> ButtonDefaults.buttonColors(
+                                containerColor = resolvedContainer.copy(alpha = 0.6f),
+                                contentColor = resolvedAccent
                             )
-                        } else if (isDelete || isClear) {
-                            ButtonDefaults.buttonColors(
+                            isDelete || isClear -> ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        } else {
-                            ButtonDefaults.buttonColors(
+                            else -> ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 contentColor = MaterialTheme.colorScheme.onSurface
                             )
@@ -96,16 +102,16 @@ fun NumericKeypad(
                 }
             }
         }
-        
+
         Button(
             onClick = onEvaluate,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(4.dp),
+                .height(52.dp),
+            shape = RoundedCornerShape(6.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                containerColor = resolvedAccent,
+                contentColor = MaterialTheme.colorScheme.surface
             )
         ) {
             Text(

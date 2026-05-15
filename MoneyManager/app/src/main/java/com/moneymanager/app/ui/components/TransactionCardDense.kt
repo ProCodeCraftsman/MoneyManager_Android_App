@@ -208,7 +208,7 @@ fun TransactionCardDense(
                         )
                         Spacer(Modifier.width(2.dp))
                         Text(
-                            text = peer.displayName,
+                            text = peer.effectiveDisplayName,
                             style = MaterialTheme.typography.labelSmall,
                             color = COLOR_EXPENSE
                         )

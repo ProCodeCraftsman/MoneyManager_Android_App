@@ -35,7 +35,6 @@ data class ImportResult(
     val tagsImported: Int = 0,
     val peersImported: Int = 0,
     val recurringImported: Int = 0,
-    val templatesImported: Int = 0,
     val totalProcessed: Int = 0,
 )
 
@@ -51,7 +50,6 @@ class ExportRepository @Inject constructor(
     private val tagDao: TagDao,
     private val peerContactDao: com.moneymanager.data.dao.PeerContactDao,
     private val recurringDao: RecurringDao,
-    private val templateDao: TemplateDao,
 ) {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
@@ -71,7 +69,6 @@ class ExportRepository @Inject constructor(
             json.put("tags", exportTags())
             json.put("peers", exportPeers())
             json.put("recurring", exportRecurring())
-            json.put("templates", exportTemplates())
             
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                 OutputStreamWriter(outputStream).use { writer ->
@@ -97,7 +94,6 @@ class ExportRepository @Inject constructor(
                 ExportType.TAGS -> exportTagsCsv()
                 ExportType.PEERS -> exportPeersCsv()
                 ExportType.RECURRING -> exportRecurringCsv()
-                ExportType.TEMPLATES -> exportTemplatesCsv()
             }
             
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -130,7 +126,6 @@ class ExportRepository @Inject constructor(
             var tagsImported = 0
             var peersImported = 0
             var recurringImported = 0
-            var templatesImported = 0
 
             if (jsonObject.has("accounts")) {
                 accountsImported = importAccounts(jsonObject.getJSONArray("accounts"))
@@ -156,9 +151,6 @@ class ExportRepository @Inject constructor(
             if (jsonObject.has("recurring")) {
                 recurringImported = importRecurring(jsonObject.getJSONArray("recurring"))
             }
-            if (jsonObject.has("templates")) {
-                templatesImported = importTemplates(jsonObject.getJSONArray("templates"))
-            }
 
             ImportResult(
                 success = true,
@@ -171,7 +163,6 @@ class ExportRepository @Inject constructor(
                 tagsImported = tagsImported,
                 peersImported = peersImported,
                 recurringImported = recurringImported,
-                templatesImported = templatesImported,
             )
         } catch (e: Exception) {
             ImportResult(success = false, message = "Import failed: ${e.message}")
@@ -226,11 +217,6 @@ class ExportRepository @Inject constructor(
                     val count = importRecurringFromCsv(csv)
                     val total = csv.lines().size - 1
                     ImportResult(success = true, message = "$count recurring items imported (total: $total)", recurringImported = count, totalProcessed = total)
-                }
-                ExportType.TEMPLATES -> {
-                    val count = importTemplatesFromCsv(csv)
-                    val total = csv.lines().size - 1
-                    ImportResult(success = true, message = "$count templates imported (total: $total)", templatesImported = count, totalProcessed = total)
                 }
                 ExportType.ALL -> importAllFromCsv(csv)
                 else -> ImportResult(success = false, message = "CSV import not supported for ${type.name}")
@@ -410,25 +396,6 @@ class ExportRepository @Inject constructor(
         return array
     }
 
-    private suspend fun exportTemplates(): JSONArray {
-        val templates = templateDao.getAllTemplates().first()
-        val array = JSONArray()
-        templates.forEach { template ->
-            val obj = JSONObject()
-            obj.put("id", template.id)
-            obj.put("name", template.name)
-            obj.put("type", template.type)
-            obj.put("amount", template.amount)
-            obj.put("accountId", template.accountId)
-            obj.put("categoryId", template.categoryId)
-            obj.put("subCategoryId", template.subCategoryId)
-            obj.put("note", template.note)
-            obj.put("createdAt", template.createdAt)
-            array.put(obj)
-        }
-        return array
-    }
-
     private suspend fun exportTransactionsCsv(): String {
         val transactions = transactionDao.getAllTransactions().first()
         val accounts = accountDao.getAllAccounts().first().associateBy { it.id }
@@ -538,16 +505,6 @@ class ExportRepository @Inject constructor(
         return sb.toString()
     }
 
-    private suspend fun exportTemplatesCsv(): String {
-        val templates = templateDao.getAllTemplates().first()
-        val sb = StringBuilder()
-        sb.appendLine("name,type,amount,account_id,category_id,sub_category_id,note")
-        templates.forEach { template ->
-            sb.appendLine("${template.name},${template.type},${template.amount},${template.accountId ?: ""},${template.categoryId ?: ""},${template.subCategoryId ?: ""},\"${template.note.replace("\"", "\"\"")}\"")
-        }
-        return sb.toString()
-    }
-
     private suspend fun exportAllCsv(): String {
         return buildString {
             appendLine("# ACCOUNTS")
@@ -574,9 +531,6 @@ class ExportRepository @Inject constructor(
             appendLine()
             appendLine("# RECURRING")
             appendLine(exportRecurringCsv())
-            appendLine()
-            appendLine("# TEMPLATES")
-            appendLine(exportTemplatesCsv())
         }
     }
     
@@ -814,27 +768,6 @@ class ExportRepository @Inject constructor(
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
             )
             recurringDao.insertRecurring(item)
-            count++
-        }
-        return count
-    }
-
-    private suspend fun importTemplates(array: JSONArray): Int {
-        var count = 0
-        for (i in 0 until array.length()) {
-            val obj = array.getJSONObject(i)
-            val template = TemplateEntity(
-                id = obj.optLong("id", 0),
-                name = obj.getString("name"),
-                type = obj.getString("type"),
-                amount = obj.optDouble("amount", 0.0),
-                accountId = if (obj.has("accountId") && !obj.isNull("accountId")) obj.getLong("accountId") else null,
-                categoryId = if (obj.has("categoryId") && !obj.isNull("categoryId")) obj.getLong("categoryId") else null,
-                subCategoryId = if (obj.has("subCategoryId") && !obj.isNull("subCategoryId")) obj.getLong("subCategoryId") else null,
-                note = obj.optString("note", ""),
-                createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
-            )
-            templateDao.insertTemplate(template)
             count++
         }
         return count
@@ -1137,29 +1070,6 @@ class ExportRepository @Inject constructor(
         return count
     }
 
-    private suspend fun importTemplatesFromCsv(csv: String): Int {
-        var count = 0
-        val lines = csv.lines().drop(1)
-        for (line in lines) {
-            if (line.isBlank()) continue
-            val parts = parseCsvLine(line)
-            if (parts.size >= 2) {
-                val template = TemplateEntity(
-                    name = parts[0],
-                    type = parts.getOrNull(1) ?: "expense",
-                    amount = parts.getOrNull(2)?.toDoubleOrNull() ?: 0.0,
-                    accountId = parts.getOrNull(3)?.toLongOrNull(),
-                    categoryId = parts.getOrNull(4)?.toLongOrNull(),
-                    subCategoryId = parts.getOrNull(5)?.toLongOrNull(),
-                    note = parts.getOrNull(6)?.removeSurrounding("\"") ?: "",
-                )
-                templateDao.insertTemplate(template)
-                count++
-            }
-        }
-        return count
-    }
-
     private suspend fun importAllFromCsv(csv: String): ImportResult {
         var accountsCount = 0
         var categoriesCount = 0
@@ -1169,7 +1079,6 @@ class ExportRepository @Inject constructor(
         var tagsCount = 0
         var peersCount = 0
         var recurringCount = 0
-        var templatesCount = 0
 
         val sections = csv.split(Regex("\n(?=# )"))
         for (section in sections) {
@@ -1189,12 +1098,11 @@ class ExportRepository @Inject constructor(
                 header.startsWith("# TAGS") -> tagsCount = importTagsFromCsv(body)
                 header.startsWith("# PEERS") -> peersCount = importPeersFromCsv(body)
                 header.startsWith("# RECURRING") -> recurringCount = importRecurringFromCsv(body)
-                header.startsWith("# TEMPLATES") -> templatesCount = importTemplatesFromCsv(body)
             }
         }
 
         val totalProcessed = accountsCount + categoriesCount + transactionsCount +
-            budgetsCount + goalsCount + tagsCount + peersCount + recurringCount + templatesCount
+            budgetsCount + goalsCount + tagsCount + peersCount + recurringCount
         return ImportResult(
             success = true,
             message = "All data imported: $totalProcessed records processed",
@@ -1206,7 +1114,6 @@ class ExportRepository @Inject constructor(
             tagsImported = tagsCount,
             peersImported = peersCount,
             recurringImported = recurringCount,
-            templatesImported = templatesCount,
             totalProcessed = totalProcessed,
         )
     }
@@ -1232,5 +1139,5 @@ class ExportRepository @Inject constructor(
 }
 
 enum class ExportType {
-    TRANSACTIONS, ACCOUNTS, CATEGORIES, BUDGETS, GOALS, ALL, TAGS, PEERS, RECURRING, TEMPLATES
+    TRANSACTIONS, ACCOUNTS, CATEGORIES, BUDGETS, GOALS, ALL, TAGS, PEERS, RECURRING
 }

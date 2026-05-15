@@ -217,7 +217,7 @@ fun TransactionDetailSheet(
                 if (peer != null && (transaction.type == "lend" || transaction.type == "borrow" || transaction.type == "receive" || transaction.type == "repay")) {
                     InfoRow(
                         icon = Icons.Default.People,
-                        label = peer.displayName
+                        label = peer.effectiveDisplayName
                     )
                 }
 

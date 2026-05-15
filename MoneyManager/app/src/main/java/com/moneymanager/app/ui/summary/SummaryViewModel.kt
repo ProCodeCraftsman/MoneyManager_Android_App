@@ -3,7 +3,7 @@ package com.moneymanager.app.ui.summary
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.moneymanager.app.ui.screens.TimeFilter
+import com.moneymanager.app.ui.constants.TimeFilter
 import com.moneymanager.app.ui.util.parseColor
 import com.moneymanager.app.ui.util.generateDistinctColor
 import com.moneymanager.data.entity.AccountEntity

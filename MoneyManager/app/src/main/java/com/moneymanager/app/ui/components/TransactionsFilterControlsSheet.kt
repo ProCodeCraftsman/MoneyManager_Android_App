@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moneymanager.app.ui.screens.TransactionSort
+import com.moneymanager.app.ui.transactions.TransactionSort
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.TagEntity
