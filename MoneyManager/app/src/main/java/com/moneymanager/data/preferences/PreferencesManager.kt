@@ -25,6 +25,7 @@ class PreferencesManager(private val context: Context) {
         private val HAS_USER_SET_THEME = booleanPreferencesKey("has_user_set_theme")
         private val AUTO_LOCK_MINUTES = intPreferencesKey("auto_lock_minutes")
         private val LAST_UNLOCK_TIME = longPreferencesKey("last_unlock_time")
+        private val AI_AVAILABILITY_STATUS = stringPreferencesKey("ai_availability_status")
     }
 
     val darkMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -73,6 +74,10 @@ class PreferencesManager(private val context: Context) {
 
     val lastUnlockTime: Flow<Long?> = context.dataStore.data.map { preferences ->
         preferences[LAST_UNLOCK_TIME]
+    }
+
+    val aiAvailabilityStatus: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[AI_AVAILABILITY_STATUS] ?: "PENDING"
     }
 
     suspend fun setDarkMode(enabled: Boolean) {
@@ -158,6 +163,12 @@ class PreferencesManager(private val context: Context) {
     suspend fun setLastUnlockTime(time: Long) {
         context.dataStore.edit { preferences ->
             preferences[LAST_UNLOCK_TIME] = time
+        }
+    }
+
+    suspend fun setAiAvailabilityStatus(value: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_AVAILABILITY_STATUS] = value
         }
     }
 
