@@ -29,18 +29,18 @@ data class FormTypeConfig(
 
 object TransactionFormConfig {
     val allTypes = listOf(
-        FormTypeConfig("expense", "Exp", "Expense", Icons.Default.MoneyOff,
+        FormTypeConfig("expense", "Expense", "Expense", Icons.Default.AccountBalanceWallet,
             setOf(TransactionFeature.CATEGORY, TransactionFeature.SPLIT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
-        FormTypeConfig("income", "Inc", "Income", Icons.Default.Money,
+        FormTypeConfig("income", "Income", "Income", Icons.AutoMirrored.Filled.TrendingUp,
             setOf(TransactionFeature.CATEGORY, TransactionFeature.SPLIT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
-        FormTypeConfig("savings", "Sav", "Savings", Icons.AutoMirrored.Filled.TrendingUp,
+        FormTypeConfig("savings", "Savings", "Savings", Icons.Default.Savings,
             setOf(TransactionFeature.CATEGORY, TransactionFeature.SPLIT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT, TransactionFeature.GOAL, TransactionFeature.PLATFORM),
             categoryFilterType = "expense"),
-        FormTypeConfig("transfer", "Tra", "Transfer", Icons.Default.SwapHoriz,
+        FormTypeConfig("transfer", "Transfer", "Transfer", Icons.Default.SwapHoriz,
             setOf(TransactionFeature.TO_ACCOUNT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
-        FormTypeConfig("lend", "Len", "Lending", Icons.Default.Handshake,
+        FormTypeConfig("lend", "Lending", "Lending", Icons.Default.Handshake,
             setOf(TransactionFeature.PEER, TransactionFeature.RETURN_DATE, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
-        FormTypeConfig("borrow", "Bor", "Borrowing", Icons.AutoMirrored.Filled.CallReceived,
+        FormTypeConfig("borrow", "Borrow", "Borrowing", Icons.Default.SouthWest,
             setOf(TransactionFeature.PEER, TransactionFeature.RETURN_DATE, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
     )
 

@@ -492,7 +492,7 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
 
 - [x] **Phase 32: Domain AI Foundation** - GenAiClient interface, TransactionDraft, TransactionType enum, PromptContextBuilder, GenerateDraftFromTextUseCase — zero Android imports ✅
 - [x] **Phase 33: Data AI Implementation** - Gradle dependencies, PreferencesManager extension, PromptBuilder, DraftParser, NanoAiClient, DeviceCapabilityManager (4-state) ✅
-- [ ] **Phase 34: DI Wiring & AI Availability** - AiModule nullable @Provides, MoneyManagerApp startup hook, Flow<Boolean> availability repository
+- [x] **Phase 34: DI Wiring & AI Availability** - AiModule nullable @Provides, MoneyManagerApp startup hook, Flow<Boolean> availability repository ✅
 - [ ] **Phase 35: AI Draft Source Screens** - AiDraftViewModel, SmsPickerScreen, ReceiptScanScreen, VoiceMemoScreen, shared UI state
 - [ ] **Phase 36: Dialog Integration & FAB** - Expandable 3-source FAB, AddEditTransactionDialog initialDraft, source banner, AI field highlighting, nav routes
 
@@ -558,7 +558,10 @@ Plans:
   2. On a non-AICore device (or emulator), GenAiClient resolves to null and the app starts without crash
   3. Flow<Boolean> from AiAvailabilityRepository emits false on non-AICore device and true on READY device
 
-**Plans**: TBD
+**Plans**: 2/2 complete
+Plans:
+- [x] 34-01-PLAN.md — AiModule nullable @Provides + AiAvailabilityRepository ✅
+- [x] 34-02-PLAN.md — MoneyManagerApp DeviceCapabilityManager startup hook ✅
 
 **UI hint**: no
 
@@ -604,7 +607,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 32. Domain AI Foundation | 3/3 | ✅ Complete | 2026-05-15 |
 | 33. Data AI Implementation | 3/3 | ✅ Complete | 2026-05-15 |
-| 34. DI Wiring & AI Availability | 0/? | Not started | — |
+| 34. DI Wiring & AI Availability | 2/2 | ✅ Complete | 2026-05-15 |
 | 35. AI Draft Source Screens | 0/? | Not started | — |
 | 36. Dialog Integration & FAB | 0/? | Not started | — |
 

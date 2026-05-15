@@ -1,0 +1,1430 @@
+ ▐▛███▜▌   Claude Code v2.1.141
+▝▜█████▛▘  Sonnet 4.6 · Claude Team
+  ▘▘ ▝▝    D:\Android projec
+
+❯ /gsd-new-milestone                                                            
+
+● Skill(gsd-new-milestone)
+  ⎿  Initializing…
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ /gsd-new-milestone Integration Blueprint: User‑Driven AI‑Assisted Transaction 
+ Drafting with Gemini Nano (AICore)                                             
+Revised Objective: Transform a standard financial tracking app into an          
+AI‑assisted drafting tool where Gemini Nano (via AICore) helps users quickly    
+create transaction drafts from SMS, receipt images, or voice memos. The AI      
+suggests a draft; the user always reviews, edits, and confirms. The app remains 
+ fully functional without AI – all transaction fields can be entered manually.  
+                                                                                
+Core Principles (unchanged): Clean Architecture, MVVM, Kotlin/Compose, Hilt,    
+Room, DataStore, 100% offline, Min SDK 26.                                      
+                                                                                
+1. Model Selection & Availability Strategy                                      
+Model: Gemini Nano accessed exclusively through Android AICore / ML Kit GenAI   
+Prompt API.                                                                     
+                                                                                
+Zero APK bloat – model is system‑managed.                                       
+                                                                                
+Automatic NPU acceleration on Snapdragon 8 Gen 3 (S24 Ultra).                   
+                                                                                
+Fully offline, privacy‑preserving.                                              
+                                                                                
+Compatibility & Fallback:                                                       
+                                                                                
+AICore is required for AI‑assisted drafting. If AICore is not present on the    
+device, AI features are disabled and hidden.                                    
+                                                                                
+The app remains fully operational: users can still manually enter transactions, 
+ scan receipts for raw OCR text (but no AI‑based extraction), and use offline   
+speech‑to‑text for transcription (without AI parsing).                          
+                                                                                
+This approach satisfies “even without using AI user should be able to use the   
+app as it is now.”                                                              
+                                                                                
+Capability Detection & Caching:                                                 
+DeviceCapabilityManager checks for the AICore package and caches a Boolean      
+(isAiAssistAvailable) in DataStore Preferences. All UI decisions (showing “AI   
+Fill” buttons) are driven by a Flow<Boolean> from a repository.                 
+                                                                                
+2. Architectural Clean Integration (AI as Assistive Service)                    
+The AI client remains a data‑source abstraction (GenAiClient) injected via      
+Hilt, but it is now used exclusively by domain‑layer use cases that transform   
+raw input into a TransactionDraft.                                              
+                                                                                
+2.1 Domain Layer (Pure Kotlin)                                                  
+kotlin                                                                          
+data class TransactionDraft(                                                    
+    val transactionType: String?,  // DEBIT / CREDIT                            
+    val amount: Double?,                                                        
+    val currency: String?,                                                      
+    val merchant: String?,                                                      
+    val date: LocalDate?,                                                       
+    val category: String?,                                                      
+    val rawSource: String?        // original SMS/OCR text for user reference   
+)                                                                               
+                                                                                
+// Use case: generate draft from any text (SMS, OCR output)                     
+class GenerateDraftFromTextUseCase @Inject constructor(                         
+    private val aiClient: GenAiClient?   // nullable – injected only if AI      
+available                                                                       
+) {                                                                             
+    suspend operator fun invoke(rawText: String): Result<TransactionDraft> {    
+        if (aiClient == null) return                                            
+Result.failure(UnsupportedOperationException())                                 
+        return aiClient.generateStructuredDraft(rawText)                        
+    }                                                                           
+}                                                                               
+When AI is disabled, Hilt provides null for GenAiClient, and the use‑case       
+simply returns an error. The ViewModel catches this and disables the AI button. 
+                                                                                
+2.2 Data Layer – AI Client Implementation                                       
+kotlin                                                                          
+interface GenAiClient {                                                         
+    suspend fun generateStructuredDraft(inputText: String):                     
+Result<TransactionDraft>                                                        
+}                                                                               
+                                                                                
+class NanoAiClient @Inject constructor(                                         
+    @ApplicationContext private val context: Context                            
+) : GenAiClient {                                                               
+    private val model = GenerativeModel(                                        
+        modelName = "gemini-nano",                                              
+        applicationContext = context                                            
+    )                                                                           
+    override suspend fun generateStructuredDraft(inputText: String):            
+Result<TransactionDraft> {                                                      
+        val prompt = buildPrompt(inputText)                                     
+        return try {                                                            
+            val rawOutput = model.generateContent(prompt).text ?: ""            
+            parseDraft(rawOutput)                                               
+        } catch (e: Exception) {                                                
+            Result.failure(e)                                                   
+        }                                                                       
+    }                                                                           
+    // buildPrompt and parseDraft described in Section 5                        
+}                                                                               
+Hilt Binding (conditional):                                                     
+                                                                                
+kotlin                                                                          
+@Module                                                                         
+@InstallIn(SingletonComponent::class)                                           
+object AiModule {                                                               
+    @Provides                                                                   
+    @Singleton                                                                  
+    fun provideGenAiClient(                                                     
+        @ApplicationContext context: Context,                                   
+        capabilityManager: DeviceCapabilityManager                              
+    ): GenAiClient? {                                                           
+        return if (capabilityManager.isAiAssistAvailable()) {                   
+            NanoAiClient(context)                                               
+        } else null                                                             
+    }                                                                           
+}                                                                               
+3. User‑Driven AI‑Assisted Transaction Creation Flows                           
+All flows share the same pattern:                                               
+                                                                                
+User initiates action (select SMS, capture image, record audio).                
+                                                                                
+Raw data (text/OCR/transcription) is acquired on‑device.                        
+                                                                                
+User taps “AI Fill” → raw data sent to Gemini Nano → draft returned.            
+                                                                                
+Draft populates the transaction form; user reviews, edits, and saves.           
+                                                                                
+No automatic background processing. The app uses simple ViewModel‑coroutine     
+interactions.                                                                   
+                                                                                
+3.1 SMS Flow                                                                    
+Acquire text: The user opens a list of recent financial SMS (queried from       
+Telephony.Sms inbox, optionally filtered by sender numbers). The user picks a   
+message; its body is extracted.                                                 
+                                                                                
+Display: The raw message is shown in a card.                                    
+                                                                                
+AI Assist: Tapping “AI Fill” calls generateDraftFromTextUseCase(smsBody). On    
+success, the draft fields are bound to the Compose form.                        
+                                                                                
+Manual fallback: The user can directly type values.                             
+                                                                                
+3.2 Receipt / Invoice Scanning (OCR)                                            
+Capture: Use ActivityResultContracts.TakePicture or pick from gallery.          
+                                                                                
+On‑device OCR: Unbundled ML Kit                                                 
+(com.google.android.gms:play-services-mlkit-text-recognition) runs in a         
+CoroutineWorker (to avoid blocking UI) and returns raw text.                    
+No bundled models – zero APK size increase.                                     
+                                                                                
+AI Assist: The raw OCR text is passed to the same generateDraftFromTextUseCase. 
+ The prompt instructs the model to handle noisy OCR output (e.g., “T0TAL”,      
+mixed currencies).                                                              
+                                                                                
+Without AI: The raw OCR text is displayed for the user to read and manually     
+transcribe.                                                                     
+                                                                                
+3.3 Voice Memo Flow                                                             
+Recording: Use MediaRecorder to capture audio into a local file.                
+                                                                                
+Speech‑to‑Text: Use Android’s built‑in SpeechRecognizer with                    
+EXTRA_PREFER_OFFLINE = true. This guarantees on‑device transcription (privacy), 
+ though accuracy may vary. The result is a plain‑text string.                   
+                                                                                
+AI Assist: The transcribed text is fed to generateDraftFromTextUseCase. The     
+prompt instructs the model to extract financial fields from natural language    
+(e.g., “I spent 45 euros at Lidl yesterday”).                                   
+                                                                                
+Without AI: The transcription is shown as a note; user fills fields manually.   
+                                                                                
+4. System Robustness, Fallbacks & Graceful Degradation                          
+AI Unavailability Handling:                                                     
+                                                                                
+If AICore is not detected at install/launch, isAiAssistAvailable = false is     
+persisted.                                                                      
+                                                                                
+All “AI Fill” buttons are visibility = if (aiAvailable) Visible else Gone.      
+                                                                                
+Manual entry remains the primary interface; the app is never broken.            
+                                                                                
+Runtime AI Errors:                                                              
+If an AI call fails (network‑related? no, it’s offline, but AICore may throw    
+exceptions for unsupported requests), the ViewModel catches the error and shows 
+ a Snackbar: “Could not generate draft. Please enter details manually.” The     
+form is cleared to default state.                                               
+                                                                                
+Memory & Performance:                                                           
+Gemini Nano runs in the Private Compute Core – it does not consume the app’s    
+heap. Thus, even on 4 GB devices with AICore, memory pressure is minimal. No    
+need for custom memory management.                                              
+                                                                                
+DataStore Caching:                                                              
+DeviceCapabilityManager uses DataStore to store the isAiAssistAvailable flag.   
+This is read once per app session; no repeated probing.                         
+                                                                                
+5. Deterministic Prompting & Data Recovery                                      
+Gemini Nano must return a predictable JSON object. The prompt is engineered as  
+a single‑shot, strict instruction.                                              
+                                                                                
+System Prompt (embedded in the generative model call):                          
+                                                                                
+text                                                                            
+You are an AI transaction drafter. Extract the following fields from the given  
+text and output ONLY a JSON object.                                             
+Fields: transaction_type ("DEBIT","CREDIT","UNKNOWN"), amount (number),         
+currency (ISO 4217), merchant (string or null), date (YYYY-MM-DD or null),      
+category (one of                                                                
+"Food","Transport","Shopping","Utilities","Entertainment","Transfer","Other" or 
+ null).                                                                         
+If a field cannot be inferred, use null.                                        
+Do NOT include markdown or explanations.                                        
+                                                                                
+Input text: {RAW_TEXT}                                                          
+JSON:                                                                           
+Defensive Parsing:                                                              
+The parseDraft method applies the same multi‑stage recovery described earlier   
+(JSON boundary extraction, kotlinx.serialization with ignoreUnknownKeys = true, 
+ regex fallback). If parsing fails, an error is returned to the user.           
+                                                                                
+Note: Because the AI only suggests a draft, imperfect extractions are           
+acceptable. The user will correct any errors before saving.                     
+                                                                                
+6. Evaluation, Benchmarking & Testing Strategy                                  
+The AI component is now an on‑demand assistive feature, so benchmarking focuses 
+ on perceived user experience.                                                  
+                                                                                
+Metric    Target (S24 Ultra)    Measurement Method                              
+Draft Generation Latency    < 1.5 s (SMS/OCR)    System.nanoTime() around AI    
+call                                                                            
+AI Success Rate    > 95% valid JSON    100 mixed‑format inputs (SMS, OCR,       
+audio)                                                                          
+Field Extraction Accuracy    > 80% exact match    Golden dataset; manual review 
+Offline STT Accuracy    > 70% WER    Compare transcription to reference         
+APK Size Impact    0 MB (AICore)    APK Analyzer                                
+Testing Strategy:                                                               
+                                                                                
+Unit tests for parseDraft with malformed/incomplete JSON.                       
+                                                                                
+Integration tests with a real AICore‑enabled device (S24 Ultra) using a variety 
+ of financial texts.                                                            
+                                                                                
+Compose UI tests that simulate AI success/failure and verify that manual entry  
+always works.                                                                   
+                                                                                
+Regression suite ensuring that disabling AI via DataStore hides all AI‑related  
+UI elements.                                                                    
+                                                                                
+No automatic background pipeline testing – all flows are user‑initiated, so     
+testing mirrors standard MVVM+Compose patterns.                                 
+                                                                                
+7. Implementation Roadmap (Phased)                                              
+Phase 1 – Core Manual App                                                       
+                                                                                
+Clean Architecture scaffold, Room database, manual transaction                  
+creation/editing.                                                               
+                                                                                
+No AI features.                                                                 
+                                                                                
+Phase 2 – AI Assist for SMS                                                     
+                                                                                
+Integrate AICore, NanoAiClient, GenerateDraftFromTextUseCase.                   
+                                                                                
+Add “AI Fill” button on manual entry screen, visible only if AI available.      
+                                                                                
+Implement SMS picker (read inbox) and populate raw text.                        
+                                                                                
+Phase 3 – OCR & Voice Assist                                                    
+                                                                                
+Add unbundled ML Kit for receipt scanning.                                      
+                                                                                
+Add offline SpeechRecognizer for voice memos.                                   
+                                                                                
+Reuse same AI use‑case to process OCR text and transcriptions.                  
+                                                                                
+Phase 4 – Polish & Fallbacks                                                    
+                                                                                
+Comprehensive error handling, user feedback.                                    
+                                                                                
+Regex fallback for AI failures (optional, for power users).                     
+                                                                                
+Store and display raw source text with each draft for transparency. analyse the 
+ current code along with the instruction check if the instructions needs to be  
+modified. the currrent existing functionaliteis of the app to remain same only  
+AI assisted work flows to be integrated mostly use the master data for          
+catgories accounts, peers, goals and budgets, as these are users addition and   
+modification possible ai integration prompts should also be chnaging this on a  
+regular basis, there should be astructured approach for how to write files and  
+folder, so that coding standards are kept within project                        
+
+● I'll start by reading the workflow files and understanding the current project
+   state.
+
+  Read 2 files (ctrl+o to expand)
+
+● Now let me read the existing planning files and project structure.
+
+  Searched for 2 patterns (ctrl+o to expand)
+
+● Let me read the key planning files to understand the current project state.
+
+  Searched for 1 pattern, read 4 files (ctrl+o to expand)
+
+● Let me read the requirements and also check the current app structure more
+  deeply.
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Now let me examine the domain/data layer to understand existing entities and
+  architecture.
+
+● Explore(Explore MoneyManager app data and domain structure)
+  ⎿  Done (22 tool uses · 47.0k tokens · 38s)
+  (ctrl+o to expand)
+
+● Now let me check for MILESTONES.md and seeds directory.
+
+  Searched for 1 pattern, listed 1 directory (ctrl+o to expand)
+
+● I now have a complete picture of the codebase and current state. Let me
+  present the milestone summary for confirmation.
+
+  ---
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► MILESTONE ANALYSIS COMPLETE
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Current state: v2.2 Insights Dashboard (Phase 31 Trends Pane still pending).
+  This new milestone follows v2.2 once complete.
+
+  Codebase analysis complete. Several modifications to your blueprint are needed
+   before we write requirements:
+
+  ---
+  Blueprint vs. Codebase — Gaps Found
+
+  1. Phase 1 "Core Manual App" is DONE
+
+  The app already has Clean Architecture, Room, Hilt, manual transaction CRUD,
+  and all screens. Phase 1 is skipped — new milestone starts directly at Phase 2
+   (AI Assist for SMS) equivalent.
+
+  2. Static categories in prompts won't work
+
+  Your spec hard-codes "Food","Transport","Shopping"... but the app uses
+  user-defined categories (user can add/edit/delete). Prompts must be built
+  dynamically by injecting the user's actual category names + types from
+  CategoryRepository at call time. Same applies to account names, peer names,
+  and tags.
+
+  3. Transaction types mismatch
+
+  The app has 8 types (income, expense, savings, transfer, lend, receive,
+  borrow, repay) — not just DEBIT/CREDIT. The AI prompt must enumerate all 8,
+  and TransactionDraft should map to these.
+
+  4. TransactionDraft needs entity-ID alignment
+
+  Instead of category: String?, the draft should carry both categoryId: Long?
+  (for direct save) and categoryName: String? (for display/fallback). Same for
+  accounts (accountId/accountName) and peers (peerContactId/peerName).
+
+  5. AICore dependency not in gradle
+
+  The com.google.ai.edge.aicore or ML Kit GenAI Prompt API dependency is absent
+  from build.gradle.kts. Needs to be added with correct package/version.
+
+  6. File/folder structure conventions
+
+  No AI-specific packages exist yet. Need to define: data/ai/, domain/ai/,
+  ui/aidraft/ conventions consistent with existing architecture.
+
+  ---
+
+● User answered Claude's questions:
+  ⎿  · Does this milestone summary capture what you want to build? → Transaction
+      types mismatch- transaction types might get updated in teh future the ai 
+     workflow to be made in consideration to this
+     · What version number for this milestone? → v3.0 — Major (Recommended)
+     · Should I run parallel domain research before defining requirements? 
+     (Researches AICore SDK specifics, Android on-device AI patterns, OCR/STT 
+     integration best practices) → Research first (Recommended)
+
+● Noted — transaction types must be data-driven and extensible: the AI prompt
+  builder reads the type list from a central registry rather than hardcoding
+  strings, so future new types are automatically included in prompts.
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► MILESTONE SUMMARY — v3.0
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Milestone v3.0: AI-Assisted Transaction Drafting
+
+  Goal: Integrate Gemini Nano (AICore) as an opt-in drafting
+  assistant — SMS, receipt OCR, and voice memo flows generate
+  a pre-filled transaction draft the user reviews and confirms.
+  App stays 100% functional on non-AICore devices.
+
+  Target features:
+  - DeviceCapabilityManager + DataStore-cached AI availability flag
+  - GenAiClient interface + NanoAiClient with dynamic prompts
+    (categories, accounts, peers, tags, and transaction types
+     all injected from live Room data — extensible for future types)
+  - GenerateDraftFromTextUseCase + TransactionDraft aligned
+    to existing entity IDs (categoryId, accountId, peerContactId)
+  - SMS picker flow → AI Fill → draft review in existing form
+  - Receipt OCR (ML Kit unbundled) → AI Fill
+  - Voice memo (offline SpeechRecognizer) → AI Fill
+  - Graceful degradation: AI buttons hidden when unavailable,
+    Snackbar on runtime failures, manual entry always works
+  - File/folder conventions: data/ai/, domain/ai/, ui/aidraft/
+
+  Key constraints:
+  - Phase 1 (core manual app) is ALREADY DONE — skip
+  - Transaction types loaded from centralized registry (not hardcoded)
+  - Zero APK bloat — AICore is system-managed
+  - Min SDK 26, 100% offline, Hilt/Room/DataStore patterns preserved
+
+● User answered Claude's questions:
+  ⎿  · Does this v3.0 milestone summary look right? → Looks good — proceed to 
+     write files
+
+● Proceeding to update PROJECT.md and STATE.md, then launching research.
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(.planning\PROJECT.md)
+  ⎿  Added 32 lines, removed 19 lines
+      29  - **Monetization**: Free (all features)
+      30  ## Current State
+      31  
+      32 -Phase 28 complete — Insights bottom nav entry wired (Screen.Ins
+         -ights, route "insights", ShowChart icon); InsightsScreen shell 
+         -with TabRow + HorizontalPager (3 panes: Status, Risks, Trends);
+         - pager state persists across navigation via rememberSaveable. C
+         -ompilation verified: BUILD SUCCESSFUL.                         
+      32 +v2.2 Insights Dashboard phases 27–30 complete (Data Layer, Navi
+         +gation Shell, Status Pane, Risks Pane). Phase 31 Trends Pane pe
+         +nding. v3.0 AI-Assisted Transaction Drafting defined — research
+         + and roadmap in progress.                                      
+      33  
+      34 -## Current Milestone: v2.2 Insights Dashboard                  
+      34 +## Previous Milestone: v2.2 Insights Dashboard                 
+      35  
+      36  **Goal:** Add a 3-screen swipeable Insights section that derive
+          s financial summaries purely from transaction records — no budg
+          ets, categories, or AI assumptions.
+      37  
+      38 +**Completed:** Phases 27–30 (Data Layer, Navigation, Status Pan
+         +e, Risks Pane). Phase 31 (Trends Pane) pending at v2.2 close.  
+      39 +                                                               
+      40 +## Current Milestone: v3.0 AI-Assisted Transaction Drafting    
+      41 +                                                               
+      42 +**Goal:** Integrate Gemini Nano (via Android AICore) as an opt-
+         +in drafting assistant so users can create transaction drafts fr
+         +om SMS, receipt images, or voice memos — with the AI suggesting
+         + a pre-filled form the user reviews and confirms. App remains 1
+         +00% functional without AI.                                     
+      43 +                                                               
+      44  **Target features:**
+      45  
+      40 -*Screen 1 — STATUS:*                                           
+      41 -- Net Position as hero number (large, prominent)               
+      42 -- Net Cash Flow, Total Income, Total Expense, Total Savings    
+      43 -- Current month label                                          
+      44 -- No charts, no scrolling                                      
+      46 +*AI Infrastructure:*                                           
+      47 +- `DeviceCapabilityManager`: checks AICore availability on firs
+         +t launch, caches `isAiAssistAvailable` Boolean in DataStore    
+      48 +- `GenAiClient` interface (domain) + `NanoAiClient` implementat
+         +ion (data/ai/)                                                 
+      49 +- `TransactionDraft` domain model aligned to existing entity ID
+         +s (categoryId, accountId, peerContactId)                       
+      50 +- `GenerateDraftFromTextUseCase`: nullable AI client injection 
+         +via Hilt — returns failure when AI unavailable                 
+      51 +- Dynamic prompt builder: injects user's live master data (cate
+         +gories by type, account names, peer names, tags, transaction ty
+         +pes from registry) — extensible as new types are added         
+      52  
+      46 -*Screen 2 — RISKS:*                                            
+      47 -- Up to 3 rule-based financial alerts, negative alerts prioriti
+         -zed                                                            
+      48 -- Rules: overspending, spending spike (>20% vs prev month), neg
+         -ative position, high borrowing (>50% of income), savings improv
+         -ement                                                          
+      49 -- Each alert: icon + title + short explanation                 
+      53 +*User-facing flows:*                                           
+      54 +- SMS picker: select financial SMS → "AI Fill" → draft populate
+         +d in existing AddEditTransactionDialog                         
+      55 +- Receipt OCR: camera/gallery capture → unbundled ML Kit OCR → 
+         +"AI Fill" → draft review                                       
+      56 +- Voice memo: offline SpeechRecognizer (EXTRA_PREFER_OFFLINE) →
+         + "AI Fill" → draft review                                      
+      57  
+      51 -*Screen 3 — TRENDS:*                                           
+      52 -- Expense change % vs previous month with direction indicator  
+      53 -- Dominant activity: transaction type with highest total + amou
+         -nt                                                             
+      54 -- Daily income/expense line chart for the month                
+      58 +*Graceful degradation:*                                        
+      59 +- All "AI Fill" buttons hidden when AICore unavailable (Flow<Bo
+         +olean> drives visibility)                                      
+      60 +- Runtime AI errors show Snackbar; form stays editable manually
+      61 +- Manual entry always primary — AI never required              
+      62  
+      56 -*Key constraints:*                                             
+      57 -- Source of truth: transaction records only (date, amount, type
+         -)                                                              
+      58 -- All calculations deterministic (current month vs previous mon
+         -th)                                                            
+      59 -- Failsafe empty state: "No financial activity recorded yet"   
+      63 +*Code standards:*                                              
+      64 +- New packages: `data/ai/`, `domain/ai/`, `ui/aidraft/`        
+      65 +- Hilt `AiModule` with conditional `GenAiClient?` provision    
+      66 +- Transaction types resolved from a centralized `TransactionTyp
+         +e` registry (not hardcoded in prompts)                         
+      67  
+      68 +**Key constraints:**                                           
+      69 +- Zero APK bloat — AICore is system-managed (Snapdragon 8 Gen 3
+         + NPU acceleration automatic)                                   
+      70 +- 100% offline, privacy-preserving (Gemini Nano runs in Private
+         + Compute Core)                                                 
+      71 +- Min SDK 26, Clean Architecture / MVVM / Hilt / Room / DataSto
+         +re patterns unchanged                                          
+      72 +- All existing features unchanged — AI is additive only        
+      73 +                                                               
+      74  ## Evolution
+      75  
+      76  This document evolves at phase transitions and milestone bounda
+          ries.
+
+● Update(.planning\PROJECT.md)
+  ⎿  Added 1 line, removed 1 line
+      90  
+      91  ---
+      92  
+      93 -*Last updated: 2026-04-28 — Milestone v2.2 started*            
+      93   No newline at end of file
+      94 +*Last updated: 2026-05-15 — Milestone v3.0 started*            
+      95   No newline at end of file
+● Now update STATE.md for the new milestone:
+
+● Update(.planning\STATE.md)
+  ⎿  Added 15 lines, removed 15 lines
+       1  ---
+       2  gsd_state_version: 1.0
+       3 -milestone: v2.1                                                
+       4 -milestone_name: Progress                                       
+       5 -status: verifying                                              
+       6 -stopped_at: Phase 30 Risks Pane complete — 8/8 composables crea
+         -ted, build verified                                            
+       7 -last_updated: "2026-04-30T10:31:15.816Z"                       
+       8 -last_activity: 2026-05-04 - Completed quick task 260504-ewv: Fi
+         -x PIN and Biometric Lock Issues                                
+       3 +milestone: v3.0                                                
+       4 +milestone_name: AI-Assisted Transaction Drafting               
+       5 +status: planning                                               
+       6 +stopped_at: Milestone v3.0 started — defining requirements     
+       7 +last_updated: "2026-05-15T00:00:00.000Z"                       
+       8 +last_activity: 2026-05-15 - Milestone v3.0 started, research in
+         + progress                                                      
+       9  progress:
+      10 -  total_phases: 20                                             
+      11 -  completed_phases: 13                                         
+      12 -  total_plans: 30                                              
+      13 -  completed_plans: 24                                          
+      10 +  total_phases: 0                                              
+      11 +  completed_phases: 0                                          
+      12 +  total_plans: 0                                               
+      13 +  completed_plans: 0                                           
+      14  ---
+      15  
+      16  # Project State
+      17  
+      18 -## Current Milestone: v2.2 Insights Dashboard                  
+      18 +## Current Milestone: v3.0 AI-Assisted Transaction Drafting    
+      19  
+      20 -Phase: 29                                                      
+      21 -Plan: Not started                                              
+      22 -Status: Phase 30 complete — Risks Pane stateless composables an
+         -d screen integration done, build verified                      
+      20 +Phase: Not started (defining requirements)                     
+      21 +Plan: —                                                        
+      22 +Status: Defining requirements                                  
+      23  
+      24 -Last activity: 2026-04-30                                      
+      24 +Last activity: 2026-05-15 — Milestone v3.0 started             
+      25  
+      26  ## Milestone Goal
+      27  
+
+● Now let me preserve the important accumulated context in STATE.md:
+
+  Read 1 file (ctrl+o to expand)
+
+● I need to update the milestone-specific sections while keeping accumulated
+  context:
+
+● Update(.planning\STATE.md)
+  ⎿  Added 3 lines, removed 11 lines
+      25  
+      26  ## Milestone Goal
+      27  
+      28 -Add a 3-screen swipeable Insights section (STATUS / RISKS / TRE
+         -NDS) derived purely from transaction records. All calculations 
+         -deterministic (current vs previous month). Mobile-first large t
+         -ypography with failsafe empty state.                           
+      28 +Integrate Gemini Nano (via Android AICore) as an opt-in draftin
+         +g assistant. Users create transaction drafts from SMS, receipt 
+         +images, or voice memos — AI suggests a pre-filled form, user re
+         +views and confirms. App stays 100% functional without AI. All e
+         +xisting features unchanged.                                    
+      29  
+      30  ## Phase Structure
+      31  
+      32 -| Phase | Name | Requirements | Status |                       
+      33 -|-------|------|--------------|--------|                       
+      34 -| 27 | Data Layer & Calculations | Infrastructure (no user-faci
+         -ng requirements) | Not started |                               
+      35 -| 28 | Navigation & Screen Shell | INF-01, INF-02, INF-03 | Not
+         - started |                                                     
+      36 -| 29 | Status Pane | STA-01–STA-09 | Not started |             
+      37 -| 30 | Risks Pane | RSK-01–RSK-08 | ✅ Complete |              
+      38 -| 31 | Trends Pane | TRD-01–TRD-04 | Not started |             
+      32 +TBD — roadmap being created (phases continue from 31+)         
+      33  
+      40 -**Dependency chain:** 27 → 28 → 29, 30, 31 (29/30/31 all depend
+         - on 28 independently)                                          
+      41 -                                                               
+      34  ## Previous Milestone
+      35  
+      44 -v2.1 (Multiple Themes + Transaction enhancements) — Phase 26 wa
+         -s last phase.                                                  
+      36 +v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Na
+         +vigation Shell, Status Pane, Risks Pane). Phase 31 Trends Pane 
+         +was pending at milestone transition.                           
+      37  
+      38  ## Accumulated Context
+      39  
+
+● Update(.planning\STATE.md)
+  ⎿  Added 3 lines, removed 3 lines
+      94  
+      95  ## Session Info
+      96  
+      97 -- **Last session:** 2026-05-04                                 
+      98 -- **Stopped at:** Quick task 260504-ewv complete — PIN unlock r
+         -outing fixed, biometric re-trigger fixed, numeric keyboard adde
+         -d to PinSetupDialog, assembleDebug verified                    
+      99 -- **Next phase:** Phase 31 — Trends Pane (UI-SPEC → Plan → Exec
+         -ute)                                                           
+      97 +- **Last session:** 2026-05-15                                 
+      98 +- **Stopped at:** Milestone v3.0 started — research agents laun
+         +ched, requirements and roadmap pending                         
+      99 +- **Next phase:** TBD — awaiting research completion and roadma
+         +p creation                                                     
+
+● Now let me commit the initial milestone artifacts and launch the research
+  agents in parallel:
+
+● Bash(cd "D:\Android projec" && git add .planning/PROJECT.md .planning/STATE.md
+       && git commit -m "$(cat <<'EOF'
+      docs: start milestone v3.0 AI-Assisted Transaction Dra…)
+  ⎿  warning: in the working copy of '.planning/PROJECT.md', LF will be rep
+     laced by CRLF the next time Git touches it
+     warning: in the working copy of '.planning/STATE.md', LF will be repla
+     … +12 lines (ctrl+o to expand)
+
+● Bash(cd "D:\Android projec" && npx gitnexus analyze)
+  ⎿  Running in the background (↓ to manage)
+
+● GitNexus reindex running in the background. Now launching the 4 parallel
+  research agents:
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► RESEARCHING — v3.0 AI-Assisted Transaction Drafting
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ◆ Spawning 4 researchers in parallel...
+    → Stack, Features, Architecture, Pitfalls
+
+● Bash(mkdir -p "D:\Android projec\.planning\research")
+  ⎿  Done
+
+● Background command "Update GitNexus knowledge graph index" completed (exit code 0)
+
+● GitNexus reindexed. Launching all 4 research agents in parallel now:
+
+● 4 background agents launched (↓ to manage)
+   ├ Stack research: AICore/ML Kit GenAI + OCR + STT dependencies
+   ├ Features research: AI-assisted transaction drafting UX patterns
+   ├ Architecture research: integrating AICore cleanly into existing MVVM/Clean arch
+   └ Pitfalls research: common mistakes adding AI/OCR/STT to existing Android apps
+
+● ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► RESEARCHING ◆ 4 agents running in parallel
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    → STACK      AICore/ML Kit GenAI deps, OCR, STT, exact artifact IDs
+    → FEATURES   UX patterns for SMS/OCR/Voice drafting flows
+    → ARCH       Clean Architecture integration, Hilt nullable, PromptContext
+    → PITFALLS   AICore availability edge cases, prompt injection, regressions
+
+  Waiting for all 4 to complete before synthesizing...
+
+  All 4 research agents are running. I'll synthesize their findings and define
+  requirements once they report back — you'll see an update when they complete.
+
+✻ Brewed for 20m 23s
+
+● Agent "Features research: AI-assisted transaction drafting UX patterns"
+completed
+
+● Features research complete. Waiting for the other 3 agents (Stack,
+  Architecture, Pitfalls) to finish before synthesizing.
+
+✻ Churned for 3s
+
+● Agent "Stack research: AICore/ML Kit GenAI + OCR + STT dependencies" completed
+
+● Stack research complete. Still waiting for Architecture and Pitfalls agents.
+
+✻ Cogitated for 2s
+
+● Agent "Architecture research: integrating AICore cleanly into existing
+MVVM/Clean arch" completed
+
+● Architecture research complete. Waiting for the final Pitfalls agent.
+
+✻ Worked for 2s
+❯ /usage 
+  ⎿  Settings dialog dismissed
+
+● Agent "Pitfalls research: common mistakes adding AI/OCR/STT to existing
+Android apps" completed
+
+● All 4 research agents complete. Spawning synthesizer now.
+
+● gsd-research-synthesizer(Synthesize 4 research files into SUMMARY.md)
+  ⎿  Done (75 tool uses · 154.9k tokens · 1h 23m 44s)
+  (ctrl+o to expand)
+
+❯ /usage 
+  ⎿  Settings dialog dismissed
+
+❯ /usage 
+  ⎿  Settings dialog dismissed
+
+● Research synthesized and committed. Let me read the summary and present
+  findings before defining requirements.
+
+  Read 1 file (ctrl+o to expand)
+
+● ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► RESEARCH COMPLETE ✓
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Stack additions (4 lines):
+    • com.google.mlkit:genai-prompt:1.0.0-beta2 — Gemini Nano on-device
+    • com.google.mlkit:genai-common:1.0.0-beta3 — 4-state availability check
+    • play-services-mlkit-text-recognition:19.0.1 — unbundled OCR (zero APK
+  bloat)
+    • kotlinx-serialization-json:1.8.1 — parse AI JSON output
+
+  Feature table stakes confirmed per flow (SMS / OCR / Voice)
+  Watch out for:
+    → AICore is 4-state, not Boolean — store "READY/NEVER/PENDING" enum
+    → DataStore: extend PreferencesManager only — new delegate corrupts PIN keys
+    → READ_SMS: clipboard-first; Play Store approval gate for inbox access
+    → Token overflow: cap at top-20 categories by usage frequency
+    → ImageProxy.close() must be synchronous before any coroutine launch
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► DEFINING REQUIREMENTS
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Now scoping requirements by category. Research gives us clear table-stakes
+  boundaries — I need one scoping question on SMS permissions since that has a
+  real-world gating decision:
+
+● User answered Claude's questions:
+  ⎿  · For the SMS flow: Research confirms READ_SMS requires a separate Play 
+     Store Permission Declaration Form approval process. How should we scope 
+     this? → Clipboard/paste + READ_SMS both in v3.0 (Recommended)
+     · Should v3.0 include the raw source text storage (opt-in 'save as note' 
+     toggle)? → Yes — opt-in toggle per flow (Recommended)
+     · Code standards: the research recommends introducing a TransactionType 
+     enum to replace the hardcoded VALID_TYPES string list in TransactionEntity.
+      This is required for extensible AI prompts. Should it also replace string 
+     literals throughout the existing codebase in v3.0? → New AI code only — 
+     existing strings untouched (Recommended)
+
+● Scoping decisions locked. Writing REQUIREMENTS.md now.
+
+● Write(.planning\REQUIREMENTS.md)
+  ⎿  Added 122 lines, removed 74 lines
+        1 -# Requirements: MoneyManager v2.2                             
+        1 +# Requirements: MoneyManager v3.0                             
+        2  
+        3 -**Defined:** 2026-04-28                                       
+        4 -**Core Value:** Financial clarity from transaction data alone 
+          -— no assumptions, no budgets, no AI                           
+        3 +**Defined:** 2026-05-15                                       
+        4 +**Core Value:** AI-assisted transaction drafting — Gemini Nano
+          + suggests, user decides. App is 100% functional without AI.   
+        5  
+        6 -## v2.2 Requirements                                          
+        6 +---                                                           
+        7  
+        8 -### Status Screen                                             
+        8 +## v3.0 Requirements                                          
+        9  
+       10 -- [ ] **STA-01**: User sees Net Position as a large hero numbe
+          -r on the Status screen (current month: income − expense − savi
+          -ngs + borrowing − lending)                                    
+       11 -- [ ] **STA-02**: User sees Net Cash Flow (income − expense) b
+          -elow the hero number                                          
+       12 -- [ ] **STA-03**: User sees Total Income for the current month
+       13 -- [ ] **STA-04**: User sees Total Expense for the current mont
+          -h                                                             
+       14 -- [ ] **STA-05**: User sees Total Savings for the current mont
+          -h                                                             
+       15 -- [ ] **STA-06**: User sees Total Lending for the current mont
+          -h                                                             
+       16 -- [ ] **STA-07**: User sees Total Borrowing for the current mo
+          -nth                                                           
+       17 -- [ ] **STA-08**: User sees the current month and year label o
+          -n the Status screen                                           
+       18 -- [ ] **STA-09**: User sees "No financial activity recorded ye
+          -t" when no transactions exist                                 
+       10 +### AI Foundation (AIFND)                                     
+       11  
+       20 -### Risks Screen                                              
+       12 +- [ ] **AIFND-01**: App checks AICore availability on first la
+          +unch and caches a 3-state result ("READY" / "NEVER" / "PENDING
+          +") in DataStore by extending PreferencesManager — no second Da
+          +taStore instance created                                      
+       13 +- [ ] **AIFND-02**: AI availability is exposed as `Flow<Boolea
+          +n>` from a repository; all "AI Fill" button visibility decisio
+          +ns are driven by this flow (not hard-coded checks)            
+       14 +- [ ] **AIFND-03**: `GenAiClient` interface lives in `domain/a
+          +i/` with a single method `generateDraft(prompt: String): Resul
+          +t<String>` — no Android imports                               
+       15 +- [ ] **AIFND-04**: `NanoAiClient` in `data/ai/` implements `G
+          +enAiClient` using ML Kit GenAI Prompt API (`com.google.mlkit:g
+          +enai-prompt`)                                                 
+       16 +- [ ] **AIFND-05**: `TransactionDraft` domain model carries re
+          +solved entity IDs (`categoryId: Long?`, `accountId: Long?`, `p
+          +eerContactId: Long?`) alongside display names and raw fields —
+          + does not extend `TransactionEntity`                          
+       17 +- [ ] **AIFND-06**: `TransactionType` enum in `domain/ai/` is 
+          +the single source of truth for transaction type strings in all
+          + new AI code; each entry carries `id`, `displayName`, `promptH
+          +int`, `requiresCategory`, `requiresPeer` — existing `Transacti
+          +onEntity.VALID_TYPES` strings unchanged                       
+       18 +- [ ] **AIFND-07**: `PromptContextBuilder` reads top-20 catego
+          +ries by usage frequency (reusing `categoryUsageCounts` already
+          + computed in `AddTransactionViewModel`), all accounts, all pee
+          +rs, all tags from existing repositories; exposes a `PromptCont
+          +ext` data class using domain-only projection types (`CategoryE
+          +ntry`, `AccountEntry`, `PeerEntry`, `TagEntry`)               
+       19 +- [ ] **AIFND-08**: `GenerateDraftFromTextUseCase` accepts `ra
+          +wText: String` + `PromptContext` and returns `Result<Transacti
+          +onDraft>`; returns `Result.failure(AiUnavailableException())` 
+          +when `GenAiClient` is null — no silent no-ops                 
+       20 +- [ ] **AIFND-09**: `DraftParser` (pure object in `data/ai/`) 
+          +defensively parses AI JSON output: strips markdown fences, ext
+          +racts content between first `{` and last `}`, uses `kotlinx-se
+          +rialization` with `ignoreUnknownKeys = true`; returns parse er
+          +ror to caller on failure                                      
+       21 +- [ ] **AIFND-10**: `PromptBuilder` (pure object in `data/ai/`
+          +) sanitizes all user master data strings before prompt injecti
+          +on, caps category list at top-20 by usage, and builds a determ
+          +inistic single-shot JSON-extraction prompt                    
+       22 +- [ ] **AIFND-11**: `AiModule` Hilt object provides `GenAiClie
+          +nt?` as nullable `@Singleton` with `@javax.annotation.Nullable
+          +` annotation; returns `null` when AICore availability is "NEVE
+          +R" or "PENDING"                                               
+       23 +- [ ] **AIFND-12**: `MoneyManagerApp` launches DeviceCapabilit
+          +yManager availability check asynchronously on `Dispatchers.IO`
+          + at startup — no blocking IPC on main thread                  
+       24  
+       22 -- [x] **RSK-01**: User sees up to 3 financial alerts on the Ri
+          -sks screen, negative alerts shown before positive             
+       23 -- [x] **RSK-02**: "Expenses exceed income this month" alert fi
+          -res when total_expense > total_income                         
+       24 -- [x] **RSK-03**: "Spending increased significantly compared t
+          -o last month" alert fires when expense_change_percentage > 20 
+          -(suppressed when no previous-month transactions exist)        
+       25 -- [x] **RSK-04**: "Your financial position is negative" alert 
+          -fires when net_position < 0                                   
+       26 -- [x] **RSK-05**: "Borrowing is high relative to income" alert
+          - fires when total_borrowing > total_income × 0.5              
+       27 -- [x] **RSK-06**: "Savings improved compared to last month" po
+          -sitive alert fires when total_savings > previous_month_savings
+          - (suppressed when no previous-month transactions exist)       
+       28 -- [x] **RSK-07**: Each alert displays an icon, a title, and a 
+          -short explanation that includes the triggering number         
+       29 -- [x] **RSK-08**: User sees "No financial activity recorded ye
+          -t" when no transactions exist                                 
+       25 +---                                                           
+       26  
+       31 -### Trends Screen                                             
+       27 +### SMS Flow (SMS)                                            
+       28  
+       33 -- [ ] **TRD-01**: User sees the dominant transaction type (hig
+          -hest total amount in current month) and its total amount      
+       34 -- [ ] **TRD-02**: User sees a daily income/expense line chart 
+          -for the current month (income line + expense line, grouped by 
+          -calendar day)                                                 
+       35 -- [ ] **TRD-03**: Chart is not rendered when fewer than 2 dail
+          -y data points exist; empty state message shown instead        
+       36 -- [ ] **TRD-04**: User sees "No financial activity recorded ye
+          -t" when no transactions exist                                 
+       29 +- [ ] **SMS-01**: User can paste or type SMS text directly int
+          +o a text field on SmsPickerScreen to generate an AI draft (cli
+          +pboard path — no `READ_SMS` permission required)              
+       30 +- [ ] **SMS-02**: User can access SMS inbox picker on SmsPicke
+          +rScreen to select a financial message when `READ_SMS` permissi
+          +on is granted; READ_SMS path is feature-flagged and only shipp
+          +ed after Play Store Permission Declaration approval is confirm
+          +ed                                                            
+       31 +- [ ] **SMS-03**: SMS inbox picker shows an editable financial
+          + sender filter (default includes common Indian bank sender IDs
+          +: HDFCBK, SBIINB, PAYTM, ICICIT, AXISBK, KOTAKB) with results 
+          +in date-descending order, max 50 messages                     
+       32 +- [ ] **SMS-04**: Each SMS row in the inbox picker shows sende
+          +r, timestamp, and 60-character message preview; tapping a row 
+          +shows a full preview pane before "Use This Message"           
+       33 +- [ ] **SMS-05**: Multi-part SMS messages are reconstructed in
+          +to a single body before display                               
+       34 +- [ ] **SMS-06**: When `READ_SMS` permission is denied, the ap
+          +p falls back gracefully to the clipboard/paste path — manual e
+          +ntry is always available                                      
+       35 +- [ ] **SMS-07**: User taps "AI Fill" to send selected/pasted 
+          +SMS text to `GenerateDraftFromTextUseCase`; on success the res
+          +ulting `TransactionDraft` pre-populates `AddEditTransactionDia
+          +log`                                                          
+       36 +- [ ] **SMS-08**: "AI Fill" button is visible only when `isAiA
+          +ssistAvailable = true`; button is absent (not just disabled) w
+          +hen AI is unavailable                                         
+       37 +- [ ] **SMS-09**: User sees a Snackbar "Could not generate dra
+          +ft. Please enter details manually." on any runtime AI failure;
+          + form remains fully editable with blank fields                
+       38 +- [ ] **SMS-10**: User sees an opt-in "Save as note" toggle on
+          + SmsPickerScreen (default OFF) to persist the source SMS text 
+          +to the transaction note field                                 
+       39  
+       38 -### Navigation & Infrastructure                               
+       40 +---                                                           
+       41  
+       40 -- [ ] **INF-01**: User can navigate to Insights from the botto
+          -m navigation bar                                              
+       41 -- [ ] **INF-02**: User can swipe left/right between Status, Ri
+          -sks, and Trends screens                                       
+       42 -- [ ] **INF-03**: A tab indicator shows which of the 3 screens
+          - is currently active                                          
+       42 +### Receipt OCR Flow (OCR)                                    
+       43  
+       44 -## Future Requirements                                        
+       44 +- [ ] **OCR-01**: User can capture a receipt/invoice via camer
+          +a (primary action via `ActivityResultContracts.TakePicture`) o
+          +r select an image from the gallery (secondary) on ReceiptScanS
+          +creen                                                         
+       45 +- [ ] **OCR-02**: Unbundled ML Kit Text Recognition (`play-ser
+          +vices-mlkit-text-recognition:19.0.1`) performs on-device OCR o
+          +n `Dispatchers.IO`; `ImageProxy.close()` is called synchronous
+          +ly before any coroutine is launched                           
+       46 +- [ ] **OCR-03**: A pre-processing normalization pass runs on 
+          +OCR output before AI prompt: rupee symbol variants → `₹`, digi
+          +t–letter confusion (0↔O) in numeric contexts, thousands separa
+          +tors, boilerplate merchant/header stripping                   
+       47 +- [ ] **OCR-04**: User sees image thumbnail alongside a scroll
+          +able read-only OCR text pane on ReceiptScanScreen before tappi
+          +ng "AI Fill"                                                  
+       48 +- [ ] **OCR-05**: Captured image is auto-attached as `receiptP
+          +ath` via the existing `FileHelper.saveReceipt()` — no parallel
+          + storage path created                                         
+       49 +- [ ] **OCR-06**: When OCR fails (model not yet downloaded, `M
+          +lKitException.UNAVAILABLE`), user sees a retry button with pla
+          +in error message; second failure offers manual entry path     
+       50 +- [ ] **OCR-07**: When CAMERA permission is denied, gallery pi
+          +cker is offered as fallback; when gallery is also unavailable,
+          + screen returns to manual entry                               
+       51 +- [ ] **OCR-08**: User taps "AI Fill" to send normalized OCR t
+          +ext to `GenerateDraftFromTextUseCase`; "AI Fill" button visibl
+          +e only when `isAiAssistAvailable = true`                      
+       52 +- [ ] **OCR-09**: Without AI, normalized OCR text is displayed
+          + in a read-only field the user can refer to while manually ent
+          +ering transaction details                                     
+       53  
+       46 -### Trends Enhancements                                       
+       54 +---                                                           
+       55  
+       48 -- **TRD-F01**: User sees expense % change vs previous month wi
+          -th direction indicator (increase/decrease/no change)          
+       49 -- **TRD-F02**: User can navigate to previous months to view hi
+          -storical insights                                             
+       56 +### Voice Memo Flow (VOICE)                                   
+       57  
+       51 -### Status Enhancements                                       
+       58 +- [ ] **VOICE-01**: User can record a voice memo on VoiceMemoS
+          +creen using tap-to-start / tap-to-stop with animated microphon
+          +e feedback; maximum recording duration is 60 seconds with a vi
+          +sible countdown                                               
+       59 +- [ ] **VOICE-02**: `SpeechRecognizer` with `EXTRA_PREFER_OFFL
+          +INE = true` performs on-device speech-to-text; result is shown
+          + as editable transcription text                               
+       60 +- [ ] **VOICE-03**: Transcribed text is displayed in an editab
+          +le field; user can edit the transcription before tapping "AI F
+          +ill"                                                          
+       61 +- [ ] **VOICE-04**: Re-record button is shown after transcript
+          +ion; tapping it clears the current transcription and starts a 
+          +new recording session                                         
+       62 +- [ ] **VOICE-05**: Voice entry point (FAB voice option and Vo
+          +iceMemoScreen) is hidden entirely when `SpeechRecognizer.isRec
+          +ognitionAvailable()` returns false — not just disabled        
+       63 +- [ ] **VOICE-06**: When RECORD_AUDIO permission is denied, vo
+          +ice entry point is hidden and user is returned to the main tra
+          +nsaction entry path                                           
+       64 +- [ ] **VOICE-07**: User taps "AI Fill" to send transcription 
+          +to `GenerateDraftFromTextUseCase`; "AI Fill" button is disable
+          +d (not hidden) until transcription is non-empty; button is abs
+          +ent when AI unavailable                                       
+       65 +- [ ] **VOICE-08**: Without AI, transcription text is pre-fill
+          +ed into the transaction note field in `AddEditTransactionDialo
+          +g` so the voice flow has standalone utility                   
+       66 +- [ ] **VOICE-09**: `SpeechRecognizer.destroy()` is called in 
+          +`DisposableEffect.onDispose` to prevent memory leaks          
+       67 +- [ ] **VOICE-10**: User sees an opt-in "Save transcription as
+          + note" toggle (default ON) on VoiceMemoScreen; when ON, transc
+          +ription is saved to the transaction note field                
+       68  
+       53 -- **STA-F01**: User sees month-over-month delta indicators nex
+          -t to each figure                                              
+       69 +---                                                           
+       70  
+       71 +### Draft Review & Dialog Integration (DRAFT)                 
+       72 +                                                              
+       73 +- [ ] **DRAFT-01**: A three-source expandable FAB (SMS / Recei
+          +pt / Voice) appears alongside the existing + FAB; the AI draft
+          + FAB group is visible only when `isAiAssistAvailable = true`; 
+          +the existing + FAB behavior is completely unchanged           
+       74 +- [ ] **DRAFT-02**: `AddEditTransactionDialog` accepts an opti
+          +onal `initialDraft: TransactionDraft? = null` parameter; all e
+          +xisting call sites pass `null` — no existing behavior changes 
+       75 +- [ ] **DRAFT-03**: A `LaunchedEffect(initialDraft)` inside `A
+          +ddEditTransactionDialog` applies draft field values to form st
+          +ate via the existing `onTypeSelected()` path before any user i
+          +nteraction                                                    
+       76 +- [ ] **DRAFT-04**: AI-suggested fields are visually distingui
+          +shed (tinted container background + small sparkle badge icon);
+          + the tint and badge clear automatically when the user edits th
+          +at specific field                                             
+       77 +- [ ] **DRAFT-05**: A source banner is shown at the top of `Ad
+          +dEditTransactionDialog` when opened from an AI flow (e.g. "Dra
+          +ft from SMS · HDFCBK · 2 minutes ago"); absent for manually op
+          +ened dialogs                                                  
+       78 +- [ ] **DRAFT-06**: AI draft fields with low confidence are le
+          +ft empty (never guessed); user must fill them manually        
+       79 +- [ ] **DRAFT-07**: Draft does not re-populate form state on a
+          + second dialog open after dismiss; `clearDraft()` is called on
+          + `onDismiss`                                                  
+       80 +- [ ] **DRAFT-08**: Three new routes in `MoneyManagerNavHost` 
+          +for `SmsPickerScreen`, `ReceiptScanScreen`, `VoiceMemoScreen`;
+          + routes pass `TransactionDraft` as a JSON-serialized optional 
+          +navigation argument to `AddTransactionScreen`                 
+       81 +- [ ] **DRAFT-09**: AI-drafted transactions go through the sam
+          +e save and validation path as manually entered transactions — 
+          +no separate AI save code path                                 
+       82 +                                                              
+       83 +---                                                           
+       84 +                                                              
+       85 +### Code Standards & Project Structure (STD)                  
+       86 +                                                              
+       87 +- [ ] **STD-01**: All new AI-related files follow the package 
+          +hierarchy: `domain/ai/` (interfaces, models, use cases, enums)
+          +, `data/ai/` (implementations, builders, parsers, managers), `
+          +app/ui/aidraft/` (screens, ViewModels, UiState)               
+       88 +- [ ] **STD-02**: New files use existing project naming conven
+          +tions: `*Screen.kt`, `*ViewModel.kt`, `*UiState.kt`, `*UseCase
+          +.kt`, `*Client.kt`, `*Manager.kt`, `*Builder.kt`, `*Parser.kt`
+       89 +- [ ] **STD-03**: `AiDraftViewModel` is a single shared `@Hilt
+          +ViewModel` used by all three source screens — not three separa
+          +te ViewModels                                                 
+       90 +- [ ] **STD-04**: All modifications to existing files (`AddEdi
+          +tTransactionDialog`, `AddTransactionViewModel`, `AddTransactio
+          +nScreen`, `MoneyManagerNavHost`, `PreferencesManager`) are str
+          +ictly additive (null-default parameters, new DataStore keys, n
+          +ew routes); no existing behavior is altered                   
+       91 +                                                              
+       92 +---                                                           
+       93 +                                                              
+       94 +## Future Requirements (v3.1)                                 
+       95 +                                                              
+       96 +### SMS Enhancements                                          
+       97 +- **SMS-F01**: Remember last-used sender filter per DataStore 
+          +preference                                                    
+       98 +- **SMS-F02**: READ_SMS permission inbox picker (after Play St
+          +ore approval confirmed — start declaration process during v3.0
+          +)                                                             
+       99 +                                                              
+      100 +### OCR Enhancements                                          
+      101 +- **OCR-F01**: Crop / rotate controls before OCR (`UCropActivi
+          +ty` or custom)                                                
+      102 +- **OCR-F02**: Per-field AI confidence indicators shown in dra
+          +ft review                                                     
+      103 +                                                              
+      104 +### Voice Enhancements                                        
+      105 +- **VOICE-F01**: Locale-aware language selection for SpeechRec
+          +ognizer                                                       
+      106 +- **VOICE-F02**: Multiple transcription alternatives displayed
+          + as selectable chips                                          
+      107 +                                                              
+      108 +### Draft Review Enhancements                                 
+      109 +- **DRAFT-F01**: Per-field AI confidence indicators (color + p
+          +ercentage)                                                    
+      110 +- **DRAFT-F02**: Undo AI Fill button that reverts all AI-sugge
+          +sted fields to blank                                          
+      111 +                                                              
+      112 +---                                                           
+      113 +                                                              
+      114  ## Out of Scope
+      115  
+      116  | Feature | Reason |
+      117  |---------|--------|
+       59 -| AI predictions or forecasts | Spec explicitly prohibits assu
+          -med data |                                                    
+       60 -| Budget/goal integration | No budget data in scope — transact
+          -ion records only |                                            
+       61 -| Category breakdowns | No category assumptions per spec |    
+       62 -| Swipe-to-dismiss alerts | Alerts are derived state; dismissa
+          -l reappears unchanged on reopen |                             
+       63 -| Month navigation (prev/next) | Lock to current month for v1 
+          -|                                                             
+       64 -| Multi-month comparison charts | Scope limited to within-mont
+          -h daily view |                                                
+       65 -| Investment type as savings | Only SAVINGS type counts; inves
+          -tment excluded per data model |                               
+      118 +| Background SMS scanning | Play Store surveillance policy — n
+          +ot permitted for this use case |                              
+      119 +| Cloud AI inference | Violates 100% offline privacy contract 
+          +|                                                             
+      120 +| Auto-save without user review | Financial data integrity — u
+          +ser must always confirm |                                     
+      121 +| PDF receipt support | Complexity vs frequency mismatch for v
+          +3.0 |                                                         
+      122 +| AI accuracy feedback / fine-tuning | Gemini Nano has no on-d
+          +evice fine-tuning API |                                       
+      123 +| Bottom nav AI item | AI is an assistive entry point, not a p
+          +rimary section |                                              
+      124 +| Replacing existing + FAB | The + FAB is the primary manual e
+          +ntry point — must not change |                                
+      125 +| TransactionType enum replacing existing VALID_TYPES strings 
+          +globally | Lower risk to defer full string migration to a dedi
+          +cated refactoring phase |                                     
+      126 +| CameraX dependency | ActivityResultContracts.TakePicture cov
+          +ers the use case with no new Gradle dependency |              
+      127 +| Any AI modification to master data (categories, accounts, bu
+          +dgets, goals) | AI assists in reading and using master data — 
+          +it never creates or modifies it |                             
+      128  
+      129 +---                                                           
+      130 +                                                              
+      131  ## Traceability
+      132  
+      133  | Requirement | Phase | Status |
+      134  |-------------|-------|--------|
+       71 -| STA-01 | Phase 29 | Pending |                               
+       72 -| STA-02 | Phase 29 | Pending |                               
+       73 -| STA-03 | Phase 29 | Pending |                               
+       74 -| STA-04 | Phase 29 | Pending |                               
+       75 -| STA-05 | Phase 29 | Pending |                               
+       76 -| STA-06 | Phase 29 | Pending |                               
+       77 -| STA-07 | Phase 29 | Pending |                               
+       78 -| STA-08 | Phase 29 | Pending |                               
+       79 -| STA-09 | Phase 29 | Pending |                               
+       80 -| RSK-01 | Phase 30 | Completed |                             
+       81 -| RSK-02 | Phase 30 | Completed |                             
+       82 -| RSK-03 | Phase 30 | Completed |                             
+       83 -| RSK-04 | Phase 30 | Completed |                             
+       84 -| RSK-05 | Phase 30 | Completed |                             
+       85 -| RSK-06 | Phase 30 | Completed |                             
+       86 -| RSK-07 | Phase 30 | Completed |                             
+       87 -| RSK-08 | Phase 30 | Completed |                             
+       88 -| TRD-01 | Phase 31 | Pending |                               
+       89 -| TRD-02 | Phase 31 | Pending |                               
+       90 -| TRD-03 | Phase 31 | Pending |                               
+       91 -| TRD-04 | Phase 31 | Pending |                               
+       92 -| INF-01 | Phase 28 | Pending |                               
+       93 -| INF-02 | Phase 28 | Pending |                               
+       94 -| INF-03 | Phase 28 | Pending |                               
+      135 +| AIFND-01–12 | Phase 32 (AI Foundation) | Pending |          
+      136 +| SMS-01–10 | Phase 34 (SMS Flow) | Pending |                 
+      137 +| OCR-01–09 | Phase 35 (OCR Flow) | Pending |                 
+      138 +| VOICE-01–10 | Phase 36 (Voice Flow) | Pending |             
+      139 +| DRAFT-01–09 | Phase 37 (Dialog Integration) | Pending |     
+      140 +| STD-01–04 | All phases | Pending |                          
+      141  
+      142 +*Phase numbers TBD — assigned by roadmapper. Phases 32+ contin
+          +ue from v2.2's last phase (31).*                              
+      143 +                                                              
+      144  **Coverage:**
+       97 -- v2.2 requirements: 24 total                                 
+       98 -- Mapped to phases: 24/24 ✓                                   
+       99 -- Unmapped: 0                                                 
+      145 +- v3.0 requirements: 54 total (12 AIFND + 10 SMS + 9 OCR + 10 
+          +VOICE + 9 DRAFT + 4 STD)                                      
+      146 +- Mapped to phases: pending roadmap                           
+      147 +- Unmapped: 54                                                
+      148  
+      149  ---
+      102 -*Requirements defined: 2026-04-28*                            
+      103 -*Last updated: 2026-04-28 — traceability filled by roadmap*   
+      150 +*Requirements defined: 2026-05-15*                            
+      151 +*Last updated: 2026-05-15 — initial definition*               
+
+● Now presenting the full requirements list for your confirmation:
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Milestone v3.0 Requirements — 54 total
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ## AI Foundation (AIFND-01–12)
+  AIFND-01  DeviceCapabilityManager caches 3-state AICore result in DataStore
+             (extends PreferencesManager — no new DataStore instance)
+  AIFND-02  AI availability as Flow<Boolean> drives all button visibility
+  AIFND-03  GenAiClient interface in domain/ai/ (no Android imports)
+  AIFND-04  NanoAiClient in data/ai/ using com.google.mlkit:genai-prompt
+  AIFND-05  TransactionDraft with entity IDs (categoryId, accountId,
+  peerContactId)
+  AIFND-06  TransactionType enum — extensible registry for AI prompt building
+  AIFND-07  PromptContextBuilder — top-20 categories by usage +
+  accounts/peers/tags
+  AIFND-08  GenerateDraftFromTextUseCase — typed AiUnavailableException when AI
+  absent
+  AIFND-09  DraftParser — defensive JSON: markdown strip, { } boundary, lenient
+  parse
+  AIFND-10  PromptBuilder — sanitize user strings, top-20 cap, deterministic
+  prompt
+  AIFND-11  AiModule — nullable @Provides GenAiClient? with
+  @javax.annotation.Nullable
+  AIFND-12  MoneyManagerApp — async AICore check on Dispatchers.IO at startup
+
+  ## SMS Flow (SMS-01–10)
+  SMS-01    User can paste/type SMS text (clipboard path — no READ_SMS needed)
+  SMS-02    User can use SMS inbox picker when READ_SMS granted
+  (feature-flagged)
+  SMS-03    Inbox picker: editable sender filter, date-desc, max 50 messages
+  SMS-04    60-char preview per row; full preview pane before "Use This Message"
+  SMS-05    Multi-part SMS reconstructed before display
+  SMS-06    READ_SMS denied → falls back to clipboard path gracefully
+  SMS-07    "AI Fill" → GenerateDraftFromTextUseCase → AddEditTransactionDialog
+  SMS-08    "AI Fill" button absent when AI unavailable
+  SMS-09    Snackbar on AI failure; form stays editable with blank fields
+  SMS-10    Opt-in "Save as note" toggle (default OFF — OTP/account number risk)
+
+  ## OCR Flow (OCR-01–09)
+  OCR-01    Camera (primary) + gallery (secondary) via ActivityResultContracts
+  OCR-02    Unbundled ML Kit OCR on Dispatchers.IO; ImageProxy.close() sync
+  OCR-03    Pre-processing: rupee variants, 0↔O in numerics, separators,
+  boilerplate
+  OCR-04    Image thumbnail + scrollable OCR text pane before "AI Fill"
+  OCR-05    Auto-attach as receiptPath via existing FileHelper.saveReceipt()
+  OCR-06    OCR failure → retry button; second failure → manual entry path
+  OCR-07    CAMERA denied → gallery fallback; gallery unavailable → manual entry
+  OCR-08    "AI Fill" visible only when AI available
+  OCR-09    Without AI: OCR text shown read-only for manual transcription
+
+  ## Voice Flow (VOICE-01–10)
+  VOICE-01  Tap-start/tap-stop recording; animated mic; 60s countdown
+  VOICE-02  SpeechRecognizer with EXTRA_PREFER_OFFLINE = true
+  VOICE-03  Editable transcription field after recognition
+  VOICE-04  Re-record button clears and restarts
+  VOICE-05  Voice entry hidden entirely when offline recognition unavailable
+  VOICE-06  RECORD_AUDIO denied → voice entry hidden; back to manual entry
+  VOICE-07  "AI Fill" disabled until transcription non-empty; absent when AI
+  unavailable
+  VOICE-08  Without AI: transcription pre-filled into note field (standalone
+  utility)
+  VOICE-09  SpeechRecognizer.destroy() in DisposableEffect.onDispose
+  VOICE-10  Opt-in "Save transcription as note" toggle (default ON)
+
+  ## Draft Review / Dialog (DRAFT-01–09)
+  DRAFT-01  Expandable 3-source FAB (SMS/Receipt/Voice) alongside existing + FAB
+  DRAFT-02  AddEditTransactionDialog(initialDraft: TransactionDraft? = null);
+             all existing call sites unchanged
+  DRAFT-03  LaunchedEffect(initialDraft) applies draft via onTypeSelected()
+  DRAFT-04  AI-suggested fields: tinted background + sparkle badge; clears on
+  edit
+  DRAFT-05  Source banner: "Draft from SMS · HDFCBK · 2 minutes ago"
+  DRAFT-06  Low-confidence fields left empty — never guessed
+  DRAFT-07  clearDraft() called on onDismiss — no re-population on second open
+  DRAFT-08  3 new routes in MoneyManagerNavHost; draft as JSON nav arg
+  DRAFT-09  AI-drafted transactions use same save + validation path as manual
+
+  ## Code Standards (STD-01–04)
+  STD-01    Package structure: domain/ai/, data/ai/, app/ui/aidraft/
+  STD-02    Naming: *Screen, *ViewModel, *UiState, *UseCase, *Client, *Manager,
+             *Builder, *Parser
+  STD-03    Single shared AiDraftViewModel for all 3 source screens
+  STD-04    All changes to existing files strictly additive (null defaults)
+
+● User answered Claude's questions:
+  ⎿  · Does this 54-requirement list capture what you want to build in v3.0? → 
+     Adjust — something needs changing
+
+● What needs changing?
+
+✻ Worked for 1h 34m 7s
+
+❯  The only subtle point: AIFND‑02 says Flow<Boolean> drives button visibility, 
+   while AIFND‑01 caches a 3‑state string. That’s consistent – the              
+  Flow<Boolean> maps READY → true, everything else → false. If you later want   
+  to show a “Downloading model” state, you can expose the raw 3‑state as a      
+  separate StateFlow, but for button visibility the boolean is correct. check   
+  and proceed                                                                   
+
+● Correct — the two requirements are consistent as written. Flow<Boolean> is the
+   derived view (READY → true, else false); the raw 3-state string in DataStore
+  is the stored fact. No change needed to REQUIREMENTS.md.
+
+  Committing requirements and spawning the roadmapper now.
+
+● Bash(cd "D:\Android projec" && git add .planning/REQUIREMENTS.md && git commit
+       -m "$(cat <<'EOF'
+      docs: define milestone v3.0 requirements (54 requirements across 6 c…)
+  ⎿  warning: in the working copy of '.planning/REQUIREMENTS.md', LF will b
+     e replaced by CRLF the next time Git touches it
+     [main 57ce2e6] docs: define milestone v3.0 requirements (54 requiremen
+     … +2 lines (ctrl+o to expand)
+
+● Only planning docs changed — no code symbols affected, skipping reindex.
+  Spawning the roadmapper now.
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► CREATING ROADMAP
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ◆ Spawning roadmapper...
+
+● gsd-roadmapper(Create v3.0 roadmap (phases 32+))
+  ⎿  Done (9 tool uses · 54.4k tokens · 4m 29s)
+  (ctrl+o to expand)
+
+❯ /usage 
+  ⎿  Settings dialog dismissed
+● Roadmap complete. Let me verify it and commit.
+
+● Bash(cd "D:\Android projec" && git add .planning/ROADMAP.md .planning/STATE.md
+       .planning/REQUIREMENTS.md && git commit -m "$(cat <<'EOF'
+      docs: create milestone v3.0…)
+  ⎿  warning: in the working copy of '.planning/REQUIREMENTS.md', LF will b
+     e replaced by CRLF the next time Git touches it
+     warning: in the working copy of '.planning/ROADMAP.md', LF will be rep
+     … +6 lines (ctrl+o to expand)
+
+● Planning docs only — no code symbols changed, skipping reindex.
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► MILESTONE INITIALIZED ✓
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Milestone v3.0: AI-Assisted Transaction Drafting
+
+  ┌──────────────┬───────────────────────────────────────────────────────────┐
+  │   Artifact   │                         Location                          │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ Project      │ .planning/PROJECT.md                                      │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ Research     │ .planning/research/ (STACK, FEATURES, ARCH, PITFALLS,     │
+  │              │ SUMMARY)                                                  │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ Requirements │ .planning/REQUIREMENTS.md (54 requirements)               │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ Roadmap      │ .planning/ROADMAP.md                                      │
+  ├──────────────┼───────────────────────────────────────────────────────────┤
+  │ State        │ .planning/STATE.md                                        │
+  └──────────────┴───────────────────────────────────────────────────────────┘
+
+  5 phases · 54 requirements · All mapped ✓
+
+  #: 32
+  Phase: Domain AI Foundation
+  Requirements: AIFND-03,05,06,07,08
+  Key deliverable: Pure Kotlin domain contracts — GenAiClient, TransactionDraft,
+
+    TransactionType enum, PromptContextBuilder, GenerateDraftFromTextUseCase
+  ────────────────────────────────────────
+  #: 33
+  Phase: Data AI Implementation
+  Requirements: AIFND-01,04,09,10
+  Key deliverable: Gradle deps (+4 lines), PreferencesManager extension,
+    PromptBuilder, DraftParser, NanoAiClient, DeviceCapabilityManager (3-state)
+  ────────────────────────────────────────
+  #: 34
+  Phase: DI Wiring & AI Availability
+  Requirements: AIFND-02,11,12
+  Key deliverable: Nullable Hilt graph compiles; Flow availability; async
+  startup
+    hook
+  ────────────────────────────────────────
+  #: 35
+  Phase: AI Draft Source Screens
+  Requirements: SMS-01–10, OCR-01–09, VOICE-01–10, STD-01–03
+  Key deliverable: All 3 source screens + shared AiDraftViewModel; graceful
+    fallback on every path
+  ────────────────────────────────────────
+  #: 36
+  Phase: Dialog Integration & FAB
+  Requirements: DRAFT-01–09, STD-04
+  Key deliverable: Expandable FAB; AddEditTransactionDialog(initialDraft);
+  source
+    banner + AI highlighting; existing + FAB unchanged
+
+  ---
+  ▶ Next Up — MoneyManager v3.0
+
+  Phase 32: Domain AI Foundation — Pure Kotlin AI contracts
+
+  /gsd-discuss-phase 32
+  or skip discussion:
+  /gsd-plan-phase 32
+
+✻ Brewed for 5m 59s

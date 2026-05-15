@@ -18,8 +18,9 @@ object CategorySeeder {
                 SubCategory("Snacks & Bakery", "bakery")
             )),
             CategorySeed("Transport", "directions_car", listOf(
+                SubCategory("Flights", "airplane_ticket"),
                 SubCategory("Fuel (Petrol/Diesel)", "local_gas_station"),
-                SubCategory("Cab & Uber", "local_taxi"),
+                SubCategory("Ride-Hailing", "local_taxi"),
                 SubCategory("Auto Rickshaw", "electric_moped"),
                 SubCategory("Public Transit (Train/Bus)", "directions_bus"),
                 SubCategory("Parking & Tolls", "local_parking"),
@@ -33,19 +34,17 @@ object CategorySeeder {
                 SubCategory("Gas", "local_fire_department"),
                 SubCategory("Mobile & Internet", "phone_android"),
                 SubCategory("Rent", "home"),
-                SubCategory("Subscriptions (OTT/Music)", "tv"),
+                SubCategory("Subscriptions (OTT/Music)", "live_tv"),
                 SubCategory("Garbage & Sewer", "delete")
             )),
             CategorySeed("Shopping", "shopping_bag", listOf(
                 SubCategory("Clothing & Shoes", "checkroom"),
                 SubCategory("Electronics", "devices"),
-                SubCategory("Home Goods & Appliances", "chair"),
                 SubCategory("Online Shopping", "inventory")
             )),
             CategorySeed("Health", "medical_services", listOf(
                 SubCategory("Doctor & Hospital", "local_hospital"),
                 SubCategory("Pharmacy / Medicine", "local_pharmacy"),
-                SubCategory("Dental", "medical_services"),
                 SubCategory("Mental Health", "psychology"),
                 SubCategory("Fitness & Gym", "fitness_center"),
                 SubCategory("Lab Tests / Diagnostics", "science")
@@ -53,11 +52,9 @@ object CategorySeeder {
             CategorySeed("Entertainment", "movie", listOf(
                 SubCategory("Movies", "theater_comedy"),
                 SubCategory("Games", "sports_esports"),
-                SubCategory("Events / Concerts", "music_note"),
-                SubCategory("Streaming Services", "live_tv")
+                SubCategory("Events / Concerts", "music_note")
             )),
-            CategorySeed("Travel", "flight", listOf(
-                SubCategory("Flights", "airplane_ticket"),
+            CategorySeed("Vacation", "flight", listOf(
                 SubCategory("Hotel / Accommodation", "hotel"),
                 SubCategory("Holiday Activities", "beach_access"),
                 SubCategory("Luggage & Gear", "luggage")
@@ -69,8 +66,9 @@ object CategorySeeder {
                 SubCategory("Charity / Donation", "volunteer_activism"),
                 SubCategory("Childcare (Daycare/Babysitting)", "child_care")
             )),
-            CategorySeed("Home", "house", listOf(
+            CategorySeed("Household", "house", listOf(
                 SubCategory("Maintenance / Repairs", "handyman"),
+                SubCategory("Home Goods & Appliances", "chair"),
                 SubCategory("Furniture & Decor", "chair"),
                 SubCategory("Cleaning Supplies", "cleaning_services"),
                 SubCategory("Gardening", "yard")
@@ -101,8 +99,6 @@ object CategorySeeder {
                 SubCategory("Travel Insurance", "flight")
             )),
             CategorySeed("Financial & Legal", "account_balance", listOf(
-                SubCategory("Credit Card EMI", "credit_card"),
-                SubCategory("Personal Loan EMI", "receipt_long"),
                 SubCategory("Bank Fees & Charges", "local_atm"),
                 SubCategory("Taxes", "description"),
                 SubCategory("Legal Fees", "gavel")
@@ -111,10 +107,7 @@ object CategorySeeder {
                 SubCategory("Storable", "inventory"),
                 SubCategory("Consumable", "local_mall")
             )),
-            CategorySeed("Other Expense", "category", listOf(
-                SubCategory("Miscellaneous", "more_horiz"),
-                SubCategory("Uncategorized", "category")
-            ))
+            CategorySeed("Miscellaneous", "category")
         )
 
         expenseCategories.forEach { seedCategory(it, "expense", categoryRepository) }
@@ -183,16 +176,13 @@ object CategorySeeder {
             )),
             CategorySeed("Real Estate", "real_estate_agent", listOf(
                 SubCategory("Residential", "home"),
-                SubCategory("Commercial", "corporate_fare"),
-                SubCategory("REIT", "show_chart")
+                SubCategory("Commercial", "corporate_fare")
             )),
             CategorySeed("NPS", "account_balance", listOf(
                 SubCategory("Tier I", "looks_one"),
                 SubCategory("Tier II", "looks_two")
             )),
-            CategorySeed("PPF", "folder", listOf(
-                SubCategory("Public Provident Fund", "flag")
-            )),
+            CategorySeed("PPF", "folder"),
             CategorySeed("Crypto", "currency_bitcoin", listOf(
                 SubCategory("Bitcoin", "currency_bitcoin"),
                 SubCategory("Ethereum", "currency_exchange"),

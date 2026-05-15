@@ -32,7 +32,6 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         db.execSQL("""
             CREATE TABLE IF NOT EXISTS peer_contacts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                contactId TEXT NOT NULL,
                 displayName TEXT NOT NULL,
                 phoneNumber TEXT NOT NULL,
                 photoUri TEXT,
@@ -51,6 +50,16 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE peer_contacts ADD COLUMN lookupKey TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE peer_contacts ADD COLUMN contactDeleted INTEGER NOT NULL DEFAULT 0")
+        // email and description may already exist from prior schema; catch duplicates gracefully
+        try { db.execSQL("ALTER TABLE peer_contacts ADD COLUMN email TEXT NOT NULL DEFAULT ''") } catch (_: Exception) {}
+        try { db.execSQL("ALTER TABLE peer_contacts ADD COLUMN description TEXT NOT NULL DEFAULT ''") } catch (_: Exception) {}
+    }
+}
+
 @Database(
     entities = [
         AccountEntity::class,
@@ -60,10 +69,9 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         BudgetEntity::class,
         GoalEntity::class,
         RecurringEntity::class,
-        TemplateEntity::class,
         PeerContact::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {
@@ -74,6 +82,5 @@ abstract class MoneyManagerDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun goalDao(): GoalDao
     abstract fun recurringDao(): RecurringDao
-    abstract fun templateDao(): TemplateDao
     abstract fun peerContactDao(): PeerContactDao
 }

@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.summary.components.*
-import com.moneymanager.app.ui.screens.TimeFilter
+import com.moneymanager.app.ui.constants.TimeFilter
 import kotlinx.coroutines.launch
 import java.util.Locale
 

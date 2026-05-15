@@ -5,6 +5,13 @@ import android.net.Uri
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -44,8 +51,9 @@ import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.FileHelper
 import com.moneymanager.app.ui.util.accountTypeIcon
-import com.moneymanager.app.ui.utils.evaluateExpression
+import com.moneymanager.app.ui.util.evaluateExpression
 import com.moneymanager.data.entity.*
+
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -89,7 +97,6 @@ fun AddEditTransactionDialog(
     // ── Core State ──
     var type by rememberSaveable { mutableStateOf(transaction?.type ?: initialType ?: "expense") }
 
-    // Filter accounts based on transaction type
     val filteredAccounts = remember(type, accounts) {
         when (type) {
             "expense" -> accounts.filter { it.type != "savings" }
@@ -101,8 +108,21 @@ fun AddEditTransactionDialog(
     var amount by rememberSaveable {
         mutableStateOf(transaction?.amount?.let { if (it < 0) (-it).toString() else it.toString() } ?: "")
     }
-    var selectedAccountId by rememberSaveable { mutableStateOf(transaction?.accountId ?: filteredAccounts.firstOrNull()?.id) }
-    var selectedToAccountId by rememberSaveable { mutableStateOf(transaction?.toAccountId) }
+    // BUG-02 fix: normalise transfer direction so the form always shows source→destination.
+    val isIncomingTransferLeg = transaction?.type == "transfer" &&
+        transaction.note.contains("transfer from", ignoreCase = true)
+    var selectedAccountId by rememberSaveable {
+        mutableStateOf(
+            if (isIncomingTransferLeg) transaction?.toAccountId ?: filteredAccounts.firstOrNull()?.id
+            else transaction?.accountId ?: filteredAccounts.firstOrNull()?.id
+        )
+    }
+    var selectedToAccountId by rememberSaveable {
+        mutableStateOf(
+            if (isIncomingTransferLeg) transaction?.accountId
+            else transaction?.toAccountId
+        )
+    }
     var showToAccountDropdown by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryId by rememberSaveable { mutableStateOf<Long?>(transaction?.categoryId) }
     var selectedPeerId by rememberSaveable { mutableStateOf<Long?>(transaction?.peerContactId) }
@@ -157,11 +177,18 @@ fun AddEditTransactionDialog(
     var showAccountDropdown by rememberSaveable { mutableStateOf(false) }
     var expectedReturnDate by rememberSaveable { mutableStateOf<Long?>(transaction?.expectedReturnDate) }
     var showExpectedReturnDatePicker by rememberSaveable { mutableStateOf(false) }
-    var expandedCategoryId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var expandedCategoryId by rememberSaveable {
+        mutableStateOf<Long?>(
+            transaction?.categoryId?.let { catId ->
+                categories.firstOrNull { it.id == catId }?.parentId
+            }
+        )
+    }
     var isCalculatorVisible by rememberSaveable { mutableStateOf(transaction?.amount == null || transaction.amount == 0.0) }
     var categorySearchQuery by rememberSaveable { mutableStateOf("") }
     var showCategorySearch by rememberSaveable { mutableStateOf(false) }
-    var showNoteInput by rememberSaveable { mutableStateOf(true) }
+    // Note is hidden by default; shown if editing an existing note
+    var showNoteInput by rememberSaveable { mutableStateOf(transaction?.note?.isNotEmpty() == true) }
     var showTagInput by rememberSaveable { mutableStateOf(transaction?.tagIds?.isNotEmpty() == true) }
     var showReceiptInput by rememberSaveable { mutableStateOf(transaction?.receiptPath != null) }
     var showGoalDropdown by rememberSaveable { mutableStateOf(false) }
@@ -193,6 +220,34 @@ fun AddEditTransactionDialog(
     val splitRemaining = mainAmount - splitTotal
     val context = LocalContext.current
 
+    // ── Accent Colors (animated on type switch) ──
+    val categoryColors = LocalCategoryColors.current
+    val colorScheme = MaterialTheme.colorScheme
+    val accentColor by animateColorAsState(
+        targetValue = when (type) {
+            "expense"  -> colorScheme.error
+            "income"   -> colorScheme.primary
+            "savings"  -> colorScheme.tertiary
+            "transfer" -> colorScheme.secondary
+            "lend", "borrow" -> categoryColors.lending
+            else       -> colorScheme.primary
+        },
+        animationSpec = tween(300),
+        label = "accentColor"
+    )
+    val accentContainer by animateColorAsState(
+        targetValue = when (type) {
+            "expense"  -> colorScheme.errorContainer
+            "income"   -> colorScheme.primaryContainer
+            "savings"  -> colorScheme.tertiaryContainer
+            "transfer" -> colorScheme.secondaryContainer
+            "lend", "borrow" -> categoryColors.lending.copy(alpha = 0.18f)
+            else       -> colorScheme.primaryContainer
+        },
+        animationSpec = tween(300),
+        label = "accentContainer"
+    )
+
     // ── Type Switch Handler ──
     fun onTypeSelected(newType: String) {
         if (newType == type) return
@@ -205,7 +260,6 @@ fun AddEditTransactionDialog(
         selectedPlatform = null
         expectedReturnDate = null
         splitEnabled = false
-        // Reset account if no longer valid for this type
         val validIds = when (newType) {
             "expense" -> accounts.filter { it.type != "savings" }
             "savings" -> accounts.filter { it.type == "savings" }
@@ -216,19 +270,22 @@ fun AddEditTransactionDialog(
         }
     }
 
-    // ── Transaction Builders ──
+    // ── Transaction Builder ──
     fun buildTransaction(): TransactionEntity? {
         val amt = amount.toDoubleOrNull() ?: return null
         if (amt <= 0 || selectedAccountId == null) return null
         val effectiveCategoryId =
             if (TransactionFeature.CATEGORY in features) (selectedSubCategory?.id ?: selectedParentCategory?.id)
             else null
+        val effectiveSubCategoryId =
+            if (TransactionFeature.CATEGORY in features) selectedSubCategory?.id else null
         return TransactionEntity(
             id = transaction?.id ?: 0,
             accountId = selectedAccountId!!,
             type = type,
             amount = amt,
             categoryId = effectiveCategoryId,
+            subCategoryId = effectiveSubCategoryId,
             peerContactId = if (TransactionFeature.PEER in features) selectedPeerId else null,
             expectedReturnDate = if (TransactionFeature.RETURN_DATE in features) expectedReturnDate else null,
             goalId = if (TransactionFeature.GOAL in features) selectedGoalId else null,
@@ -374,20 +431,20 @@ fun AddEditTransactionDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxSize()) {
-                // Top Bar
                 DialogTopBar(
                     title = "${if (isEdit) "Edit" else "Add"} ${config.displayName}",
+                    accentColor = accentColor,
                     onDismiss = onDismiss
                 )
 
-                // Type Selector
                 TransactionTypeHeader(selectedType = type, onTypeSelected = ::onTypeSelected)
 
-                // Scrollable Form Body
                 Column(
                     Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Spacer(Modifier.height(2.dp))
+
                     // 1. Amount, Date & Account Card
                     Box {
                         FormAmountDateAccountCard(
@@ -395,9 +452,10 @@ fun AddEditTransactionDialog(
                             currency = currency,
                             selectedDate = selectedDate,
                             selectedAccountId = selectedAccountId,
-                            accounts = filteredAccounts,
+                            accounts = accounts,
                             expectedReturnDate = expectedReturnDate,
                             showExpectedReturnDate = TransactionFeature.RETURN_DATE in features,
+                            accentColor = accentColor,
                             onAmountClick = { isCalculatorVisible = !isCalculatorVisible },
                             onDateClick = { showDatePicker = true },
                             onAccountClick = { showAccountDropdown = true },
@@ -422,7 +480,7 @@ fun AddEditTransactionDialog(
                         }
                     }
 
-                    // 2. Categories (CATEGORY feature types only)
+                    // 2. Categories
                     if (TransactionFeature.CATEGORY in features) {
                         FormCategorySection(
                             categories = categories,
@@ -430,6 +488,8 @@ fun AddEditTransactionDialog(
                             selectedCategoryId = selectedCategoryId,
                             expandedCategoryId = expandedCategoryId,
                             categoryUsageCounts = categoryUsageCounts,
+                            accentColor = accentColor,
+                            accentContainer = accentContainer,
                             onCategoryClick = { cat ->
                                 if (cat.id == selectedCategoryId) {
                                     selectedCategoryId = null
@@ -444,7 +504,7 @@ fun AddEditTransactionDialog(
                         )
                     }
 
-                    // 3. Peer Picker (PEER feature types only)
+                    // 3. Peer Picker
                     if (TransactionFeature.PEER in features) {
                         FormPeerSection(
                             peers = peers,
@@ -453,7 +513,7 @@ fun AddEditTransactionDialog(
                         )
                     }
 
-                    // 4. Transfer To-Account (TO_ACCOUNT feature types only)
+                    // 4. Transfer To-Account
                     if (TransactionFeature.TO_ACCOUNT in features) {
                         FormTransferSection(
                             accounts = accounts,
@@ -465,7 +525,7 @@ fun AddEditTransactionDialog(
                         )
                     }
 
-                    // 5. Goal & Platform (savings-specific)
+                    // 5. Goal & Platform
                     if (TransactionFeature.GOAL in features) {
                         FormGoalSection(
                             goals = goals,
@@ -486,26 +546,55 @@ fun AddEditTransactionDialog(
                         )
                     }
 
-                    // 6. Utility Actions Row
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // 6. Utility Action Chips (Note / Tags / Attach / Split)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(
-                            UtilityActionItemData(Icons.Default.Notes, "Note", if (description.isEmpty()) "Add note" else description, showNoteInput) { showNoteInput = !showNoteInput },
-                            UtilityActionItemData(Icons.Default.LocalOffer, "Tags", if (selectedTagIds.isEmpty()) "Add tags" else "${selectedTagIds.size}", showTagInput) { showTagInput = !showTagInput },
-                            UtilityActionItemData(Icons.Default.AttachFile, "Attach", if (receiptData == null) "Add" else "1", showReceiptInput) { showReceiptInput = !showReceiptInput },
-                            UtilityActionItemData(Icons.AutoMirrored.Filled.CallSplit, "Split", if (!splitEnabled) "Split" else "On", splitEnabled) { splitEnabled = !splitEnabled },
+                            UtilityActionItemData(
+                                Icons.AutoMirrored.Filled.Notes, "Note",
+                                if (description.isEmpty()) "Add note" else description,
+                                showNoteInput
+                            ) { showNoteInput = !showNoteInput },
+                            UtilityActionItemData(
+                                Icons.Default.LocalOffer, "Tags",
+                                if (selectedTagIds.isEmpty()) "Add tags" else "${selectedTagIds.size} tags",
+                                showTagInput
+                            ) { showTagInput = !showTagInput },
+                            UtilityActionItemData(
+                                Icons.Default.AttachFile, "Attach",
+                                if (receiptData == null) "Add" else "1 file",
+                                showReceiptInput
+                            ) { showReceiptInput = !showReceiptInput },
+                            UtilityActionItemData(
+                                Icons.AutoMirrored.Filled.CallSplit, "Split",
+                                if (!splitEnabled) "Off" else "On",
+                                splitEnabled
+                            ) { splitEnabled = !splitEnabled },
                         ).filter { a ->
                             when (a.label) {
-                                "Tags" -> TransactionFeature.TAGS in features
+                                "Tags"  -> TransactionFeature.TAGS in features
                                 "Split" -> TransactionFeature.SPLIT in features
-                                else -> true
+                                else    -> true
                             }
                         }.forEach { a ->
-                            UtilityActionItem(a.icon, a.label, a.subtext, a.onClick, a.active, Modifier.weight(1f))
+                            UtilityActionItem(
+                                icon = a.icon,
+                                label = a.label,
+                                subtext = a.subtext,
+                                onClick = a.onClick,
+                                isActive = a.active,
+                                accentColor = accentColor,
+                                accentContainer = accentContainer,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
 
-                    // 7. Split Section (SPLIT feature + enabled)
-                    if (TransactionFeature.SPLIT in features && splitEnabled) {
+                    // 7. Split Section
+                    AnimatedVisibility(
+                        visible = TransactionFeature.SPLIT in features && splitEnabled,
+                        enter = expandVertically() + fadeIn(tween(200)),
+                        exit = shrinkVertically() + fadeOut(tween(200))
+                    ) {
                         FormSplitSection(
                             splitRows = splitRows,
                             splitRemaining = splitRemaining,
@@ -528,8 +617,12 @@ fun AddEditTransactionDialog(
                         )
                     }
 
-                    // 8. Note Input
-                    if (showNoteInput) {
+                    // 8. Note Input (expandable)
+                    AnimatedVisibility(
+                        visible = showNoteInput,
+                        enter = expandVertically() + fadeIn(tween(200)),
+                        exit = shrinkVertically() + fadeOut(tween(200))
+                    ) {
                         OutlinedTextField(
                             value = description,
                             onValueChange = { description = it },
@@ -539,19 +632,41 @@ fun AddEditTransactionDialog(
                         )
                     }
 
-                    // 9. Tag Input (TAGS feature only)
-                    if (TransactionFeature.TAGS in features && showTagInput) {
+                    // 9. Tag Input (expandable)
+                    AnimatedVisibility(
+                        visible = TransactionFeature.TAGS in features && showTagInput,
+                        enter = expandVertically() + fadeIn(tween(200)),
+                        exit = shrinkVertically() + fadeOut(tween(200))
+                    ) {
+                        // BUG-01 fix: pass filtered tags + callbacks so the dropdown renders.
                         FormTagSection(
                             selectedTags = selectedTags,
+                            filteredTags = filteredTags.filter { it.id !in selectedTagIds },
                             tagQuery = tagQuery,
-                            onTagQueryChange = { tagQuery = it; showTagDropdown = true },
-                            onRemoveTag = { selectedTagIds = selectedTagIds - it }
+                            showDropdown = showTagDropdown,
+                            onTagQueryChange = { newQuery ->
+                                tagQuery = newQuery
+                                showTagDropdown = newQuery.isNotEmpty()
+                            },
+                            onRemoveTag = { selectedTagIds = selectedTagIds - it },
+                            onTagSelected = { tag ->
+                                selectedTagIds = selectedTagIds + tag.id
+                                tagQuery = ""
+                                showTagDropdown = false
+                            },
+                            onDismissDropdown = { showTagDropdown = false }
                         )
                     }
 
-                    // 10. Numeric Keypad
-                    if (isCalculatorVisible) {
+                    // 10. Numeric Keypad (expandable)
+                    AnimatedVisibility(
+                        visible = isCalculatorVisible,
+                        enter = expandVertically() + fadeIn(tween(200)),
+                        exit = shrinkVertically() + fadeOut(tween(200))
+                    ) {
                         NumericKeypad(
+                            accentColor = accentColor,
+                            accentContainer = accentContainer,
                             onNumberClick = { num ->
                                 if (num == ".") {
                                     if (amount.isEmpty()) amount = "0."
@@ -582,6 +697,7 @@ fun AddEditTransactionDialog(
                         isEdit = isEdit,
                         amountValid = amount.isNotEmpty(),
                         accountValid = selectedAccountId != null,
+                        accentColor = accentColor,
                         onCancel = onDismiss,
                         onSave = {
                             val tx = buildTransaction()
@@ -592,6 +708,7 @@ fun AddEditTransactionDialog(
                             }
                         }
                     )
+                    Spacer(Modifier.height(4.dp))
                 }
             }
         }
@@ -620,14 +737,21 @@ fun AddEditTransactionDialog(
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
-private fun DialogTopBar(title: String, onDismiss: () -> Unit) {
+private fun DialogTopBar(title: String, accentColor: Color, onDismiss: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onDismiss) { Icon(Icons.Default.ArrowBack, "Back") }
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        IconButton(onClick = onDismiss) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = accentColor
+        )
         IconButton(onClick = {}, enabled = false) {}
     }
 }
@@ -641,6 +765,7 @@ private fun FormAmountDateAccountCard(
     accounts: List<AccountEntity>,
     expectedReturnDate: Long?,
     showExpectedReturnDate: Boolean,
+    accentColor: Color,
     onAmountClick: () -> Unit,
     onDateClick: () -> Unit,
     onAccountClick: () -> Unit,
@@ -648,93 +773,126 @@ private fun FormAmountDateAccountCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Amount — left, large + prominent
+            Column(
+                modifier = Modifier.weight(1.4f).clickable { onAmountClick() },
+                verticalArrangement = Arrangement.Center
             ) {
-                // Amount
-                Column(modifier = Modifier.weight(1f).clickable { onAmountClick() }) {
-                    Text(
-                        "AMOUNT",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            CurrencyUtils.getCurrencySymbol(currency),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = if (amount.isEmpty()) "0" else amount,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (amount.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            else MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                VerticalDivider(
-                    modifier = Modifier.fillMaxHeight().padding(vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                Text(
+                    "AMOUNT",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 1.sp,
+                    fontSize = 9.sp
                 )
-
-                // Date & Account
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onDateClick() },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(14.dp), tint = Color(0xFF2E7D32))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(selectedDate)),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onAccountClick() },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.AccountBalance, null, modifier = Modifier.size(14.dp), tint = Color(0xFF2E7D32))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            accounts.find { it.id == selectedAccountId }?.name ?: "Select",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    if (showExpectedReturnDate) {
-                        Row(
-                            Modifier.fillMaxWidth().clickable { onExpectedReturnDateClick() },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.EventNote, null,
-                                modifier = Modifier.size(14.dp), tint = Color(0xFFE65100)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                expectedReturnDate?.let {
-                                    SimpleDateFormat("MMM dd", Locale.getDefault()).format(Date(it))
-                                } ?: "Return Date",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        CurrencyUtils.getCurrencySymbol(currency),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = if (amount.isEmpty())
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        else accentColor.copy(alpha = 0.85f),
+                        modifier = Modifier.padding(bottom = 5.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = if (amount.isEmpty()) "0" else amount,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (amount.isEmpty())
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                        else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 40.sp,
+                        lineHeight = 44.sp
+                    )
                 }
             }
+
+            VerticalDivider(
+                modifier = Modifier.fillMaxHeight().padding(vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+            )
+
+            // Date & Account — right, compact stacked tiles
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                CompactInfoTile(
+                    icon = Icons.Default.CalendarToday,
+                    label = "Date",
+                    value = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(selectedDate)),
+                    accentColor = accentColor,
+                    onClick = onDateClick
+                )
+                CompactInfoTile(
+                    icon = Icons.Default.AccountBalance,
+                    label = "Account",
+                    value = accounts.find { it.id == selectedAccountId }?.name ?: "Select Account",
+                    accentColor = accentColor,
+                    onClick = onAccountClick
+                )
+                if (showExpectedReturnDate) {
+                    CompactInfoTile(
+                        icon = Icons.AutoMirrored.Filled.EventNote,
+                        label = "Return Date",
+                        value = expectedReturnDate?.let {
+                            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(it))
+                        } ?: "Not set",
+                        accentColor = accentColor,
+                        onClick = onExpectedReturnDateClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactInfoTile(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    accentColor: Color,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, modifier = Modifier.size(13.dp), tint = accentColor)
+        Spacer(Modifier.width(6.dp))
+        Column {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 8.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                value,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -746,20 +904,32 @@ private fun FormCategorySection(
     selectedCategoryId: Long?,
     expandedCategoryId: Long?,
     categoryUsageCounts: Map<Long, Int> = emptyMap(),
+    accentColor: Color,
+    accentContainer: Color,
     onCategoryClick: (CategoryEntity) -> Unit,
     onBackClick: () -> Unit,
     onMoreClick: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth()) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Categories", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Category",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             if (expandedCategoryId != null) {
-                TextButton(onClick = onBackClick, contentPadding = PaddingValues(0.dp)) {
-                    Text("Back", style = MaterialTheme.typography.labelSmall)
+                TextButton(
+                    onClick = onBackClick,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(14.dp), tint = accentColor)
+                    Spacer(Modifier.width(2.dp))
+                    Text("Back", style = MaterialTheme.typography.labelSmall, color = accentColor)
                 }
             }
         }
@@ -769,6 +939,8 @@ private fun FormCategorySection(
             selectedCategoryId = selectedCategoryId,
             expandedCategoryId = expandedCategoryId,
             categoryUsageCounts = categoryUsageCounts,
+            accentColor = accentColor,
+            accentContainer = accentContainer,
             onCategoryClick = onCategoryClick,
             onMoreClick = onMoreClick
         )
@@ -818,7 +990,7 @@ private fun FormPeerSection(
 
     FormDropdownCard(
         label = "Person",
-        value = selectedPeer?.displayName ?: "Select person",
+        value = selectedPeer?.effectiveDisplayName ?: "Select person",
         expanded = expanded,
         onExpandedChange = { expanded = it },
         onDismissRequest = { expanded = false }
@@ -831,12 +1003,13 @@ private fun FormPeerSection(
         }
         peers.forEach { peer ->
             DropdownMenuItem(
-                text = { Text(peer.displayName) },
+                text = { Text(peer.effectiveDisplayName) },
                 onClick = { onPeerSelected(peer.id); expanded = false }
             )
         }
     }
 }
+
 @Composable
 private fun FormTransferSection(
     accounts: List<AccountEntity>,
@@ -862,7 +1035,7 @@ private fun FormTransferSection(
                     Column {
                         Text(acc.name)
                         Text(
-                            "${acc.type} \u00B7 ${acc.currency}",
+                            "${acc.type} · ${acc.currency}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -927,7 +1100,7 @@ private fun FormSplitSection(
                 Text(
                     "Remaining: ${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, splitRemaining)}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (abs(splitRemaining) < 0.01) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error
+                    color = if (abs(splitRemaining) < 0.01) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
                 )
                 Text(
                     "Allocated: ${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, splitTotal)}",
@@ -958,9 +1131,13 @@ private fun FormSplitSection(
 @Composable
 private fun FormTagSection(
     selectedTags: List<TagEntity>,
+    filteredTags: List<TagEntity>,
     tagQuery: String,
+    showDropdown: Boolean,
     onTagQueryChange: (String) -> Unit,
     onRemoveTag: (Long) -> Unit,
+    onTagSelected: (TagEntity) -> Unit,
+    onDismissDropdown: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (selectedTags.isNotEmpty()) {
@@ -976,13 +1153,26 @@ private fun FormTagSection(
                 }
             }
         }
-        OutlinedTextField(
-            value = tagQuery,
-            onValueChange = onTagQueryChange,
-            label = { Text("Search tags") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
+        Box {
+            OutlinedTextField(
+                value = tagQuery,
+                onValueChange = onTagQueryChange,
+                label = { Text("Search or add tag") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            DropdownMenu(
+                expanded = showDropdown && filteredTags.isNotEmpty(),
+                onDismissRequest = onDismissDropdown
+            ) {
+                filteredTags.forEach { tag ->
+                    DropdownMenuItem(
+                        text = { Text(tag.name) },
+                        onClick = { onTagSelected(tag) }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -991,6 +1181,7 @@ private fun FormActionButtons(
     isEdit: Boolean,
     amountValid: Boolean,
     accountValid: Boolean,
+    accentColor: Color,
     onCancel: () -> Unit,
     onSave: () -> Unit,
 ) {
@@ -1000,16 +1191,25 @@ private fun FormActionButtons(
     ) {
         OutlinedButton(
             onClick = onCancel,
-            modifier = Modifier.weight(1f).height(48.dp),
-            shape = RoundedCornerShape(8.dp)
+            modifier = Modifier.weight(1f).height(52.dp),
+            shape = RoundedCornerShape(12.dp)
         ) { Text("Cancel") }
         Button(
             onClick = onSave,
-            modifier = Modifier.weight(1f).height(48.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00897B)),
+            modifier = Modifier.weight(2f).height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accentColor,
+                disabledContainerColor = accentColor.copy(alpha = 0.38f)
+            ),
             enabled = amountValid && accountValid
-        ) { Text(if (isEdit) "Update" else "Save", color = Color.White) }
+        ) {
+            Text(
+                if (isEdit) "Update" else "Save",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        }
     }
 }
 
@@ -1104,49 +1304,77 @@ private fun FormCategorySearchDialog(
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  Reusable UI Components (internal)
+// ═══════════════════════════════════════════════════════════════
+
 @Composable
 internal fun TransactionTypeHeader(selectedType: String, onTypeSelected: (String) -> Unit) {
     val types = TransactionFormConfig.allTypes
     val categoryColors = LocalCategoryColors.current
+    val colorScheme = MaterialTheme.colorScheme
+
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
         types.forEach { item ->
             val isSelected = selectedType == item.id
-            val color = when (item.id) {
-                "expense" -> categoryColors.expense
-                "income" -> categoryColors.income
-                "transfer" -> categoryColors.transfer
-                "savings" -> categoryColors.savings
+            val typeAccent = when (item.id) {
+                "expense"  -> colorScheme.error
+                "income"   -> colorScheme.primary
+                "savings"  -> colorScheme.tertiary
+                "transfer" -> colorScheme.secondary
                 "lend", "borrow" -> categoryColors.lending
-                else -> categoryColors.expense
+                else       -> colorScheme.primary
             }
+            val typeContainer = when (item.id) {
+                "expense"  -> colorScheme.errorContainer
+                "income"   -> colorScheme.primaryContainer
+                "savings"  -> colorScheme.tertiaryContainer
+                "transfer" -> colorScheme.secondaryContainer
+                "lend", "borrow" -> categoryColors.lending.copy(alpha = 0.18f)
+                else       -> colorScheme.primaryContainer
+            }
+
+            val bgColor by animateColorAsState(
+                if (isSelected) typeContainer else Color.Transparent,
+                animationSpec = tween(220),
+                label = "tabBg"
+            )
+            val contentColor by animateColorAsState(
+                if (isSelected) typeAccent else colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                animationSpec = tween(220),
+                label = "tabContent"
+            )
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.weight(1f).clickable { onTypeSelected(item.id) }
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(bgColor)
+                    .clickable { onTypeSelected(item.id) }
+                    .padding(vertical = 7.dp, horizontal = 2.dp)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) color.copy(alpha = 0.1f) else Color.Transparent,
-                    modifier = Modifier.size(36.dp),
-                    border = if (isSelected) BorderStroke(1.dp, color.copy(alpha = 0.5f)) else null
-                ) {
-                    Icon(
-                        item.icon,
-                        item.label,
-                        tint = if (isSelected) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(6.dp)
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
+                Icon(
+                    item.icon,
+                    contentDescription = item.label,
+                    tint = contentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.height(3.dp))
                 Text(
                     item.label,
                     style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) color else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -1160,43 +1388,58 @@ internal fun UtilityActionItem(
     subtext: String,
     onClick: () -> Unit,
     isActive: Boolean,
+    accentColor: Color,
+    accentContainer: Color,
     modifier: Modifier = Modifier,
 ) {
+    val bgColor by animateColorAsState(
+        if (isActive) accentContainer.copy(alpha = 0.25f)
+        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        animationSpec = tween(200),
+        label = "chipBg"
+    )
+    val contentColor by animateColorAsState(
+        if (isActive) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(200),
+        label = "chipContent"
+    )
+    val borderColor by animateColorAsState(
+        if (isActive) accentColor.copy(alpha = 0.45f)
+        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+        animationSpec = tween(200),
+        label = "chipBorder"
+    )
+
     Card(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
-            else MaterialTheme.colorScheme.surface
-        ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        border = BorderStroke(1.dp, borderColor)
     ) {
-        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                icon, null,
-                modifier = Modifier.size(20.dp),
-                tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Icon(icon, null, modifier = Modifier.size(18.dp), tint = contentColor)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                color = contentColor,
+                fontSize = 10.sp
             )
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    subtext,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = 8.sp
-                )
-            }
-            Spacer(Modifier.weight(1f))
-            Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.outline)
+            Text(
+                subtext,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor.copy(alpha = 0.65f),
+                fontSize = 8.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -1207,6 +1450,8 @@ internal fun CategoryCarousel(
     type: String,
     selectedCategoryId: Long?,
     expandedCategoryId: Long?,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    accentContainer: Color = MaterialTheme.colorScheme.primaryContainer,
     categoryUsageCounts: Map<Long, Int> = emptyMap(),
     onCategoryClick: (CategoryEntity) -> Unit,
     onMoreClick: () -> Unit,
@@ -1221,7 +1466,8 @@ internal fun CategoryCarousel(
         }
     }
     val displayCats = if (expandedCategoryId != null) {
-        val subs = filtered.filter { it.parentId == expandedCategoryId }.sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
+        val subs = filtered.filter { it.parentId == expandedCategoryId }
+            .sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
         val p = parents.firstOrNull { it.id == expandedCategoryId }
         if (p != null) listOf(p) + subs else subs
     } else parents.take(5)
@@ -1233,55 +1479,86 @@ internal fun CategoryCarousel(
     ) {
         displayCats.forEach { cat ->
             val isSelected = selectedCategoryId == cat.id
+            val itemBg by animateColorAsState(
+                if (isSelected) accentContainer.copy(alpha = 0.3f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                animationSpec = tween(200),
+                label = "catBg"
+            )
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.width(56.dp).clickable { onCategoryClick(cat) }
+                modifier = Modifier.width(62.dp).clickable { onCategoryClick(cat) }
             ) {
                 Box(contentAlignment = Alignment.TopEnd) {
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                        modifier = Modifier.size(48.dp),
-                        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                        shape = RoundedCornerShape(14.dp),
+                        color = itemBg,
+                        modifier = Modifier.size(56.dp),
+                        border = if (isSelected) BorderStroke(1.5.dp, accentColor.copy(alpha = 0.7f)) else null,
+                        shadowElevation = if (isSelected) 3.dp else 0.dp
                     ) {
-                        Box(contentAlignment = Alignment.Center) { CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, fontSize = 20.sp) }
+                        Box(contentAlignment = Alignment.Center) {
+                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, fontSize = 24.sp)
+                        }
                     }
                     if (isSelected) {
-                        Icon(
-                            Icons.Default.CheckCircle, null,
-                            modifier = Modifier.size(14.dp).background(Color.White, CircleShape),
-                            tint = Color.Red
-                        )
+                        // Check indicator: surface ring + accent fill
+                        Box(
+                            Modifier
+                                .size(17.dp)
+                                .background(MaterialTheme.colorScheme.surface, CircleShape)
+                                .padding(2.dp)
+                                .background(accentColor, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Check, null,
+                                modifier = Modifier.size(9.dp),
+                                tint = MaterialTheme.colorScheme.surface
+                            )
+                        }
                     }
                 }
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     cat.name,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
-                    fontSize = 8.sp
+                    fontSize = 9.sp,
+                    color = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                 )
             }
         }
         if (expandedCategoryId == null) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.width(56.dp).clickable { onMoreClick() }
+                modifier = Modifier.width(62.dp).clickable { onMoreClick() }
             ) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                    modifier = Modifier.size(48.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    modifier = Modifier.size(56.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.MoreHoriz, null, tint = Color(0xFF00897B), modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Default.MoreHoriz, null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
-                Spacer(Modifier.height(2.dp))
-                Text("More", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, fontSize = 8.sp)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "More",
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    fontSize = 9.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

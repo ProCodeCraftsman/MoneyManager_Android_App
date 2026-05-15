@@ -1,7 +1,6 @@
 package com.moneymanager.di
 
-import android.content.Context
-import com.google.mlkit.genai.common.PromptClient
+import com.google.mlkit.genai.prompt.Generation
 import com.moneymanager.data.ai.DeviceCapabilityManager
 import com.moneymanager.data.ai.NanoAiClient
 import com.moneymanager.data.preferences.PreferencesManager
@@ -10,7 +9,6 @@ import com.moneymanager.domain.ai.GenerateDraftFromTextUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -21,9 +19,9 @@ object AiModule {
     @Provides
     @Singleton
     @javax.annotation.Nullable
-    fun provideGenAiClient(@ApplicationContext context: Context): GenAiClient? {
+    fun provideGenAiClient(): GenAiClient? {
         return try {
-            PromptClient.create(context)
+            Generation.getClient()
             NanoAiClient()
         } catch (e: Exception) {
             null

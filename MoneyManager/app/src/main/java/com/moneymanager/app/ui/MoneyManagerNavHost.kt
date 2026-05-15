@@ -24,31 +24,31 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import com.moneymanager.app.ui.auth.AppLockScreen
-import com.moneymanager.app.ui.screens.AccountsScreen
-import com.moneymanager.app.ui.screens.AccountsViewModel
-import com.moneymanager.app.ui.screens.BudgetsScreen
-import com.moneymanager.app.ui.screens.BudgetsViewModel
-import com.moneymanager.app.ui.screens.CategoriesScreen
-import com.moneymanager.app.ui.screens.CategoriesViewModel
-import com.moneymanager.app.ui.screens.GoalsScreen
-import com.moneymanager.app.ui.screens.GoalsViewModel
-import com.moneymanager.app.ui.screens.PeerListScreen
-import com.moneymanager.app.ui.screens.PeerListViewModel
-import com.moneymanager.app.ui.screens.RecurringFormScreen
-import com.moneymanager.app.ui.screens.RecurringListScreen
-import com.moneymanager.app.ui.screens.RecurringViewModel
+import com.moneymanager.app.ui.accounts.AccountsScreen
+import com.moneymanager.app.ui.accounts.AccountsViewModel
+import com.moneymanager.app.ui.addtransaction.AddTransactionScreen
+import com.moneymanager.app.ui.borrowlend.BorrowLendScreen
+import com.moneymanager.app.ui.borrowlend.BorrowLendViewModel
+import com.moneymanager.app.ui.budgets.BudgetsScreen
+import com.moneymanager.app.ui.budgets.BudgetsViewModel
+import com.moneymanager.app.ui.categories.CategoriesScreen
+import com.moneymanager.app.ui.categories.CategoriesViewModel
+import com.moneymanager.app.ui.goals.GoalsScreen
+import com.moneymanager.app.ui.goals.GoalsViewModel
+import com.moneymanager.app.ui.peerlist.PeerListScreen
+import com.moneymanager.app.ui.peerlist.PeerListViewModel
+import com.moneymanager.app.ui.recurring.RecurringFormScreen
+import com.moneymanager.app.ui.recurring.RecurringListScreen
+import com.moneymanager.app.ui.recurring.RecurringViewModel
+import com.moneymanager.app.ui.settings.SettingsScreen
+import com.moneymanager.app.ui.settings.SettingsViewModel
 import com.moneymanager.app.ui.summary.SummaryScreen
-import com.moneymanager.app.ui.screens.SettingsScreen
-import com.moneymanager.app.ui.screens.SettingsViewModel
-import com.moneymanager.app.ui.screens.TagsScreen
-import com.moneymanager.app.ui.screens.TagsViewModel
-import com.moneymanager.app.ui.screens.AddTransactionScreen
-import com.moneymanager.app.ui.screens.TemplatesScreen
-import com.moneymanager.app.ui.screens.TemplatesViewModel
-import com.moneymanager.app.ui.screens.TransactionsScreen
-import com.moneymanager.app.ui.screens.TransactionsViewModel
-import com.moneymanager.app.ui.screens.TransferScreen
-import com.moneymanager.app.ui.screens.TransferViewModel
+import com.moneymanager.app.ui.tags.TagsScreen
+import com.moneymanager.app.ui.tags.TagsViewModel
+import com.moneymanager.app.ui.transactions.TransactionsScreen
+import com.moneymanager.app.ui.transactions.TransactionsViewModel
+import com.moneymanager.app.ui.transfer.TransferScreen
+import com.moneymanager.app.ui.transfer.TransferViewModel
 import com.moneymanager.app.ui.util.AppLockManager
 import com.moneymanager.app.ui.util.AppLockState
 import com.moneymanager.data.preferences.PreferencesManager
@@ -92,7 +92,6 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object Transfer : Screen("transfer", "Transfer", Icons.Default.SwapHoriz)
     data object Recurring : Screen("recurring", "Recurring", Icons.Default.Repeat)
     data object RecurringForm : Screen("recurring_form?recurringId={recurringId}", "Recurring Form", null)
-    data object Templates : Screen("templates", "Templates", Icons.Default.Description)
     data object Peers : Screen("peers", "Peers", Icons.Default.People)
     data object BorrowLend : Screen("borrow_lend", "Borrow/Lend", null)
     data object AddTransaction : Screen("add_transaction?type={type}", "Add Transaction", null)
@@ -257,8 +256,7 @@ fun MoneyManagerNavHost(
                         onNavigateToPeers = { navController.navigate(Screen.Peers.route) },
                         onNavigateToBudgets = { navController.navigate(Screen.Budgets.route) },
                         onNavigateToGoals = { navController.navigate(Screen.Goals.route) },
-                        onNavigateToRecurring = { navController.navigate(Screen.Recurring.route) },
-                        onNavigateToTemplates = { navController.navigate(Screen.Templates.route) }
+                        onNavigateToRecurring = { navController.navigate(Screen.Recurring.route) }
                     )
                 }
                 composable(Screen.Summary.route) {
@@ -314,12 +312,6 @@ fun MoneyManagerNavHost(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
-                composable(Screen.Templates.route) {
-                    TemplatesScreen(
-                        viewModel = hiltViewModel(),
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
                 composable(Screen.Peers.route) {
                     PeerListScreen(
                         viewModel = hiltViewModel<PeerListViewModel>(),
@@ -341,6 +333,7 @@ fun MoneyManagerNavHost(
                         onDismiss = { navController.popBackStack() }
                     )
                 }
+
             }
         }
     }

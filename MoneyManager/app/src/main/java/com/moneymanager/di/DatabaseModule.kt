@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.moneymanager.data.MIGRATION_2_3
 import com.moneymanager.data.MIGRATION_5_6
 import com.moneymanager.data.MIGRATION_6_7
+import com.moneymanager.data.MIGRATION_7_8
 import com.moneymanager.data.MoneyManagerDatabase
 import com.moneymanager.data.dao.*
 import dagger.Module
@@ -26,7 +27,7 @@ object DatabaseModule {
             MoneyManagerDatabase::class.java,
             "moneymanager.db"
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_2_3, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -64,11 +65,6 @@ object DatabaseModule {
     @Provides
     fun provideRecurringDao(database: MoneyManagerDatabase): RecurringDao {
         return database.recurringDao()
-    }
-
-    @Provides
-    fun provideTemplateDao(database: MoneyManagerDatabase): TemplateDao {
-        return database.templateDao()
     }
 
     @Provides

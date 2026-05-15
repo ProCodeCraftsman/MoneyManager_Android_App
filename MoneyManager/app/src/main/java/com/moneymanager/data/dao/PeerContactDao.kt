@@ -15,6 +15,12 @@ interface PeerContactDao {
     @Query("SELECT * FROM peer_contacts WHERE id = :id")
     fun getPeerByIdFlow(id: Long): Flow<PeerContact?>
 
+    @Query("SELECT * FROM peer_contacts WHERE lookupKey = :lookupKey LIMIT 1")
+    suspend fun getPeerByLookupKey(lookupKey: String): PeerContact?
+
+    @Query("SELECT * FROM peer_contacts WHERE lookupKey = :lookupKey LIMIT 1")
+    fun getPeerByLookupKeyFlow(lookupKey: String): Flow<PeerContact?>
+
     @Query("SELECT SUM(totalGiven) FROM peer_contacts")
     fun getTotalLent(): Flow<Double?>
 
