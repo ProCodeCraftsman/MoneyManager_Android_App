@@ -255,6 +255,7 @@ fun AddEditTransactionDialog(
     // ── Type Switch Handler ──
     fun onTypeSelected(newType: String) {
         if (newType == type) return
+        aiSuggestedFields = aiSuggestedFields - "type"
         type = newType
         selectedCategoryId = null
         expandedCategoryId = null
@@ -405,6 +406,7 @@ fun AddEditTransactionDialog(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
+                        aiSuggestedFields = aiSuggestedFields - "date"
                         val cal = Calendar.getInstance().apply { timeInMillis = millis }
                         val timeCal = Calendar.getInstance().apply { timeInMillis = selectedDate }
                         cal.set(Calendar.HOUR_OF_DAY, timeCal.get(Calendar.HOUR_OF_DAY))
@@ -429,6 +431,7 @@ fun AddEditTransactionDialog(
             text = { TimePicker(state = timePickerState) },
             confirmButton = {
                 TextButton(onClick = {
+                    aiSuggestedFields = aiSuggestedFields - "date"
                     val cal = Calendar.getInstance().apply { timeInMillis = selectedDate }
                     cal.set(Calendar.HOUR_OF_DAY, timePickerState.hour)
                     cal.set(Calendar.MINUTE, timePickerState.minute)
@@ -475,7 +478,28 @@ fun AddEditTransactionDialog(
                     onDismiss = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() }
                 )
 
-                TransactionTypeHeader(selectedType = type, onTypeSelected = ::onTypeSelected)
+                val isTypeAiField = "type" in aiSuggestedFields
+                BadgedBox(
+                    badge = {
+                        if (isTypeAiField) {
+                            Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                Icon(
+                                    Icons.Default.AutoAwesome, contentDescription = "AI suggested",
+                                    modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    Box(
+                        modifier = if (isTypeAiField) Modifier.background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            RoundedCornerShape(4.dp)
+                        ).padding(horizontal = 2.dp) else Modifier
+                    ) {
+                        TransactionTypeHeader(selectedType = type, onTypeSelected = ::onTypeSelected)
+                    }
+                }
 
                 Column(
                     Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp),
@@ -521,8 +545,27 @@ fun AddEditTransactionDialog(
                     }
 
                     // 1. Amount, Date & Account Card
-                    Box {
-                        FormAmountDateAccountCard(
+                    val isAmountDateAccountAiField = "amount" in aiSuggestedFields || "date" in aiSuggestedFields || "account" in aiSuggestedFields
+                    BadgedBox(
+                        badge = {
+                            if (isAmountDateAccountAiField) {
+                                Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                    Icon(
+                                        Icons.Default.AutoAwesome, contentDescription = "AI suggested",
+                                        modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+                        }
+                    ) {
+                        Box(
+                            modifier = if (isAmountDateAccountAiField) Modifier.background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                RoundedCornerShape(4.dp)
+                            ).padding(horizontal = 2.dp) else Modifier
+                        ) {
+                            Box {
+                                FormAmountDateAccountCard(
                             amount = amount,
                             currency = currency,
                             selectedDate = selectedDate,
@@ -549,34 +592,58 @@ fun AddEditTransactionDialog(
                                             Text(acc.name)
                                         }
                                     },
-                                    onClick = { selectedAccountId = acc.id; showAccountDropdown = false }
+                                    onClick = { aiSuggestedFields = aiSuggestedFields - "account"; selectedAccountId = acc.id; showAccountDropdown = false }
                                 )
+                            }
+                        }
                             }
                         }
                     }
 
                     // 2. Categories
                     if (TransactionFeature.CATEGORY in features) {
-                        FormCategorySection(
-                            categories = categories,
-                            categoryFilter = categoryFilter,
-                            selectedCategoryId = selectedCategoryId,
-                            expandedCategoryId = expandedCategoryId,
-                            categoryUsageCounts = categoryUsageCounts,
-                            accentColor = accentColor,
-                            accentContainer = accentContainer,
-                            onCategoryClick = { cat ->
-                                if (cat.id == selectedCategoryId) {
-                                    selectedCategoryId = null
-                                    if (cat.parentId == null) expandedCategoryId = null
-                                } else {
-                                    selectedCategoryId = cat.id
-                                    if (cat.parentId == null) expandedCategoryId = cat.id
+                        val isCategoryAiField = "category" in aiSuggestedFields
+                        BadgedBox(
+                            badge = {
+                                if (isCategoryAiField) {
+                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                        Icon(
+                                            Icons.Default.AutoAwesome, contentDescription = "AI suggested",
+                                            modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
                                 }
-                            },
-                            onBackClick = { expandedCategoryId = null },
-                            onMoreClick = { showCategorySearch = true }
-                        )
+                            }
+                        ) {
+                            Box(
+                                modifier = if (isCategoryAiField) Modifier.background(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    RoundedCornerShape(4.dp)
+                                ).padding(horizontal = 2.dp) else Modifier
+                            ) {
+                                FormCategorySection(
+                                    categories = categories,
+                                    categoryFilter = categoryFilter,
+                                    selectedCategoryId = selectedCategoryId,
+                                    expandedCategoryId = expandedCategoryId,
+                                    categoryUsageCounts = categoryUsageCounts,
+                                    accentColor = accentColor,
+                                    accentContainer = accentContainer,
+                                    onCategoryClick = { cat ->
+                                        aiSuggestedFields = aiSuggestedFields - "category"
+                                        if (cat.id == selectedCategoryId) {
+                                            selectedCategoryId = null
+                                            if (cat.parentId == null) expandedCategoryId = null
+                                        } else {
+                                            selectedCategoryId = cat.id
+                                            if (cat.parentId == null) expandedCategoryId = cat.id
+                                        }
+                                    },
+                                    onBackClick = { expandedCategoryId = null },
+                                    onMoreClick = { showCategorySearch = true }
+                                )
+                            }
+                        }
                     }
 
                     // 3. Peer Picker
@@ -743,6 +810,7 @@ fun AddEditTransactionDialog(
                             accentColor = accentColor,
                             accentContainer = accentContainer,
                             onNumberClick = { num ->
+                                aiSuggestedFields = aiSuggestedFields - "amount"
                                 if (num == ".") {
                                     if (amount.isEmpty()) amount = "0."
                                     else if (!amount.contains(".")) amount += "."
@@ -754,9 +822,10 @@ fun AddEditTransactionDialog(
                                     if (amount == "0") amount = num else amount += num
                                 }
                             },
-                            onDeleteClick = { if (amount.isNotEmpty()) amount = amount.dropLast(1) },
-                            onClearClick = { amount = "" },
+                            onDeleteClick = { aiSuggestedFields = aiSuggestedFields - "amount"; if (amount.isNotEmpty()) amount = amount.dropLast(1) },
+                            onClearClick = { aiSuggestedFields = aiSuggestedFields - "amount"; amount = "" },
                             onEvaluate = {
+                                aiSuggestedFields = aiSuggestedFields - "amount"
                                 try {
                                     val res = evaluateExpression(amount)
                                     amount = if (res % 1.0 == 0.0) res.toInt().toString()
@@ -798,6 +867,7 @@ fun AddEditTransactionDialog(
             categoryFilter = categoryFilter,
             categoryUsageCounts = categoryUsageCounts,
             onCategorySelected = { cat ->
+                aiSuggestedFields = aiSuggestedFields - "category"
                 selectedCategoryId = cat.id
                 expandedCategoryId = cat.parentId
                 showCategorySearch = false
