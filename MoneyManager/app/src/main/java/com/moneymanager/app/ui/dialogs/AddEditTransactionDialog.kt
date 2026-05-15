@@ -648,11 +648,32 @@ fun AddEditTransactionDialog(
 
                     // 3. Peer Picker
                     if (TransactionFeature.PEER in features) {
-                        FormPeerSection(
-                            peers = peers,
-                            selectedPeerId = selectedPeerId,
-                            onPeerSelected = { selectedPeerId = it }
-                        )
+                        val isPeerAiField = "peer" in aiSuggestedFields
+                        BadgedBox(
+                            badge = {
+                                if (isPeerAiField) {
+                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                        Icon(
+                                            Icons.Default.AutoAwesome, contentDescription = "AI suggested",
+                                            modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Box(
+                                modifier = if (isPeerAiField) Modifier.background(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    RoundedCornerShape(4.dp)
+                                ).padding(horizontal = 2.dp) else Modifier
+                            ) {
+                                FormPeerSection(
+                                    peers = peers,
+                                    selectedPeerId = selectedPeerId,
+                                    onPeerSelected = { aiSuggestedFields = aiSuggestedFields - "peer"; selectedPeerId = it }
+                                )
+                            }
+                        }
                     }
 
                     // 4. Transfer To-Account
@@ -765,13 +786,34 @@ fun AddEditTransactionDialog(
                         enter = expandVertically() + fadeIn(tween(200)),
                         exit = shrinkVertically() + fadeOut(tween(200))
                     ) {
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { description = it },
-                            label = { Text("Note") },
-                            modifier = Modifier.fillMaxWidth(),
-                            maxLines = 1
-                        )
+                        val isNoteAiField = "note" in aiSuggestedFields
+                        BadgedBox(
+                            badge = {
+                                if (isNoteAiField) {
+                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                        Icon(
+                                            Icons.Default.AutoAwesome, contentDescription = "AI suggested",
+                                            modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Box(
+                                modifier = if (isNoteAiField) Modifier.background(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    RoundedCornerShape(4.dp)
+                                ).padding(horizontal = 2.dp) else Modifier
+                            ) {
+                                OutlinedTextField(
+                                    value = description,
+                                    onValueChange = { aiSuggestedFields = aiSuggestedFields - "note"; description = it },
+                                    label = { Text("Note") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
 
                     // 9. Tag Input (expandable)
@@ -780,24 +822,46 @@ fun AddEditTransactionDialog(
                         enter = expandVertically() + fadeIn(tween(200)),
                         exit = shrinkVertically() + fadeOut(tween(200))
                     ) {
-                        // BUG-01 fix: pass filtered tags + callbacks so the dropdown renders.
-                        FormTagSection(
-                            selectedTags = selectedTags,
-                            filteredTags = filteredTags.filter { it.id !in selectedTagIds },
-                            tagQuery = tagQuery,
-                            showDropdown = showTagDropdown,
-                            onTagQueryChange = { newQuery ->
-                                tagQuery = newQuery
-                                showTagDropdown = newQuery.isNotEmpty()
-                            },
-                            onRemoveTag = { selectedTagIds = selectedTagIds - it },
-                            onTagSelected = { tag ->
-                                selectedTagIds = selectedTagIds + tag.id
-                                tagQuery = ""
-                                showTagDropdown = false
-                            },
-                            onDismissDropdown = { showTagDropdown = false }
-                        )
+                        val isTagsAiField = "tags" in aiSuggestedFields
+                        BadgedBox(
+                            badge = {
+                                if (isTagsAiField) {
+                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                                        Icon(
+                                            Icons.Default.AutoAwesome, contentDescription = "AI suggested",
+                                            modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Box(
+                                modifier = if (isTagsAiField) Modifier.background(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    RoundedCornerShape(4.dp)
+                                ).padding(horizontal = 2.dp) else Modifier
+                            ) {
+                                // BUG-01 fix: pass filtered tags + callbacks so the dropdown renders.
+                                FormTagSection(
+                                    selectedTags = selectedTags,
+                                    filteredTags = filteredTags.filter { it.id !in selectedTagIds },
+                                    tagQuery = tagQuery,
+                                    showDropdown = showTagDropdown,
+                                    onTagQueryChange = { newQuery ->
+                                        tagQuery = newQuery
+                                        showTagDropdown = newQuery.isNotEmpty()
+                                    },
+                                    onRemoveTag = { aiSuggestedFields = aiSuggestedFields - "tags"; selectedTagIds = selectedTagIds - it },
+                                    onTagSelected = { tag ->
+                                        aiSuggestedFields = aiSuggestedFields - "tags"
+                                        selectedTagIds = selectedTagIds + tag.id
+                                        tagQuery = ""
+                                        showTagDropdown = false
+                                    },
+                                    onDismissDropdown = { showTagDropdown = false }
+                                )
+                            }
+                        }
                     }
 
                     // 10. Numeric Keypad (expandable)
