@@ -579,7 +579,13 @@ Plans:
   4. On a non-AICore device all three screens are reachable; "AI Fill" is absent; manual entry works end-to-end
   5. VoiceMemoScreen is hidden entirely when SpeechRecognizer.isRecognitionAvailable() returns false
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 35-01-PLAN.md — AiDraftUiState + AiDraftViewModel (Wave 1 foundation)
+- [ ] 35-02-PLAN.md — SmsPickerScreen
+- [ ] 35-03-PLAN.md — ReceiptScanScreen
+- [ ] 35-04-PLAN.md — VoiceMemoScreen
 
 **UI hint**: yes
 
