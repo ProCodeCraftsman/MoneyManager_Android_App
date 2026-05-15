@@ -50,6 +50,7 @@ import com.moneymanager.app.ui.components.SplitRowCard
 import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.FileHelper
+import com.moneymanager.domain.ai.TransactionDraft
 import com.moneymanager.app.ui.util.accountTypeIcon
 import com.moneymanager.app.ui.util.evaluateExpression
 import com.moneymanager.data.entity.*
@@ -89,6 +90,8 @@ fun AddEditTransactionDialog(
     goals: List<GoalEntity>,
     initialType: String?,
     categoryUsageCounts: Map<Long, Int> = emptyMap(),
+    initialDraft: TransactionDraft? = null,
+    onDraftDismiss: (() -> Unit)? = null,
     onDismiss: () -> Unit,
     onConfirm: (TransactionEntity, List<TransactionEntity>?) -> Unit,
 ) {
@@ -352,6 +355,29 @@ fun AddEditTransactionDialog(
         }
     }
 
+    // ── Draft Population ──
+    LaunchedEffect(initialDraft) {
+        if (initialDraft != null) {
+            initialDraft.typeId?.let { type = it }
+            initialDraft.amount?.let { amount = if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() }
+            initialDraft.categoryId?.let { selectedCategoryId = it }
+            initialDraft.accountId?.let { selectedAccountId = it }
+            initialDraft.peerContactId?.let { selectedPeerId = it }
+            if (initialDraft.tagIds.isNotEmpty()) {
+                selectedTagIds = initialDraft.tagIds.toSet()
+                showTagInput = true
+            }
+            if (initialDraft.description != null) {
+                description = initialDraft.description
+                showNoteInput = true
+            } else if (initialDraft.note != null) {
+                description = initialDraft.note
+                showNoteInput = true
+            }
+            initialDraft.date?.let { selectedDate = it }
+        }
+    }
+
     // ── File Picker ──
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { receiptData = FileHelper.saveReceipt(context, it) }
@@ -428,13 +454,13 @@ fun AddEditTransactionDialog(
     }
 
     // ── Main Dialog ──
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = { onDraftDismiss?.invoke(); onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxSize()) {
                 DialogTopBar(
                     title = "${if (isEdit) "Edit" else "Add"} ${config.displayName}",
                     accentColor = accentColor,
-                    onDismiss = onDismiss
+                    onDismiss = { onDraftDismiss?.invoke(); onDismiss() }
                 )
 
                 TransactionTypeHeader(selectedType = type, onTypeSelected = ::onTypeSelected)
@@ -698,7 +724,7 @@ fun AddEditTransactionDialog(
                         amountValid = amount.isNotEmpty(),
                         accountValid = selectedAccountId != null,
                         accentColor = accentColor,
-                        onCancel = onDismiss,
+                        onCancel = { onDraftDismiss?.invoke(); onDismiss() },
                         onSave = {
                             val tx = buildTransaction()
                             if (tx != null) {
