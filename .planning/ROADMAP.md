@@ -493,7 +493,7 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
 - [x] **Phase 32: Domain AI Foundation** - GenAiClient interface, TransactionDraft, TransactionType enum, PromptContextBuilder, GenerateDraftFromTextUseCase — zero Android imports ✅
 - [x] **Phase 33: Data AI Implementation** - Gradle dependencies, PreferencesManager extension, PromptBuilder, DraftParser, NanoAiClient, DeviceCapabilityManager (4-state) ✅
 - [x] **Phase 34: DI Wiring & AI Availability** - AiModule nullable @Provides, MoneyManagerApp startup hook, Flow<Boolean> availability repository ✅
-- [ ] **Phase 35: AI Draft Source Screens** - AiDraftViewModel, SmsPickerScreen, ReceiptScanScreen, VoiceMemoScreen, shared UI state
+- [x] **Phase 35: AI Draft Source Screens** - AiDraftViewModel, SmsPickerScreen, ReceiptScanScreen, VoiceMemoScreen, shared UI state ✅
 - [ ] **Phase 36: Dialog Integration & FAB** - Expandable 3-source FAB, AddEditTransactionDialog initialDraft, source banner, AI field highlighting, nav routes
 
 ## Phase Details
@@ -582,10 +582,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 35-01-PLAN.md — AiDraftUiState + AiDraftViewModel (Wave 1 foundation)
-- [ ] 35-02-PLAN.md — SmsPickerScreen
-- [ ] 35-03-PLAN.md — ReceiptScanScreen
-- [ ] 35-04-PLAN.md — VoiceMemoScreen
+- [x] 35-01-PLAN.md — AiDraftUiState + AiDraftViewModel (Wave 1 foundation) ✅
+- [x] 35-02-PLAN.md — SmsPickerScreen ✅
+- [x] 35-03-PLAN.md — ReceiptScanScreen ✅
+- [x] 35-04-PLAN.md — VoiceMemoScreen ✅
 
 **UI hint**: yes
 
@@ -603,7 +603,13 @@ Plans:
   4. Dismissing and reopening the dialog shows blank form — clearDraft() fired on dismiss
   5. AI-drafted transaction saves successfully using the existing validation path with no separate AI save code path
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 36-01-PLAN.md — Navigation foundation: AI source screen routes + AddTransaction draftJson arg
+- [ ] 36-02-PLAN.md — Expandable AI Draft FAB group in TransactionsScreen
+- [ ] 36-03-PLAN.md — AddEditTransactionDialog initialDraft wiring + source banner
+- [ ] 36-04-PLAN.md — AI field highlighting (tinted container + sparkle badge)
 
 **UI hint**: yes
 
@@ -614,8 +620,8 @@ Plans:
 | 32. Domain AI Foundation | 3/3 | ✅ Complete | 2026-05-15 |
 | 33. Data AI Implementation | 3/3 | ✅ Complete | 2026-05-15 |
 | 34. DI Wiring & AI Availability | 2/2 | ✅ Complete | 2026-05-15 |
-| 35. AI Draft Source Screens | 0/? | Not started | — |
-| 36. Dialog Integration & FAB | 0/? | Not started | — |
+| 35. AI Draft Source Screens | 4/4 | ✅ Complete | 2026-05-15 |
+| 36. Dialog Integration & FAB | 0/4 | Not started | — |
 
 ---
 
