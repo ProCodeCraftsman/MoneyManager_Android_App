@@ -5,9 +5,9 @@ milestone_name: Hybrid AI Backend
 status: planning
 stopped_at: ""
 last_updated: "2026-05-16"
-last_activity: 2026-05-16 - Milestone v3.1 started
+last_activity: 2026-05-16 - Roadmap created for v3.1 (Phases 37-40)
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,10 +17,14 @@ progress:
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started (roadmap defined, ready to plan Phase 37)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-16 — Milestone v3.1 started
+Status: Roadmap approved — ready for `/gsd-plan-phase 37`
+Last activity: 2026-05-16 — v3.1 roadmap created (Phases 37–40)
+
+```
+[          ] 0% — 0/4 phases complete
+```
 
 ## Milestone Goal
 
@@ -28,7 +32,12 @@ Extend the AI layer from AICore-only to a 3-tier system — AICore (preferred), 
 
 ## Phase Structure
 
-*(To be defined by roadmapper — phases will continue from Phase 36)*
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 37 | Data Foundation | HYBRID-02, HYBRID-03, HYBRID-07, AIFND-11 (mod) | Not started |
+| 38 | Local AI Client | HYBRID-04, HYBRID-09, HYBRID-10, AIFND-04 (mod) | Not started |
+| 39 | Backend Detection & DI | HYBRID-01, HYBRID-08, AIFND-01 (mod) | Not started |
+| 40 | User-Facing Download Flow | HYBRID-05, HYBRID-06 | Not started |
 
 ## Previous Milestone
 
@@ -88,6 +97,12 @@ v3.0 AI-Assisted Transaction Drafting — Phases 32–36 complete (Domain AI Fou
 - ReportsScreen removed (phase 26) — chart components removed with it
 - Compose BOM 2024.12.01 already on classpath — all required Compose APIs available
 - categoryUsageCounts already computed in AddTransactionViewModel — PromptContextBuilder reuses this, no extra DB query
+- DeviceCapabilityManager currently handles AICore detection only — will be expanded to 3-tier in Phase 39
+- PreferencesManager currently has 2 AI keys (ai_availability_status from Phase 33) — Phase 37 adds 5 more
+- NanoAiClient exists and is unchanged — LocalModelAiClient is a second parallel implementation
+- GenAiClient interface exists in domain/ai/ — no changes needed to interface itself
+- AiModule exists and provides nullable GenAiClient? — Phase 39 expands the selection logic
+- MoneyManagerApp already has the startup hook for DeviceCapabilityManager (Phase 34)
 
 ## Quick Tasks Completed
 
@@ -100,5 +115,5 @@ v3.0 AI-Assisted Transaction Drafting — Phases 32–36 complete (Domain AI Fou
 ## Session Info
 
 - **Last session:** 2026-05-16
-- **Stopped at:** Milestone v3.1 started
-- **Next:** Define requirements and create roadmap for hybrid AI backend
+- **Stopped at:** v3.1 roadmap created — Phases 37–40 defined
+- **Next:** `/gsd-plan-phase 37` — Data Foundation
