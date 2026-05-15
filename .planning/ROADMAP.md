@@ -490,7 +490,7 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
 
 ## Phases
 
-- [ ] **Phase 32: Domain AI Foundation** - GenAiClient interface, TransactionDraft, TransactionType enum, PromptContextBuilder, GenerateDraftFromTextUseCase — zero Android imports
+- [x] **Phase 32: Domain AI Foundation** - GenAiClient interface, TransactionDraft, TransactionType enum, PromptContextBuilder, GenerateDraftFromTextUseCase — zero Android imports ✅
 - [ ] **Phase 33: Data AI Implementation** - Gradle dependencies, PreferencesManager extension, PromptBuilder, DraftParser, NanoAiClient, DeviceCapabilityManager (4-state)
 - [ ] **Phase 34: DI Wiring & AI Availability** - AiModule nullable @Provides, MoneyManagerApp startup hook, Flow<Boolean> availability repository
 - [ ] **Phase 35: AI Draft Source Screens** - AiDraftViewModel, SmsPickerScreen, ReceiptScanScreen, VoiceMemoScreen, shared UI state
@@ -514,9 +514,9 @@ v3.0: AI-Assisted Transaction Drafting — 54 requirements across 5 phases (32�
 **Plans**: 3 plans
 
 Plans:
-- [ ] 32-01-PLAN.md — Create TransactionType enum, GenAiClient interface, AiUnavailableException
-- [ ] 32-02-PLAN.md — Create TransactionDraft and PromptContext with entry projection types
-- [ ] 32-03-PLAN.md — Create PromptContextBuilder and GenerateDraftFromTextUseCase
+- [x] 32-01-PLAN.md — Create TransactionType enum, GenAiClient interface, AiUnavailableException ✅
+- [x] 32-02-PLAN.md — Create TransactionDraft and PromptContext with entry projection types ✅
+- [x] 32-03-PLAN.md — Create PromptContextBuilder and GenerateDraftFromTextUseCase ✅
 
 **UI hint**: no
 
@@ -533,7 +533,12 @@ Plans:
   3. DraftParser correctly strips markdown fences and extracts valid TransactionDraft from 3 test JSON variants (clean, fenced, partial)
   4. NanoAiClient.generateDraft() returns Result.failure on AICore exception without crashing
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 33-01-PLAN.md -- Add 4 Gradle dependencies and extend PreferencesManager with ai_availability_status key
+- [ ] 33-02-PLAN.md -- Create DraftParser and PromptBuilder; update GenerateDraftFromTextUseCase
+- [ ] 33-03-PLAN.md -- Create NanoAiClient and DeviceCapabilityManager
 
 **UI hint**: no
 
@@ -593,7 +598,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 32. Domain AI Foundation | 0/3 | Not started | — |
+| 32. Domain AI Foundation | 3/3 | ✅ Complete | 2026-05-15 |
 | 33. Data AI Implementation | 0/? | Not started | — |
 | 34. DI Wiring & AI Availability | 0/? | Not started | — |
 | 35. AI Draft Source Screens | 0/? | Not started | — |
