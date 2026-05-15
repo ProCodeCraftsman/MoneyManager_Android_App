@@ -1,49 +1,42 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: AI-Assisted Transaction Drafting
-status: in_progress
-stopped_at: Completed 36-03-PLAN.md
+milestone: v3.1
+milestone_name: Hybrid AI Backend
+status: planning
+stopped_at: ""
 last_updated: "2026-05-16"
-last_activity: 2026-05-16 - 36-03 executed: AddEditTransactionDialog initialDraft wiring + source banner
+last_activity: 2026-05-16 - Milestone v3.1 started
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 16
-  completed_plans: 15
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
-## Current Milestone: v3.0 AI-Assisted Transaction Drafting
+## Current Position
 
-Phase: 36 — Dialog Integration & FAB
-Plan: 3/4 — 36-01, 36-02, 36-03 complete
-Status: In Progress
-
-Last activity: 2026-05-16 — 36-03 executed: AddEditTransactionDialog initialDraft wiring + source banner
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-16 — Milestone v3.1 started
 
 ## Milestone Goal
 
-Integrate Gemini Nano (via Android AICore) as an opt-in drafting assistant. Users create transaction drafts from SMS, receipt images, or voice memos — AI suggests a pre-filled form, user reviews and confirms. App stays 100% functional without AI. All existing features unchanged.
+Extend the AI layer from AICore-only to a 3-tier system — AICore (preferred), local Gemma 3 1B model via MediaPipe (fallback for capable hardware, user opt-in download), and None (graceful degradation). Enables AI drafting on devices like S24 Ultra that have Snapdragon 8 Gen 3 NPU but no AICore.
 
 ## Phase Structure
 
-| Phase | Name | Requirements | Status |
-|-------|------|--------------|--------|
-| 32 | Domain AI Foundation | AIFND-03, AIFND-05, AIFND-06, AIFND-07, AIFND-08 | Not started |
-| 33 | Data AI Implementation | AIFND-01, AIFND-04, AIFND-09, AIFND-10 | ✅ Complete |
-| 34 | DI Wiring & AI Availability | AIFND-02, AIFND-11, AIFND-12 | ✅ Complete |
-| 35 | AI Draft Source Screens | SMS-01–10, OCR-01–09, VOICE-01–10, STD-01, STD-02, STD-03 | ✅ Complete |
-| 36 | Dialog Integration & FAB | DRAFT-01–09, STD-04 | In Progress — 3/4 plans complete |
+*(To be defined by roadmapper — phases will continue from Phase 36)*
 
 ## Previous Milestone
 
-v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shell, Status Pane, Risks Pane). Phase 31 Trends Pane was pending at milestone transition.
+v3.0 AI-Assisted Transaction Drafting — Phases 32–36 complete (Domain AI Foundation, Data AI Implementation, DI Wiring & AI Availability, AI Draft Source Screens, Dialog Integration & FAB).
 
 ## Accumulated Context
 
-### Architecture decisions locked in by research
+### Architecture decisions locked in by research (v3.0)
 
 - Domain layer (Phase 32) has zero Android imports — pure Kotlin, fully JVM-testable
 - TransactionType enum is the single source of truth for type strings in all new AI code — prevents PITFALL-21 (prompt/registry drift)
@@ -61,36 +54,40 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 - clearDraft() called on dialog dismiss — prevents re-population on second open (PITFALL-15)
 - 4 new Gradle lines only: genai-prompt:1.0.0-beta2, genai-common:1.0.0-beta3, play-services-mlkit-text-recognition:19.0.1, kotlinx-serialization-json:1.8.1
 - No LaunchedEffect collecting navigationEvent in Transactions composable block — each AI source screen's composable drives its own nav via onNavigateToConfirm lambda, preventing double-navigation race on replay=0 SharedFlow (36-01)
-- onDraftDismiss wired as empty lambda stub in NavHost; Plan 36-03 replaces with clearDraft() (36-01)
 - draftJson nav arg deserialized with try/catch; malformed JSON produces null draft per threat model T-36-01 (36-01)
 - Expandable AI Draft FAB: Column layout with AnimatedVisibility, tertiaryContainer toggle FAB, secondaryContainer mini-FABs; voice FAB conditionally hidden via SpeechRecognizer.isRecognitionAvailable(); existing + FAB behavior preserved (36-02)
-- clearDraft() on AiDraftViewModel resets _uiState to AiDraftUiState(); called on dialog dismiss from NavHost via local hiltViewModel<AiDraftViewModel>() instance in AddTransaction composable block (36-03)
-- initialDraft + onDraftDismiss params on AddEditTransactionDialog use null defaults; LaunchedEffect populates form state vars; source banner renders at top when sourceType non-null (36-03, DRAFT-02/03/05/06/07/09)
+- clearDraft() in AiDraftViewModel resets _uiState to AiDraftUiState(); called from NavHost AddTransaction composable onDraftDismiss lambda (36-03)
+- AddEditTransactionDialog accepts initialDraft + onDraftDismiss (null defaults). LaunchedEffect(initialDraft) populates form fields. Source banner shows "Draft from {sourceType}" at dialog top (36-03)
+- AI field highlighting: aiSuggestedFields set tracks 8 draft-populated fields; conditional Box(primary.copy(alpha=0.08f)) + BadgedBox(AutoAwesome) per field; each edit handler clears only its own field from the set (36-04)
 
-### Research flags (verify at integration time)
+### Architecture decisions for v3.1 (from spec)
+
+- Backend detection order: Generation.getClient().checkStatus() (ML Kit) → RAM check ≥6 GB → NONE. NEVER use PackageManager.getPackageInfo("com.google.android.aicore") as proxy.
+- Cached backend string values: "AICORE_READY", "LOCAL_READY", "LOCAL_DOWNLOADABLE", "LOCAL_DOWNLOADING", "NEVER"
+- New PreferencesManager keys (same DataStore, additive): ai_backend, ai_availability, local_model_downloaded, local_model_path, user_opted_in_ai
+- LocalModelAiClient: lazy init (model loaded on first inference), delegate cascade QNN → GPU(OpenCL) → CPU(XNNPACK), temperature=0.0 topK=1
+- Model file stored at: context.filesDir/models/gemma3_1b_int4.task (app-private, never external storage)
+- ModelDownloadManager: WiFi-only default, Flow<DownloadProgress>, foreground service or WorkManager for backgrounding
+- AiModule: returns GenAiClient? — null when NONE or model not downloaded → AI buttons hidden, manual entry works
+- Memory management: LocalModelAiClient.close() on Activity.onStop(), onTrimMemory(CRITICAL), or 5-min inference idle
+- AICore always preferred over local model — periodically re-check on app launch even if local model downloaded
+- If all MediaPipe delegates fail: catch exception, mark backend NONE, hide AI features
+- Gradle addition: implementation("com.google.mediapipe:tasks-genai:0.10.22") — additive only, no existing deps changed
+
+### Research flags (v3.0 — verify at integration time)
 
 - Phase 33 (NanoAiClient): FeatureStatus constant names and PromptClient.create() / checkAvailability() signatures in genai-common:1.0.0-beta3 — beta API, verify against actual AAR
 - Phase 33 (PromptBuilder): call countTokens() on a representative prompt to confirm top-20 category cap is sufficient
 - Phase 35 (VoiceMemoScreen): offline speech model availability for hi-IN on target Indian market devices — test on real devices
 - Phase 35 (SMS): start Play Console Permission Declaration Form process for READ_SMS in parallel with Phase 35 development
 
-### Codebase context (from v2.2)
+### Codebase context
 
 - getAllTransactions() retained in DAO/Repository (used by DashboardViewModel, AccountsViewModel, BudgetsViewModel, ExportRepository)
 - TransactionsViewModel uses Paging 3 (LazyPagingItems); AI flows use non-paginated single-shot calls
-- ReportsScreen removed (phase 26) — chart components removed with it; Canvas pattern from AccountComparisonChart.kt is the model
+- ReportsScreen removed (phase 26) — chart components removed with it
 - Compose BOM 2024.12.01 already on classpath — all required Compose APIs available
 - categoryUsageCounts already computed in AddTransactionViewModel — PromptContextBuilder reuses this, no extra DB query
-
-### Previous milestone decisions (v2.2)
-
-- InsightsCalculator is a pure Kotlin object — no Android runtime, fully unit-testable
-- Data source: getTransactionsByDateRange() only — never getAllTransactions() (7 active subscribers already)
-- HorizontalPager with hardcoded pageCount=3; TabRow synced to pagerState
-- DailyLineChart: custom Canvas composable, not MPAndroidChart (zero new gradle dependencies)
-- isSplitChild=true rows excluded from every aggregation
-- hasEnoughHistory = prevMonthTxs.isNotEmpty(); comparison-based rules suppressed when false
-- InsightsUiState decomposed into StatusUiState, RisksUiState, TrendsUiState sub-states
 
 ## Quick Tasks Completed
 
@@ -103,5 +100,5 @@ v2.2 Insights Dashboard — Phases 27–30 complete (Data Layer, Navigation Shel
 ## Session Info
 
 - **Last session:** 2026-05-16
-- **Stopped at:** Completed 36-03-PLAN.md — AddEditTransactionDialog initialDraft wiring + source banner
-- **Next phase:** Phase 36, Plan 36-04 — AI field highlighting
+- **Stopped at:** Milestone v3.1 started
+- **Next:** Define requirements and create roadmap for hybrid AI backend
