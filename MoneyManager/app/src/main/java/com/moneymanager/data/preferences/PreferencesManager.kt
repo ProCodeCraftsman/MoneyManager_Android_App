@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.moneymanager.app.ui.theme.AppTheme
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -26,6 +28,18 @@ class PreferencesManager(private val context: Context) {
         private val AUTO_LOCK_MINUTES = intPreferencesKey("auto_lock_minutes")
         private val LAST_UNLOCK_TIME = longPreferencesKey("last_unlock_time")
         private val AI_AVAILABILITY_STATUS = stringPreferencesKey("ai_availability_status")
+        private val AI_DOWNLOAD_PROGRESS = floatPreferencesKey("ai_download_progress")
+        private val AI_BACKEND_TIER = stringPreferencesKey("ai_backend_tier")
+        private val LOCAL_MODEL_DOWNLOADED = booleanPreferencesKey("local_model_downloaded")
+        private val LOCAL_MODEL_DOWNLOAD_PROGRESS = floatPreferencesKey("local_model_download_progress")
+        private val LOCAL_MODEL_DOWNLOAD_RECEIVED = longPreferencesKey("local_model_download_received")
+        private val LOCAL_MODEL_DOWNLOAD_TOTAL = longPreferencesKey("local_model_download_total")
+        private val LOCAL_MODEL_DOWNLOAD_SPEED = longPreferencesKey("local_model_download_speed")
+        private val SELECTED_LOCAL_MODEL = stringPreferencesKey("selected_local_model")
+        private val WIFI_ONLY_DOWNLOAD = booleanPreferencesKey("wifi_only_download")
+        private val HF_ACCESS_TOKEN = stringPreferencesKey("hf_access_token")
+        private val HF_TOKEN_EXPIRES_AT = longPreferencesKey("hf_token_expires_at")
+        private val USER_OPTED_IN_AI = booleanPreferencesKey("user_opted_in_ai")
     }
 
     val darkMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -78,6 +92,54 @@ class PreferencesManager(private val context: Context) {
 
     val aiAvailabilityStatus: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[AI_AVAILABILITY_STATUS] ?: "PENDING"
+    }
+
+    val aiDownloadProgress: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[AI_DOWNLOAD_PROGRESS] ?: 0f
+    }
+
+    val aiBackendTier: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[AI_BACKEND_TIER] ?: "pending"
+    }
+
+    val isLocalModelDownloaded: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[LOCAL_MODEL_DOWNLOADED] ?: false
+    }
+
+    val localModelDownloadProgress: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[LOCAL_MODEL_DOWNLOAD_PROGRESS] ?: 0f
+    }
+
+    val localModelDownloadReceived: Flow<Long> = context.dataStore.data.map { preferences ->
+        preferences[LOCAL_MODEL_DOWNLOAD_RECEIVED] ?: 0L
+    }
+
+    val localModelDownloadTotal: Flow<Long> = context.dataStore.data.map { preferences ->
+        preferences[LOCAL_MODEL_DOWNLOAD_TOTAL] ?: 0L
+    }
+
+    val localModelDownloadSpeed: Flow<Long> = context.dataStore.data.map { preferences ->
+        preferences[LOCAL_MODEL_DOWNLOAD_SPEED] ?: 0L
+    }
+
+    val selectedLocalModel: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SELECTED_LOCAL_MODEL] ?: "GEMMA3_1B"
+    }
+
+    val wifiOnlyDownload: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[WIFI_ONLY_DOWNLOAD] ?: true
+    }
+
+    val userOptedInAi: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[USER_OPTED_IN_AI] ?: false
+    }
+
+    val hfAccessToken: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[HF_ACCESS_TOKEN] ?: ""
+    }
+
+    val hfTokenExpiresAt: Flow<Long> = context.dataStore.data.map { preferences ->
+        preferences[HF_TOKEN_EXPIRES_AT] ?: 0L
     }
 
     suspend fun setDarkMode(enabled: Boolean) {
@@ -172,4 +234,93 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
+    suspend fun setAiDownloadProgress(value: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_DOWNLOAD_PROGRESS] = value
+        }
+    }
+
+    suspend fun setAiBackendTier(value: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_BACKEND_TIER] = value
+        }
+    }
+
+    suspend fun setLocalModelDownloaded(value: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[LOCAL_MODEL_DOWNLOADED] = value
+        }
+    }
+
+    suspend fun setLocalModelDownloadProgress(value: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[LOCAL_MODEL_DOWNLOAD_PROGRESS] = value
+        }
+    }
+
+    suspend fun setLocalModelDownloadReceived(value: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[LOCAL_MODEL_DOWNLOAD_RECEIVED] = value
+        }
+    }
+
+    suspend fun setLocalModelDownloadTotal(value: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[LOCAL_MODEL_DOWNLOAD_TOTAL] = value
+        }
+    }
+
+    suspend fun setLocalModelDownloadSpeed(value: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[LOCAL_MODEL_DOWNLOAD_SPEED] = value
+        }
+    }
+
+    suspend fun setSelectedLocalModel(value: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SELECTED_LOCAL_MODEL] = value
+        }
+    }
+
+    suspend fun setWifiOnlyDownload(value: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[WIFI_ONLY_DOWNLOAD] = value
+        }
+    }
+
+    suspend fun setUserOptedInAi(value: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[USER_OPTED_IN_AI] = value
+        }
+    }
+
+    suspend fun setHfAccessToken(token: String, expiresAt: Long = 0L) {
+        context.dataStore.edit { preferences ->
+            preferences[HF_ACCESS_TOKEN] = token
+            preferences[HF_TOKEN_EXPIRES_AT] = expiresAt
+        }
+    }
+
+    suspend fun clearHfAccessToken() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(HF_ACCESS_TOKEN)
+            preferences.remove(HF_TOKEN_EXPIRES_AT)
+        }
+    }
+
+    fun getHfAccessTokenSync(): String {
+        return runBlocking { context.dataStore.data.first()[HF_ACCESS_TOKEN] ?: "" }
+    }
+
+    fun getSelectedLocalModelSync(): String {
+        return runBlocking { context.dataStore.data.first()[SELECTED_LOCAL_MODEL] ?: "GEMMA3_1B" }
+    }
+
+    fun getWifiOnlyDownloadSync(): Boolean {
+        return runBlocking { context.dataStore.data.first()[WIFI_ONLY_DOWNLOAD] ?: true }
+    }
+
+    fun getLocalModelDownloadProgressSync(): Float {
+        return runBlocking { context.dataStore.data.first()[LOCAL_MODEL_DOWNLOAD_PROGRESS] ?: 0f }
+    }
 }
