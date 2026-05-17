@@ -91,7 +91,6 @@ class DeviceCapabilityManager @Inject constructor(
     }
 
     private fun hasSufficientRam(minGb: Long): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
         return try {
             (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).let { am ->
                 val info = ActivityManager.MemoryInfo()

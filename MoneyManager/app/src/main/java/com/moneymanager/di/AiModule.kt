@@ -13,6 +13,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -27,17 +28,20 @@ object AiModule {
 
     @Provides
     @Singleton
+    @Named("preferredClient")
     @androidx.annotation.Nullable
-    fun provideNullableGenAiClient(
+    fun providePreferredGenAiClient(
         preferencesManager: PreferencesManager,
         nanoAiClient: NanoAiClient,
         edgeAiClient: EdgeAiClient,
     ): GenAiClient? {
         val tier = runBlocking { preferencesManager.aiBackendTier.first() }
-        val downloaded = runBlocking { preferencesManager.localModelDownloaded.first() }
         return when (tier) {
             "aicore" -> nanoAiClient
-            "local_model" -> if (downloaded) edgeAiClient else null
+            "local_model" -> {
+                val downloaded = runBlocking { preferencesManager.isLocalModelDownloaded.first() }
+                if (downloaded) edgeAiClient else null
+            }
             else -> null
         }
     }
@@ -45,7 +49,7 @@ object AiModule {
     @Provides
     @Singleton
     fun provideGenerateDraftFromTextUseCase(
-        @androidx.annotation.Nullable client: GenAiClient?,
+        @Named("preferredClient") @androidx.annotation.Nullable client: GenAiClient?,
         conversationRepository: AiConversationRepository,
     ): GenerateDraftFromTextUseCase {
         return GenerateDraftFromTextUseCase(client, conversationRepository)

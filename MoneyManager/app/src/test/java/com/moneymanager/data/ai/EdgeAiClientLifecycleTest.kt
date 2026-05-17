@@ -1,6 +1,7 @@
 package com.moneymanager.data.ai
 
 import com.moneymanager.data.preferences.PreferencesManager
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -24,8 +25,10 @@ class EdgeAiClientLifecycleTest {
             on { cacheDir } doReturn java.io.File("/tmp/cache")
             on { filesDir } doReturn java.io.File("/tmp/files")
         }
-        whenever(mockModelManager.selectModelForDevice()).thenReturn(null)
-        whenever(mockModelManager.isModelDownloaded()).thenReturn(true)
+        runBlocking {
+            whenever(mockModelManager.selectModelForDevice()).thenReturn(null)
+            whenever(mockModelManager.isModelDownloaded()).thenReturn(true)
+        }
         client = EdgeAiClient(mockModelManager, mockToolSet, mockPreferencesManager, mockContext)
     }
 
@@ -56,7 +59,7 @@ class EdgeAiClientLifecycleTest {
 
     @Test
     fun `streaming fallback works when model not downloaded`() {
-        whenever(mockModelManager.isModelDownloaded()).thenReturn(false)
+        runBlocking { whenever(mockModelManager.isModelDownloaded()).thenReturn(false) }
         kotlinx.coroutines.test.runTest {
             val tokens = mutableListOf<String>()
             val result = client.generateDraftStreaming("sys", "hi") { tokens.add(it) }

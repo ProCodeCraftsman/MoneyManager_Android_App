@@ -5,6 +5,7 @@ import android.content.Context
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.ai.AiBackend
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -72,8 +73,10 @@ class DeviceCapabilityManagerTest {
             info.totalMem = memInfo.totalMem
         }
 
-        doReturn(mock()).whenever(mockModelManager).selectModelForDevice()
-        doReturn(true).whenever(mockModelManager).isModelDownloaded()
+        runBlocking {
+            doReturn(mock<ModelEntry>()).whenever(mockModelManager).selectModelForDevice()
+            doReturn(true).whenever(mockModelManager).isModelDownloaded()
+        }
 
         runTest {
             val result = manager.resolveBackendTier()
@@ -83,7 +86,7 @@ class DeviceCapabilityManagerTest {
 
     @Test
     fun `no model selected for device returns NONE`() {
-        doReturn(null).whenever(mockModelManager).selectModelForDevice()
+        runBlocking { doReturn(null).whenever(mockModelManager).selectModelForDevice() }
 
         runTest {
             val result = manager.resolveBackendTier()

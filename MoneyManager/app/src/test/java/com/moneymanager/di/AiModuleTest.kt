@@ -14,82 +14,82 @@ class AiModuleTest {
     private val module = AiModule
 
     @Test
-    fun `provideNullableGenAiClient returns NanoAiClient for aicore tier`() {
+    fun `providePreferredGenAiClient returns NanoAiClient for aicore tier`() {
         val mockPrefs: PreferencesManager = mock {
             on { aiBackendTier } doReturn flowOf("aicore")
-            on { localModelDownloaded } doReturn flowOf(false)
+            on { isLocalModelDownloaded } doReturn flowOf(false)
         }
         val mockNano: NanoAiClient = mock()
         val mockEdge: EdgeAiClient = mock()
 
-        val result: GenAiClient? = module.provideNullableGenAiClient(mockPrefs, mockNano, mockEdge)
+        val result: GenAiClient? = module.providePreferredGenAiClient(mockPrefs, mockNano, mockEdge)
 
         assertSame(mockNano, result)
     }
 
     @Test
-    fun `provideNullableGenAiClient returns EdgeAiClient for local_model when downloaded`() {
+    fun `providePreferredGenAiClient returns EdgeAiClient for local_model when downloaded`() {
         val mockPrefs: PreferencesManager = mock {
             on { aiBackendTier } doReturn flowOf("local_model")
-            on { localModelDownloaded } doReturn flowOf(true)
+            on { isLocalModelDownloaded } doReturn flowOf(true)
         }
         val mockNano: NanoAiClient = mock()
         val mockEdge: EdgeAiClient = mock()
 
-        val result: GenAiClient? = module.provideNullableGenAiClient(mockPrefs, mockNano, mockEdge)
+        val result: GenAiClient? = module.providePreferredGenAiClient(mockPrefs, mockNano, mockEdge)
 
         assertSame(mockEdge, result)
     }
 
     @Test
-    fun `provideNullableGenAiClient returns null for local_model when NOT downloaded`() {
+    fun `providePreferredGenAiClient returns null for local_model when NOT downloaded`() {
         val mockPrefs: PreferencesManager = mock {
             on { aiBackendTier } doReturn flowOf("local_model")
-            on { localModelDownloaded } doReturn flowOf(false)
+            on { isLocalModelDownloaded } doReturn flowOf(false)
         }
         val mockNano: NanoAiClient = mock()
         val mockEdge: EdgeAiClient = mock()
 
-        val result: GenAiClient? = module.provideNullableGenAiClient(mockPrefs, mockNano, mockEdge)
+        val result: GenAiClient? = module.providePreferredGenAiClient(mockPrefs, mockNano, mockEdge)
 
         assertNull(result)
     }
 
     @Test
-    fun `provideNullableGenAiClient returns null for none tier`() {
+    fun `providePreferredGenAiClient returns null for none tier`() {
         val mockPrefs: PreferencesManager = mock {
             on { aiBackendTier } doReturn flowOf("none")
         }
         val mockNano: NanoAiClient = mock()
         val mockEdge: EdgeAiClient = mock()
 
-        val result: GenAiClient? = module.provideNullableGenAiClient(mockPrefs, mockNano, mockEdge)
+        val result: GenAiClient? = module.providePreferredGenAiClient(mockPrefs, mockNano, mockEdge)
 
         assertNull(result)
     }
 
     @Test
-    fun `provideNullableGenAiClient returns null for pending tier`() {
+    fun `providePreferredGenAiClient returns null for pending tier`() {
         val mockPrefs: PreferencesManager = mock {
             on { aiBackendTier } doReturn flowOf("pending")
         }
         val mockNano: NanoAiClient = mock()
         val mockEdge: EdgeAiClient = mock()
 
-        val result: GenAiClient? = module.provideNullableGenAiClient(mockPrefs, mockNano, mockEdge)
+        val result: GenAiClient? = module.providePreferredGenAiClient(mockPrefs, mockNano, mockEdge)
 
         assertNull(result)
     }
 
     @Test
-    fun `provideNullableGenAiClient returns null for unknown tier`() {
+    fun `providePreferredGenAiClient returns null for unknown tier`() {
         val mockPrefs: PreferencesManager = mock {
             on { aiBackendTier } doReturn flowOf("unknown_backend")
         }
         val mockNano: NanoAiClient = mock()
         val mockEdge: EdgeAiClient = mock()
 
-        val result: GenAiClient? = module.provideNullableGenAiClient(mockPrefs, mockNano, mockEdge)
+        val result: GenAiClient? = module.providePreferredGenAiClient(mockPrefs, mockNano, mockEdge)
 
         assertNull(result)
     }
