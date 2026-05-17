@@ -641,7 +641,7 @@ Plans:
 ## Phases
 
 - [x] **Phase 37: Data Foundation** - AiBackend enum, PreferencesManager 5 new keys, ModelDownloadManager core, LiteRT-LM integration
-- [ ] **Phase 38: Local AI Client** - EdgeAiClient with delegate cascade, lazy init with "Loading AI..." indicator, delegate failure fallback
+- [x] **Phase 38: Local AI Client** - EdgeAiClient with delegate cascade, lazy init with "Loading AI..." indicator, delegate failure fallback ✅
 - [ ] **Phase 39: Backend Detection & DI** - 3-tier DeviceCapabilityManager update, AiModule backend-selection expansion
 - [ ] **Phase 40: User-Facing Download Flow** - Opt-in download dialog with size disclosure, download progress indicator
 
@@ -681,12 +681,12 @@ Plans:
    3. Delegate cascade attempts QNN (NPU) first, then GPU (OpenCL), then CPU (XNNPACK) — first successful delegate wins; none of the failures propagate to the caller
    4. If all three delegates fail at runtime, `generateDraft()` writes `NONE` to the `ai_backend` preference in PreferencesManager and returns `Result.failure` — the app does not crash and AI buttons are hidden on the next composition
    5. `close()` releases model memory — callable from `Activity.onStop()`, `onTrimMemory(TRIM_MEMORY_RUNNING_CRITICAL)`, or after 5 minutes of inference idle time
-**Plans**: 3 plans
+**Plans**: 3/3 complete
 
 **Plans**:
-- [ ] 38-01-PLAN.md — AiResult sealed class, GenAiClient Loading state, EdgeAiClient NONE persistence + 5-min idle timer
-- [ ] 38-02-PLAN.md — MainActivity lifecycle hooks (onStop, onTrimMemory) + doc updates (LiteRT-LM)
-- [ ] 38-03-PLAN.md — Full EdgeAiClient test suite (delegate cascade, lazy init, close/cleanUp, streaming, error handling)
+- [x] 38-01-PLAN.md — AiResult sealed class, GenAiClient Loading state, EdgeAiClient NONE persistence + 5-min idle timer ✅
+- [x] 38-02-PLAN.md — MainActivity lifecycle hooks (onStop, onTrimMemory) + doc updates (LiteRT-LM) ✅
+- [x] 38-03-PLAN.md — Full EdgeAiClient test suite (delegate cascade, lazy init, close/cleanUp, streaming, error handling) ✅
 
 **UI hint**: no
 
@@ -728,7 +728,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 37. Data Foundation | 2/2 | ✅ Complete | 2026-05-17 |
-| 38. Local AI Client | 0/3 | Not started | — |
+| 38. Local AI Client | 3/3 | ✅ Complete | 2026-05-17 |
 | 39. Backend Detection & DI | 0/? | Not started | — |
 | 40. User-Facing Download Flow | 0/? | Not started | — |
 
