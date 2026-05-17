@@ -642,7 +642,7 @@ Plans:
 
 - [x] **Phase 37: Data Foundation** - AiBackend enum, PreferencesManager 5 new keys, ModelDownloadManager core, LiteRT-LM integration
 - [x] **Phase 38: Local AI Client** - EdgeAiClient with delegate cascade, lazy init with "Loading AI..." indicator, delegate failure fallback ✅
-- [ ] **Phase 39: Backend Detection & DI** - 3-tier DeviceCapabilityManager update, AiModule backend-selection expansion
+- [x] **Phase 39: Backend Detection & DI** - 3-tier DeviceCapabilityManager update, AiModule backend-selection expansion
 - [ ] **Phase 40: User-Facing Download Flow** - Opt-in download dialog with size disclosure, download progress indicator
 
 ## Phase Details
@@ -729,7 +729,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 37. Data Foundation | 2/2 | ✅ Complete | 2026-05-17 |
 | 38. Local AI Client | 3/3 | ✅ Complete | 2026-05-17 |
-| 39. Backend Detection & DI | 0/? | Not started | — |
+| 39. Backend Detection & DI | 3/3 | ✅ Complete | 2026-05-18 |
 | 40. User-Facing Download Flow | 0/? | Not started | — |
 
 ---
