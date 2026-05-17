@@ -16,11 +16,14 @@ import com.moneymanager.data.worker.RecurringGenerationWorker
 import com.moneymanager.app.ui.MoneyManagerNavHost
 import com.moneymanager.app.ui.theme.MoneyManagerTheme
 import com.moneymanager.app.ui.theme.rememberThemePreferences
+import com.moneymanager.data.ai.EdgeAiClient
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.app.ui.util.AppLockManager
 import com.moneymanager.data.security.BiometricAuthManager
 import com.moneymanager.data.security.SecurityManager
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -37,6 +40,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var appLockManager: AppLockManager
+
+    @Inject
+    lateinit var edgeAiClient: EdgeAiClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +73,22 @@ class MainActivity : FragmentActivity() {
                         appLockManager = appLockManager
                     )
                 }
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        lifecycleScope.launch {
+            edgeAiClient.close()
+        }
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
+            lifecycleScope.launch {
+                edgeAiClient.close()
             }
         }
     }
