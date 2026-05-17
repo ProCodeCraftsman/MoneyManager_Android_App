@@ -3,6 +3,7 @@ package com.moneymanager.data.ai
 import android.app.ActivityManager
 import android.content.Context
 import com.moneymanager.data.preferences.PreferencesManager
+import com.google.mlkit.genai.common.FeatureStatus
 import com.moneymanager.domain.ai.AiBackend
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -142,5 +143,29 @@ class DeviceCapabilityManagerTest {
             val result = manager.resolveCurrentTier()
             assertEquals(AiBackend.NONE, result)
         }
+    }
+
+    @Test
+    fun `FeatureStatus AVAILABLE code 3 returns AICORE — regression guard`() {
+        manager.aicoreCodeOverrideForTest = FeatureStatus.AVAILABLE
+        runTest {
+            val result = manager.resolveBackendTier()
+            assertEquals(AiBackend.AICORE, result)
+        }
+        manager.aicoreCodeOverrideForTest = null
+    }
+
+    @Test
+    fun `FeatureStatus UNAVAILABLE code 0 falls through to local model tier`() {
+        manager.aicoreCodeOverrideForTest = FeatureStatus.UNAVAILABLE
+        runBlocking {
+            doReturn(mock<ModelEntry>()).whenever(mockModelManager).selectModelForDevice()
+            doReturn(true).whenever(mockModelManager).isModelDownloaded()
+        }
+        runTest {
+            val result = manager.resolveBackendTier()
+            assertEquals(AiBackend.LOCAL_MODEL, result)
+        }
+        manager.aicoreCodeOverrideForTest = null
     }
 }

@@ -102,7 +102,11 @@ class DeviceCapabilityManager @Inject constructor(
         }
     }
 
+    @androidx.annotation.VisibleForTesting
+    internal var aicoreCodeOverrideForTest: Int? = null
+
     private suspend fun checkAicoreStatusCode(): Int {
+        aicoreCodeOverrideForTest?.let { return it }
         return withContext(Dispatchers.IO) {
             try {
                 Generation.getClient().checkStatus()
