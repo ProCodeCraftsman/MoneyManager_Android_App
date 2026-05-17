@@ -698,10 +698,10 @@ Plans:
 **Requirements**: HYBRID-01, HYBRID-08, AIFND-01 (mod)
 
 **Success Criteria** (what must be TRUE):
-  1. On a device with AICore ready, `DeviceCapabilityManager` detects `AICORE_READY` via `Generation.getClient().checkStatus()` (ML Kit) and caches that result; local model check is skipped
-  2. On a device without AICore but with ≥6 GB RAM, `DeviceCapabilityManager` detects `LOCAL_DOWNLOADABLE` (or `LOCAL_READY` if model already downloaded) — never falls through to `NEVER` on capable hardware
+  1. On a device with AICore ready, `DeviceCapabilityManager` detects `FeatureStatus.AVAILABLE` via `Generation.getClient().checkStatus()` (ML Kit), persists tier as `"aicore"`, and returns `AiBackend.AICORE`; local model check is skipped
+  2. On a device without AICore but with ≥6 GB RAM, `DeviceCapabilityManager` detects local model availability and persists `"local_model"` tier — never falls through to `NEVER` on capable hardware
   3. Detection runs on every app launch — even if the local model was previously downloaded, AICore availability is re-checked first
-  4. `AiModule` provides `NanoAiClient` when cached backend is `AICORE_READY`, `LocalModelAiClient` when `LOCAL_READY`, and `null` when `NONE` or model not yet downloaded — the Hilt graph compiles with no KSP errors
+  4. `AiModule` provides `NanoAiClient` when cached tier is `"aicore"`, `EdgeAiClient` when tier is `"local_model"` and model is downloaded, and `null` otherwise — the Hilt graph compiles with no KSP errors
 **Plans**: TBD
 
 **UI hint**: no
