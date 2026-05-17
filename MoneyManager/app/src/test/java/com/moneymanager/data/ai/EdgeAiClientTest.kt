@@ -3,6 +3,7 @@ package com.moneymanager.data.ai
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.ai.AiUnavailableException
 import com.moneymanager.domain.ai.GenAiClient
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -26,18 +27,18 @@ class EdgeAiClientTest {
             on { cacheDir } doReturn java.io.File("/tmp/cache")
             on { filesDir } doReturn java.io.File("/tmp/files")
         }
-        whenever(mockModelManager.isModelDownloaded()).thenReturn(true)
+        runBlocking { whenever(mockModelManager.isModelDownloaded()).thenReturn(true) }
         client = EdgeAiClient(mockModelManager, mockToolSet, mockPreferencesManager, mockContext)
     }
 
     @Test
     fun `lazy init — engine is null after construction`() {
-        verify(mockModelManager, never()).selectModelForDevice()
+        runBlocking { verify(mockModelManager, never()).selectModelForDevice() }
     }
 
     @Test
     fun `generateDraft returns failure when model not downloaded`() {
-        whenever(mockModelManager.isModelDownloaded()).thenReturn(false)
+        runBlocking { whenever(mockModelManager.isModelDownloaded()).thenReturn(false) }
         kotlinx.coroutines.test.runTest {
             val result = client.generateDraft("hi")
             assertTrue(result.isFailure)
@@ -63,7 +64,7 @@ class EdgeAiClientTest {
 
     @Test
     fun `engine exception returns Result failure not crash`() {
-        whenever(mockModelManager.selectModelForDevice()).thenReturn(null)
+        runBlocking { whenever(mockModelManager.selectModelForDevice()).thenReturn(null) }
         kotlinx.coroutines.test.runTest {
             val result = client.generateDraft("hi")
             assertTrue(result.isFailure)

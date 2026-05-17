@@ -1,5 +1,6 @@
 package com.moneymanager.domain.ai
 
+import kotlinx.coroutines.flow.toList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,7 +65,7 @@ class AiResultTest {
                 .toList()
             assertEquals(2, emissions.size)
             assertTrue(emissions[0] is AiResult.Loading)
-            assertEquals("result:hi", (emissions[1] as AiResult.Success).data)
+            assertEquals("result:hi", (emissions[1] as AiResult.Success<String>).data)
         }
     }
 

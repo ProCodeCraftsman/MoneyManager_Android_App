@@ -219,7 +219,7 @@ class EdgeAiClient @Inject constructor(
         Log.d(TAG, "Initializing Engine: ${model.modelFile} at $modelPath")
 
         val backends = listOf(
-            Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir),
+            Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir ?: ""),
             Backend.GPU(),
             Backend.CPU(),
         )
@@ -238,7 +238,7 @@ class EdgeAiClient @Inject constructor(
                 savedEngineConfig = cfg
                 Log.d(TAG, "Engine ready — backend: $backend")
                 return eng
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.w(TAG, "Backend $backend failed: ${e.message}")
             }
         }

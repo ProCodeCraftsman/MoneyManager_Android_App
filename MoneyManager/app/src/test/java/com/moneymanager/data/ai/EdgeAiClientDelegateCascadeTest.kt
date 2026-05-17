@@ -3,6 +3,7 @@ package com.moneymanager.data.ai
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.ai.AiBackend
 import com.moneymanager.domain.ai.AiUnavailableException
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -30,9 +31,11 @@ class EdgeAiClientDelegateCascadeTest {
             name = "test", modelId = "test/test", modelFile = "test.task",
             commitHash = "abc", sizeBytes = 100, minRamGb = 6
         )
-        whenever(mockModelManager.selectModelForDevice()).thenReturn(entry)
+        runBlocking {
+            whenever(mockModelManager.selectModelForDevice()).thenReturn(entry)
+            whenever(mockModelManager.isModelDownloaded()).thenReturn(true)
+        }
         whenever(mockModelManager.getModelFile(any())).thenReturn(java.io.File("/tmp/test.task"))
-        whenever(mockModelManager.isModelDownloaded()).thenReturn(true)
         client = EdgeAiClient(mockModelManager, mockToolSet, mockPreferencesManager, mockContext)
     }
 
@@ -66,7 +69,7 @@ class EdgeAiClientDelegateCascadeTest {
 
     @Test
     fun `NONE is not persisted when model not downloaded`() {
-        whenever(mockModelManager.isModelDownloaded()).thenReturn(false)
+        runBlocking { whenever(mockModelManager.isModelDownloaded()).thenReturn(false) }
         kotlinx.coroutines.test.runTest {
             client.generateDraft("hi")
             verify(mockPreferencesManager, never()).setAiBackendTier(any())
