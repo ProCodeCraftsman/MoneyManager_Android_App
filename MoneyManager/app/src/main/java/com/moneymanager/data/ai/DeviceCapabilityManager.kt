@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.google.mlkit.genai.common.DownloadStatus
+import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Generation
 import com.moneymanager.domain.ai.AiBackend
 import com.moneymanager.data.preferences.PreferencesManager
@@ -36,26 +37,26 @@ class DeviceCapabilityManager @Inject constructor(
             return AiBackend.NONE
         }
         return when (val aicoreCode = checkAicoreStatusCode()) {
-            0 -> { // AVAILABLE
-                Log.d(TAG, "AICore status 0 (AVAILABLE). Tier = AICORE")
+            FeatureStatus.AVAILABLE -> {
+                Log.d(TAG, "AICore AVAILABLE (code $aicoreCode). Tier = AICORE")
                 persistTier(AiBackend.AICORE, "READY")
                 AiBackend.AICORE
             }
-            1 -> { // DOWNLOADABLE
-                Log.d(TAG, "AICore status 1 (DOWNLOADABLE). Attempting download...")
+            FeatureStatus.DOWNLOADABLE -> {
+                Log.d(TAG, "AICore DOWNLOADABLE. Attempting download...")
                 if (downloadAicore()) {
                     persistTier(AiBackend.AICORE, "READY")
                     AiBackend.AICORE
                 } else resolveLocalModelTier()
             }
-            2 -> { // DOWNLOADING
-                Log.d(TAG, "AICore status 2 (DOWNLOADING). Waiting...")
+            FeatureStatus.DOWNLOADING -> {
+                Log.d(TAG, "AICore DOWNLOADING. Waiting...")
                 if (downloadAicore()) {
                     persistTier(AiBackend.AICORE, "READY")
                     AiBackend.AICORE
                 } else resolveLocalModelTier()
             }
-            else -> { // error or UNAVAILABLE
+            else -> { // UNAVAILABLE (0) or error (-1)
                 Log.d(TAG, "AICore unavailable (code $aicoreCode). Trying local model.")
                 resolveLocalModelTier()
             }
@@ -64,18 +65,13 @@ class DeviceCapabilityManager @Inject constructor(
 
     suspend fun checkAndCacheAvailability() = resolveBackendTier()
 
-    private var cachedNoneTier: Boolean? = null
-
     suspend fun resolveCurrentTier(): AiBackend {
-        if (cachedNoneTier == true) return AiBackend.NONE
         val stored = preferencesManager.aiBackendTier.first()
-        val tier = if (stored == "pending") resolveBackendTier() else AiBackend.fromId(stored)
-        if (tier == AiBackend.NONE) cachedNoneTier = true
-        return tier
-    }
-
-    fun invalidateTierCache() {
-        cachedNoneTier = null
+        return if (stored == "pending") {
+            resolveBackendTier()
+        } else {
+            AiBackend.fromId(stored)
+        }
     }
 
     private suspend fun resolveLocalModelTier(): AiBackend {
@@ -85,6 +81,7 @@ class DeviceCapabilityManager @Inject constructor(
             return AiBackend.NONE
         }
         if (modelManager.isModelDownloaded()) {
+            // Model exists — mark LOCAL_READY (preferred over re-downloading)
             preferencesManager.setLocalModelDownloaded(true)
             persistTier(AiBackend.LOCAL_MODEL, "LOCAL_READY")
         } else {
