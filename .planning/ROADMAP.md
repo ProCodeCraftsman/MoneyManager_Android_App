@@ -640,7 +640,7 @@ Plans:
 
 ## Phases
 
-- [ ] **Phase 37: Data Foundation** - AiBackend enum, PreferencesManager 5 new keys, ModelDownloadManager core, Gradle tasks-genai dependency
+- [x] **Phase 37: Data Foundation** - AiBackend enum, PreferencesManager 5 new keys, ModelDownloadManager core, LiteRT-LM integration
 - [ ] **Phase 38: Local AI Client** - LocalModelAiClient with delegate cascade, lazy init with "Loading AI..." indicator, delegate failure fallback
 - [ ] **Phase 39: Backend Detection & DI** - 3-tier DeviceCapabilityManager update, AiModule backend-selection expansion
 - [ ] **Phase 40: User-Facing Download Flow** - Opt-in download dialog with size disclosure, download progress indicator
@@ -658,8 +658,13 @@ Plans:
   1. `AiBackend.AICORE`, `AiBackend.LOCAL_MODEL`, and `AiBackend.NONE` are importable from domain layer with zero Android imports
   2. PreferencesManager compiles with 5 new DataStore keys (`ai_backend`, `ai_availability`, `local_model_downloaded`, `local_model_path`, `user_opted_in_ai`) added to the existing single DataStore instance — no second delegate created
   3. `ModelDownloadManager.download()` returns `Flow<DownloadProgress>`, stores the model file exclusively at `context.filesDir/models/gemma3_1b_int4.task`, and respects WiFi-only constraint by default
-  4. Gradle sync succeeds with `com.google.mediapipe:tasks-genai:0.10.22` added; existing dependencies unchanged
-**Plans**: TBD
+  4. Gradle sync succeeds with existing LiteRT-LM dependency (`com.google.ai.edge.litertlm:litertlm-android:0.11.0`) — MediaPipe tasks-genai NOT added per codebase analysis (see CONTEXT.md)
+
+**Plans**: 2/2 complete
+
+**Plans**:
+- [x] 37-01-PLAN.md — Domain contracts: AiBackend enum, DownloadProgress data class, ModelDownloadManager interface ✅
+- [x] 37-02-PLAN.md — Data layer: ModelDownloadManagerImpl with Flow progress + retry + storage check, migrate AiBackendTier references, add user_opted_in_ai key ✅
 
 **UI hint**: no
 
@@ -717,7 +722,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 37. Data Foundation | 0/? | Not started | — |
+| 37. Data Foundation | 2/2 | ✅ Complete | 2026-05-17 |
 | 38. Local AI Client | 0/? | Not started | — |
 | 39. Backend Detection & DI | 0/? | Not started | — |
 | 40. User-Facing Download Flow | 0/? | Not started | — |
