@@ -636,12 +636,12 @@ Plans:
 # Milestone v3.1: Hybrid AI Backend
 
 **Started:** 2026-05-16
-**Goal:** Extend the AI layer from AICore-only to a 3-tier system — AICore (preferred), local Gemma 3 1B model via MediaPipe (fallback for capable hardware, user opt-in download), and None (graceful degradation). Enables AI drafting on devices like Samsung Galaxy S24 Ultra that have Snapdragon 8 Gen 3 NPU but no AICore.
+**Goal:** Extend the AI layer from AICore-only to a 3-tier system — AICore (preferred), local Gemma 3 1B model via LiteRT-LM (fallback for capable hardware, user opt-in download), and None (graceful degradation). Enables AI drafting on devices like Samsung Galaxy S24 Ultra that have Snapdragon 8 Gen 3 NPU but no AICore.
 
 ## Phases
 
 - [x] **Phase 37: Data Foundation** - AiBackend enum, PreferencesManager 5 new keys, ModelDownloadManager core, LiteRT-LM integration
-- [ ] **Phase 38: Local AI Client** - LocalModelAiClient with delegate cascade, lazy init with "Loading AI..." indicator, delegate failure fallback
+- [ ] **Phase 38: Local AI Client** - EdgeAiClient with delegate cascade, lazy init with "Loading AI..." indicator, delegate failure fallback
 - [ ] **Phase 39: Backend Detection & DI** - 3-tier DeviceCapabilityManager update, AiModule backend-selection expansion
 - [ ] **Phase 40: User-Facing Download Flow** - Opt-in download dialog with size disclosure, download progress indicator
 
@@ -669,19 +669,24 @@ Plans:
 **UI hint**: no
 
 ### Phase 38: Local AI Client
-**Goal**: `LocalModelAiClient` exists as a fully functional second implementation of `GenAiClient` — delegates cascade from NPU to GPU to CPU, model loads lazily on first call, and all failure modes are handled without crashing
+**Goal**: `EdgeAiClient` exists as a fully functional second implementation of `GenAiClient` — delegates cascade from NPU to GPU to CPU, model loads lazily on first call, all failure modes are handled without crashing, and lifecycle hooks release ~1.5-2 GB RAM
 
 **Depends on**: Phase 37
 
 **Requirements**: HYBRID-04, HYBRID-09, HYBRID-10, AIFND-04 (mod)
 
 **Success Criteria** (what must be TRUE):
-  1. `LocalModelAiClient` implements `GenAiClient` and is the second concrete implementation alongside `NanoAiClient` — both exist in `data/ai/`
-  2. First call to `generateDraft()` triggers model initialization; calling code sees a "Loading AI..." indicator for the 2–3 second cold-start window before the result arrives
-  3. Delegate cascade attempts QNN (NPU) first, then GPU (OpenCL), then CPU (XNNPACK) — first successful delegate wins; none of the failures propagate to the caller
-  4. If all three delegates fail at runtime, `generateDraft()` catches the exception, writes `NONE` to the `ai_backend` preference, and returns `Result.failure` — the app does not crash and AI buttons are hidden on the next composition
-  5. `close()` releases model memory — callable from `Activity.onStop()`, `onTrimMemory(TRIM_MEMORY_RUNNING_CRITICAL)`, or after 5 minutes of inference idle time
-**Plans**: TBD
+   1. `EdgeAiClient` implements `GenAiClient` and is the second concrete implementation alongside `NanoAiClient` — both exist in `data/ai/`
+   2. First call to `generateDraft()` triggers model initialization; calling code sees a "Loading AI..." indicator for the 2–3 second cold-start window before the result arrives (via sealed AiResult.Loading state)
+   3. Delegate cascade attempts QNN (NPU) first, then GPU (OpenCL), then CPU (XNNPACK) — first successful delegate wins; none of the failures propagate to the caller
+   4. If all three delegates fail at runtime, `generateDraft()` writes `NONE` to the `ai_backend` preference in PreferencesManager and returns `Result.failure` — the app does not crash and AI buttons are hidden on the next composition
+   5. `close()` releases model memory — callable from `Activity.onStop()`, `onTrimMemory(TRIM_MEMORY_RUNNING_CRITICAL)`, or after 5 minutes of inference idle time
+**Plans**: 3 plans
+
+**Plans**:
+- [ ] 38-01-PLAN.md — AiResult sealed class, GenAiClient Loading state, EdgeAiClient NONE persistence + 5-min idle timer
+- [ ] 38-02-PLAN.md — MainActivity lifecycle hooks (onStop, onTrimMemory) + doc updates (LiteRT-LM)
+- [ ] 38-03-PLAN.md — Full EdgeAiClient test suite (delegate cascade, lazy init, close/cleanUp, streaming, error handling)
 
 **UI hint**: no
 
@@ -723,7 +728,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 37. Data Foundation | 2/2 | ✅ Complete | 2026-05-17 |
-| 38. Local AI Client | 0/? | Not started | — |
+| 38. Local AI Client | 0/3 | Not started | — |
 | 39. Backend Detection & DI | 0/? | Not started | — |
 | 40. User-Facing Download Flow | 0/? | Not started | — |
 
