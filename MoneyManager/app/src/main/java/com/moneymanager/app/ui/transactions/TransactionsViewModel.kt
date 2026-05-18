@@ -82,6 +82,49 @@ class TransactionsViewModel @Inject constructor(
         _isDownloadPromptSuppressedForSession.value = true
     }
 
+    // -------------------------------------------------------------------------
+    // HYBRID-06 — Download progress banner state
+    // -------------------------------------------------------------------------
+
+    /**
+     * Emits true while a local-model download is in-progress (0 < progress < 1).
+     * Drives DownloadProgressBanner visibility in TransactionsScreen (Plan 40-03).
+     */
+    val isDownloading: StateFlow<Boolean> = preferencesManager.localModelDownloadProgress
+        .map { it > 0f && it < 1f }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /** Raw 0f–1f download progress for LinearProgressIndicator. */
+    val downloadProgress: StateFlow<Float> = preferencesManager.localModelDownloadProgress
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
+
+    /**
+     * Human-readable caption: "X.X / YYY MB (NN%) — N MB/s" or null when totalBytes unknown.
+     * Null hides the caption and keeps the indicator indeterminate.
+     */
+    val downloadProgressCaption: StateFlow<String?> = combine(
+        preferencesManager.localModelDownloadReceived,
+        preferencesManager.localModelDownloadTotal,
+        preferencesManager.localModelDownloadSpeed,
+    ) { received, total, speed ->
+        buildBannerCaptionText(received, total, speed)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Percent label shown in banner Row (e.g. "47%"). */
+    val downloadProgressPercent: StateFlow<String> = preferencesManager.localModelDownloadProgress
+        .map { buildBannerPercentText(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "0%")
+
+    /**
+     * Download error message for a future Snackbar (Phase 40-03 wiring).
+     * Currently a stub MutableStateFlow — ModelDownloadService error signals
+     * can be wired here in a future gap-closure phase.
+     */
+    private val _downloadError = MutableStateFlow<String?>(null)
+    val downloadError: StateFlow<String?> = _downloadError.asStateFlow()
+
+    // -------------------------------------------------------------------------
+
     private val _searchQuery = MutableStateFlow("")
     private val _filters = MutableStateFlow(FilterState("", null, null, null, null, null, null))
     private val _isAllExpanded = MutableStateFlow(true)
@@ -448,6 +491,40 @@ internal fun shouldShowDownloadConsent(
     optedIn: Boolean,
     suppressed: Boolean,
 ): Boolean = tier == AiBackend.LOCAL_MODEL && !downloaded && !optedIn && !suppressed
+
+/**
+ * Pure function for HYBRID-06 banner caption text.
+ * Returns null when totalBytes == 0L (indeterminate — caption hidden, indicator shown without progress).
+ * When totalBytes > 0L returns "X.X / YYY MB (NN%)" with optional speed suffix.
+ *
+ * Package-level so it can be unit-tested without AndroidViewModel instantiation.
+ */
+internal fun buildBannerCaptionText(
+    receivedBytes: Long,
+    totalBytes: Long,
+    bytesPerSecond: Long,
+): String? {
+    if (totalBytes == 0L) return null
+    val receivedMb = "%.1f".format(receivedBytes / 1_000_000.0)
+    val totalMb = "%.0f".format(totalBytes / 1_000_000.0)
+    val pct = (receivedBytes * 100L / totalBytes).toInt()
+    val speedText = when {
+        bytesPerSecond > 1_000_000L -> " — ${"%.1f".format(bytesPerSecond / 1_000_000.0)} MB/s"
+        bytesPerSecond > 1_000L -> " — ${"%.0f".format(bytesPerSecond / 1_000.0)} KB/s"
+        bytesPerSecond > 0L -> " — ${bytesPerSecond} B/s"
+        else -> ""
+    }
+    return "$receivedMb / $totalMb MB ($pct%)$speedText"
+}
+
+/**
+ * Pure function for HYBRID-06 banner percent label.
+ * Returns e.g. "47%" for progress = 0.47f.
+ *
+ * Package-level so it can be unit-tested without AndroidViewModel instantiation.
+ */
+internal fun buildBannerPercentText(progress: Float): String =
+    "${(progress * 100).toInt()}%"
 
 private data class FilterState(
     val type: String = "All",
