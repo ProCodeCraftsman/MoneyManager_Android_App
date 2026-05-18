@@ -64,6 +64,22 @@ import kotlin.math.abs
 // ── Confidence predicates (used by review banner and field tint logic) ──
 
 /**
+ * Canonical keys for the confidence map on [TransactionDraft].
+ * Use these constants in both the AI pipeline (when populating the map) and
+ * in the UI (when reading it) to prevent silent key-mismatch bugs like CR-01.
+ */
+internal object ConfidenceKey {
+    const val TYPE          = "type"
+    const val AMOUNT        = "amount"
+    const val DATE          = "date"
+    const val ACCOUNT_NAME  = "accountName"
+    const val CATEGORY_NAME = "categoryName"
+    const val PEER_NAME     = "peerContactName"
+    const val DESCRIPTION   = "description"
+    const val NOTE          = "note"
+}
+
+/**
  * Returns true when the draft signals that at least one field had low confidence
  * and should be explicitly reviewed by the user.
  */
@@ -374,8 +390,14 @@ fun AddEditTransactionDialog(
     }
 
     // ── Draft Population ──
+    // WR-04: guard against re-firing when the parent recomposes with a new (but equivalent)
+    // TransactionDraft instance, which would silently reset fields the user has already edited.
+    // LaunchedEffect uses === (referential equality) for its key comparison, so even a
+    // structurally identical draft allocated on each recomposition would trigger a reset.
+    var draftApplied by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(initialDraft) {
-        if (initialDraft != null) {
+        if (initialDraft != null && !draftApplied) {
+            draftApplied = true
             initialDraft.typeId?.let { type = it }
             initialDraft.amount?.let { amount = if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() }
             initialDraft.categoryId?.let { selectedCategoryId = it }
@@ -513,7 +535,7 @@ fun AddEditTransactionDialog(
                     }
                 ) {
                     val typeFieldBg = when {
-                        fieldIsLowConfidence("typeId", initialDraft) && isTypeAiField ->
+                        fieldIsLowConfidence(ConfidenceKey.TYPE, initialDraft) && isTypeAiField ->
                             MaterialTheme.colorScheme.errorContainer
                         isTypeAiField ->
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
@@ -558,8 +580,9 @@ fun AddEditTransactionDialog(
                                         append(" · ${initialDraft.sourceSender}")
                                     }
                                     if (initialDraft.date != null) {
-                                        val minutesAgo = ((System.currentTimeMillis() - initialDraft.date) / 60_000).toInt()
-                                        if (minutesAgo >= 1) {
+                                        val elapsedMs = System.currentTimeMillis() - initialDraft.date
+                                        if (elapsedMs in 60_000..Long.MAX_VALUE) {
+                                            val minutesAgo = elapsedMs / 60_000
                                             append(" · ${minutesAgo} minutes ago")
                                         } else {
                                             append(" · just now")
@@ -603,9 +626,9 @@ fun AddEditTransactionDialog(
                     // 1. Amount, Date & Account Card
                     val isAmountDateAccountAiField = "amount" in aiSuggestedFields || "date" in aiSuggestedFields || "account" in aiSuggestedFields
                     val isAmountDateAccountLowConfidence = isAmountDateAccountAiField && (
-                        (fieldIsLowConfidence("amount", initialDraft) && "amount" in aiSuggestedFields) ||
-                        (fieldIsLowConfidence("date", initialDraft) && "date" in aiSuggestedFields) ||
-                        (fieldIsLowConfidence("accountName", initialDraft) && "account" in aiSuggestedFields)
+                        (fieldIsLowConfidence(ConfidenceKey.AMOUNT, initialDraft) && "amount" in aiSuggestedFields) ||
+                        (fieldIsLowConfidence(ConfidenceKey.DATE, initialDraft) && "date" in aiSuggestedFields) ||
+                        (fieldIsLowConfidence(ConfidenceKey.ACCOUNT_NAME, initialDraft) && "account" in aiSuggestedFields)
                     )
                     BadgedBox(
                         badge = {
@@ -684,7 +707,7 @@ fun AddEditTransactionDialog(
                             }
                         ) {
                             val categoryFieldBg = when {
-                                fieldIsLowConfidence("categoryName", initialDraft) && isCategoryAiField ->
+                                fieldIsLowConfidence(ConfidenceKey.CATEGORY_NAME, initialDraft) && isCategoryAiField ->
                                     MaterialTheme.colorScheme.errorContainer
                                 isCategoryAiField ->
                                     MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
@@ -737,7 +760,7 @@ fun AddEditTransactionDialog(
                             }
                         ) {
                             val peerFieldBg = when {
-                                fieldIsLowConfidence("peerContactName", initialDraft) && isPeerAiField ->
+                                fieldIsLowConfidence(ConfidenceKey.PEER_NAME, initialDraft) && isPeerAiField ->
                                     MaterialTheme.colorScheme.errorContainer
                                 isPeerAiField ->
                                     MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
@@ -882,7 +905,7 @@ fun AddEditTransactionDialog(
                             }
                         ) {
                             val noteFieldBg = when {
-                                (fieldIsLowConfidence("description", initialDraft) || fieldIsLowConfidence("note", initialDraft)) && isNoteAiField ->
+                                (fieldIsLowConfidence(ConfidenceKey.DESCRIPTION, initialDraft) || fieldIsLowConfidence(ConfidenceKey.NOTE, initialDraft)) && isNoteAiField ->
                                     MaterialTheme.colorScheme.errorContainer
                                 isNoteAiField ->
                                     MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
@@ -992,7 +1015,7 @@ fun AddEditTransactionDialog(
                     // 11. Action Buttons
                     FormActionButtons(
                         isEdit = isEdit,
-                        amountValid = amount.isNotEmpty(),
+                        amountValid = amount.isNotEmpty() && amount.toDoubleOrNull() != null,
                         accountValid = selectedAccountId != null,
                         accentColor = accentColor,
                         onCancel = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() },
