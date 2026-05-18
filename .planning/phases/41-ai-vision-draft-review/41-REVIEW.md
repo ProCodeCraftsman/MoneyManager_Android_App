@@ -7,11 +7,16 @@ files_reviewed_list:
   - MoneyManager/app/src/test/java/com/moneymanager/ui/dialog/ConfidenceBannerStateTest.kt
   - MoneyManager/app/src/main/java/com/moneymanager/app/ui/dialogs/AddEditTransactionDialog.kt
 findings:
+  critical: 0
+  warning: 0
+  info: 2
+  total: 2
+fixed:
   critical: 1
   warning: 4
-  info: 2
-  total: 7
-status: issues_found
+  commit: 0322a7c
+  fixed_at: 2026-05-18T00:00:00Z
+status: fixed
 ---
 
 # Phase 41: Code Review Report
