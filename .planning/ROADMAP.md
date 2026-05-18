@@ -1,4 +1,4 @@
-# MoneyManager - Roadmap
+﻿# MoneyManager - Roadmap
 
 ## Milestones
 
@@ -116,7 +116,12 @@ v3.1: Hybrid AI Backend — 13 requirements across 4 phases (37–40)
   3. All income labels/icons use theme's income color
   4. All expense labels/icons use theme's expense color
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 40-01-PLAN.md — AiDownloadConsentDialog composable + TransactionsViewModel consent state (Wave 1)
+- [ ] 40-02-PLAN.md — DownloadProgressBanner composable + TransactionsViewModel progress state + notification channel fix (Wave 1)
+- [ ] 40-03-PLAN.md — Wire dialog + banner into TransactionsScreen; Hilt compile verification; human checkpoint (Wave 2)
 
 **UI hint**: yes
 
@@ -719,7 +724,12 @@ Plans:
   3. Tapping "Download (529 MB)" initiates the download and dismisses the dialog
   4. User sees download progress — either a persistent system notification showing percentage or an in-app indicator — while the download runs; the app remains fully usable during download
   5. AI features (draft FAB group, "AI Fill" buttons) become available automatically when download completes without requiring an app restart
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 40-01-PLAN.md — AiDownloadConsentDialog composable + TransactionsViewModel consent state (Wave 1)
+- [ ] 40-02-PLAN.md — DownloadProgressBanner composable + TransactionsViewModel progress state + notification channel fix (Wave 1)
+- [ ] 40-03-PLAN.md — Wire dialog + banner into TransactionsScreen; Hilt compile verification; human checkpoint (Wave 2)
 
 **UI hint**: yes
 
@@ -730,7 +740,7 @@ Plans:
 | 37. Data Foundation | 2/2 | ✅ Complete | 2026-05-17 |
 | 38. Local AI Client | 3/3 | ✅ Complete | 2026-05-17 |
 | 39. Backend Detection & DI | 3/3 | ✅ Complete | 2026-05-18 |
-| 40. User-Facing Download Flow | 0/? | Not started | — |
+| 40. User-Facing Download Flow | 0/3 | Not started | — |
 
 ---
 
