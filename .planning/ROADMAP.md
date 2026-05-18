@@ -9,11 +9,12 @@
 | [v2.1](milestones/v2.1-ROADMAP.md) | In Progress | 2026-04-25 |
 | v2.2 | In Progress | 2026-04-28 |
 | v3.0 | ✅ Complete | 2026-05-15 |
-| v3.1 | In Progress | 2026-05-16 |
+| v3.1 | ✅ Complete | 2026-05-18 |
+| v3.2 | Planned | — |
 
 ## Next Milestone
 
-v3.1: Hybrid AI Backend — 13 requirements across 4 phases (37–40)
+v3.2: AI Agent Enhancement — 10 requirements across 4 phases (41–44)
 
 ---
 
@@ -119,9 +120,9 @@ v3.1: Hybrid AI Backend — 13 requirements across 4 phases (37–40)
 **Plans**: 3 plans
 
 Plans:
-- [ ] 40-01-PLAN.md — AiDownloadConsentDialog composable + TransactionsViewModel consent state (Wave 1)
-- [ ] 40-02-PLAN.md — DownloadProgressBanner composable + TransactionsViewModel progress state + notification channel fix (Wave 1)
-- [ ] 40-03-PLAN.md — Wire dialog + banner into TransactionsScreen; Hilt compile verification; human checkpoint (Wave 2)
+- [x] 40-01-PLAN.md — AiDownloadConsentDialog composable + TransactionsViewModel consent state (Wave 1) ✅
+- [x] 40-02-PLAN.md — DownloadProgressBanner composable + TransactionsViewModel progress state + notification channel fix (Wave 1) ✅
+- [x] 40-03-PLAN.md — Wire dialog + banner into TransactionsScreen; Hilt compile verification; human checkpoint (Wave 2) ✅
 
 **UI hint**: yes
 
@@ -648,7 +649,7 @@ Plans:
 - [x] **Phase 37: Data Foundation** - AiBackend enum, PreferencesManager 5 new keys, ModelDownloadManager core, LiteRT-LM integration
 - [x] **Phase 38: Local AI Client** - EdgeAiClient with delegate cascade, lazy init with "Loading AI..." indicator, delegate failure fallback ✅
 - [x] **Phase 39: Backend Detection & DI** - 3-tier DeviceCapabilityManager update, AiModule backend-selection expansion
-- [ ] **Phase 40: User-Facing Download Flow** - Opt-in download dialog with size disclosure, download progress indicator
+- [x] **Phase 40: User-Facing Download Flow** - Opt-in download dialog with size disclosure, download progress indicator ✅
 
 ## Phase Details
 
@@ -727,9 +728,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 40-01-PLAN.md — AiDownloadConsentDialog composable + TransactionsViewModel consent state (Wave 1)
-- [ ] 40-02-PLAN.md — DownloadProgressBanner composable + TransactionsViewModel progress state + notification channel fix (Wave 1)
-- [ ] 40-03-PLAN.md — Wire dialog + banner into TransactionsScreen; Hilt compile verification; human checkpoint (Wave 2)
+- [x] 40-01-PLAN.md — AiDownloadConsentDialog composable + TransactionsViewModel consent state (Wave 1) ✅
+- [x] 40-02-PLAN.md — DownloadProgressBanner composable + TransactionsViewModel progress state + notification channel fix (Wave 1) ✅
+- [x] 40-03-PLAN.md — Wire dialog + banner into TransactionsScreen; Hilt compile verification; human checkpoint (Wave 2) ✅
 
 **UI hint**: yes
 
@@ -740,7 +741,7 @@ Plans:
 | 37. Data Foundation | 2/2 | ✅ Complete | 2026-05-17 |
 | 38. Local AI Client | 3/3 | ✅ Complete | 2026-05-17 |
 | 39. Backend Detection & DI | 3/3 | ✅ Complete | 2026-05-18 |
-| 40. User-Facing Download Flow | 0/3 | Not started | — |
+| 40. User-Facing Download Flow | 3/3 | ✅ Complete | 2026-05-18 |
 
 ---
 
@@ -749,3 +750,112 @@ Plans:
 **Requirements:** 13 total (10 HYBRID + 3 AIFND-mod) | **Phases:** 4 | **Mapped:** 13/13 ✓
 
 <!-- END: v3.1.milestone -->
+
+<!-- START: v3.2.milestone -->
+# Milestone v3.2: AI Agent Enhancement
+
+**Started:** —
+**Goal:** Elevate the on-device AI from a single-call classifier to a true agent — vision draft review with confidence UI, full CRUD tools for the LLM, multi-turn clarification loop, and deterministic input cleaning. All changes are strictly additive; v3.1 flows remain unchanged.
+
+## Phases
+
+- [x] **Phase 41: AI Vision Draft Review UI** — Confidence banner + per-field error tint in AddEditTransactionDialog for vision-path drafts ✅
+- [ ] **Phase 42: Agentic CRUD Tools** — searchTransactions, findDuplicate, createTransaction, updateTransaction @Tool methods in TransactionToolSet
+- [ ] **Phase 43: Multi-Turn Agent Loop** — LLM can ask one clarifying question; ViewModel + source screens handle the back-and-forth
+- [ ] **Phase 44: Input Cleaning Skill** — Deterministic text normalisation pass + clean-input SKILL.md
+
+## Phase Details
+
+### Phase 41: AI Vision Draft Review UI
+**Goal**: Users see a clear warning banner and error-tinted fields when the vision model was uncertain about extracted values
+
+**Depends on**: Phase 40 (ask-image work completed in v3.1 gap-fill)
+
+**Requirements**: AGENT-01, AGENT-02
+
+**Success Criteria** (what must be TRUE):
+  1. "Review suggested" banner (tertiaryContainer) appears in AddEditTransactionDialog when draft.needsReview == true
+  2. Fields with confidence == "low" show errorContainer tint instead of normal primary AI tint
+  3. Fields with confidence == "high" or "medium" keep the existing primary.copy(0.08f) tint
+  4. Null initialDraft path is bit-for-bit identical to current behaviour
+
+**Plans**:
+- [x] 41-01-PLAN.md — Confidence banner + per-field error tint in AddEditTransactionDialog ✅
+
+**UI hint**: yes
+
+### Phase 42: Agentic CRUD Tools
+**Goal**: The on-device LLM can search existing transactions, detect duplicates, and create or update records via tool calls — no hallucination of IDs needed
+
+**Depends on**: Phase 41
+
+**Requirements**: AGENT-03, AGENT-04, AGENT-05, AGENT-06
+
+**Success Criteria** (what must be TRUE):
+  1. searchTransactions @Tool returns up to 5 matching transactions by keyword and optional date range
+  2. findDuplicate @Tool detects existing transactions within ±1.0 amount and ±3 days
+  3. createTransaction @Tool validates input, resolves names to IDs, writes to Room, returns new id
+  4. updateTransaction @Tool patches only explicitly provided fields; never cascades deletes
+  5. All 4 tools follow Map<String, String> return convention and emit ToolProgressAction
+
+**Plans**:
+- [ ] 42-01-PLAN.md — searchTransactions + findDuplicate (read-only tools, Wave 1)
+- [ ] 42-02-PLAN.md — createTransaction + updateTransaction (write tools, Wave 2)
+
+**UI hint**: no
+
+### Phase 43: Multi-Turn Agent Loop
+**Goal**: LLM can request one clarification from the user before completing a draft; source screens surface the question as a dialog; max-turns guard prevents infinite loops
+
+**Depends on**: Phase 42
+
+**Requirements**: AGENT-07, AGENT-08
+
+**Success Criteria** (what must be TRUE):
+  1. TransactionDraft has needsInput: Boolean and pendingQuestion: String? fields
+  2. Use cases return early with needsInput=true draft instead of retrying on clarification response
+  3. Turn >= 3 guard forces completion with needsReview=true
+  4. AiDraftViewModel exposes pendingQuestion: StateFlow<String?> and answerQuestion() / skipQuestion()
+  5. All 3 source screens show an AlertDialog with the question when pendingQuestion != null
+
+**Plans**:
+- [ ] 43-01-PLAN.md — TransactionDraft fields + use case needs_input detection (Wave 1)
+- [ ] 43-02-PLAN.md — ViewModel StateFlow + clarification dialog in source screens (Wave 2)
+
+**UI hint**: yes
+
+### Phase 44: Input Cleaning Skill
+**Goal**: Noisy SMS/voice/OCR text is deterministically normalised before reaching the LLM, reducing hallucinations on garbled inputs
+
+**Depends on**: Phase 43
+
+**Requirements**: AGENT-09
+
+**Success Criteria** (what must be TRUE):
+  1. cleanInputText() is a pure Kotlin function in PromptBuilder — zero Android imports, JVM-testable
+  2. Normalisation covers: currency symbols, SMS shorthand, HTML entities, repeated punctuation, blank lines
+  3. Original rawText is preserved in conversation logs; only cleanedText reaches the LLM
+  4. DeterministicExtractor output is unaffected (runs before cleaning, pins amount/type/date)
+  5. clean-input SKILL.md exists with normalisation rules and 5 before/after examples
+
+**Plans**:
+- [ ] 44-01-PLAN.md — cleanInputText() in PromptBuilder + use case call + SKILL.md
+
+**UI hint**: no
+
+---
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 41. AI Vision Draft Review UI | 1/1 | ✅ Complete | 2026-05-18 |
+| 42. Agentic CRUD Tools | 0/2 | Planned | — |
+| 43. Multi-Turn Agent Loop | 0/2 | Planned | — |
+| 44. Input Cleaning Skill | 0/1 | Planned | — |
+
+---
+
+## Milestone v3.2 Progress
+
+**Requirements:** 10 total (AGENT-01 → AGENT-09) | **Phases:** 4 | **Mapped:** 10/10 ✓
+
+<!-- END: v3.2.milestone -->
