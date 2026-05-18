@@ -17,7 +17,10 @@ import com.moneymanager.domain.repository.CategoryRepository
 import com.moneymanager.domain.repository.GoalRepository
 import com.moneymanager.domain.repository.PeerContactRepository
 import com.moneymanager.domain.repository.TransactionRepository
+import com.moneymanager.data.ai.ModelDownloadService
 import com.moneymanager.data.preferences.PreferencesManager
+import com.moneymanager.data.repository.AiAvailabilityRepository
+import com.moneymanager.domain.ai.AiBackend
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -37,7 +40,47 @@ class TransactionsViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
+    private val aiAvailabilityRepository: AiAvailabilityRepository,
 ) : AndroidViewModel(application) {
+
+    /** In-memory session flag — set to true on "Maybe Later"; never persisted to DataStore. */
+    private val _isDownloadPromptSuppressedForSession = MutableStateFlow(false)
+
+    /**
+     * Emits true when all four conditions are met:
+     * tier == LOCAL_MODEL, model not yet downloaded, user not opted-in, session not suppressed.
+     * Drives AiDownloadConsentDialog visibility in TransactionsScreen (Plan 40-03).
+     */
+    val showDownloadConsentDialog: StateFlow<Boolean> = combine(
+        aiAvailabilityRepository.aiBackendTier,
+        preferencesManager.isLocalModelDownloaded,
+        preferencesManager.userOptedInAi,
+        _isDownloadPromptSuppressedForSession,
+    ) { tier, downloaded, optedIn, suppressed ->
+        shouldShowDownloadConsent(tier, downloaded, optedIn, suppressed)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /**
+     * Called when user taps "Download (529 MB)".
+     * Writes opt-in preference first, then starts the foreground download service.
+     * T-40-01 mitigation: if process is killed between the two calls, next launch re-shows
+     * the dialog (safe recovery) because setUserOptedInAi was already written.
+     */
+    fun onDownloadConsented() {
+        viewModelScope.launch {
+            preferencesManager.setUserOptedInAi(true)
+            val modelName = preferencesManager.getSelectedLocalModelSync()
+            ModelDownloadService.start(getApplication(), modelName)
+        }
+    }
+
+    /**
+     * Called when user taps "Maybe Later" or dismisses the dialog via scrim/back.
+     * Only sets in-memory session flag — no DataStore write (HYBRID-05: re-prompts next launch).
+     */
+    fun onDownloadPromptSuppressed() {
+        _isDownloadPromptSuppressedForSession.value = true
+    }
 
     private val _searchQuery = MutableStateFlow("")
     private val _filters = MutableStateFlow(FilterState("", null, null, null, null, null, null))
@@ -361,7 +404,7 @@ class TransactionsViewModel @Inject constructor(
     private suspend fun adjustBalance(tx: TransactionEntity, reverse: Boolean) {
         val sign = if (reverse) -1.0 else 1.0
         when (tx.type) {
-            "income", "receive", "borrow" -> accountRepository.updateAccountBalance(tx.accountId, sign * tx.amount)
+            "income", "borrow" -> accountRepository.updateAccountBalance(tx.accountId, sign * tx.amount)
             "expense", "savings", "lend" -> accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
         }
     }
@@ -376,10 +419,6 @@ class TransactionsViewModel @Inject constructor(
                 totalGiven = peer.totalGiven + (sign * tx.amount),
                 updatedAt = System.currentTimeMillis()
             )
-            "receive" -> peer.copy(
-                totalReceived = peer.totalReceived + (sign * tx.amount),
-                updatedAt = System.currentTimeMillis()
-            )
             "borrow" -> peer.copy(
                 totalReceived = peer.totalReceived + (sign * tx.amount),
                 updatedAt = System.currentTimeMillis()
@@ -392,6 +431,23 @@ class TransactionsViewModel @Inject constructor(
         }
     }
 }
+
+/**
+ * Pure function that encodes the HYBRID-05 dialog show-condition.
+ * Package-level so it can be unit-tested without instantiating AndroidViewModel.
+ *
+ * @param tier           Current AI backend tier from AiAvailabilityRepository
+ * @param downloaded     True if local model file is already on device
+ * @param optedIn        True if user previously consented to download
+ * @param suppressed     True if user tapped "Maybe Later" this session (in-memory only)
+ * @return               True when all conditions to show the consent dialog are met
+ */
+internal fun shouldShowDownloadConsent(
+    tier: AiBackend,
+    downloaded: Boolean,
+    optedIn: Boolean,
+    suppressed: Boolean,
+): Boolean = tier == AiBackend.LOCAL_MODEL && !downloaded && !optedIn && !suppressed
 
 private data class FilterState(
     val type: String = "All",
