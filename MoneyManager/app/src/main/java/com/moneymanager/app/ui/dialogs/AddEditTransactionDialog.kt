@@ -61,6 +61,22 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
+// ── Confidence predicates (used by review banner and field tint logic) ──
+
+/**
+ * Returns true when the draft signals that at least one field had low confidence
+ * and should be explicitly reviewed by the user.
+ */
+internal fun showReviewBanner(draft: TransactionDraft?): Boolean = draft?.needsReview == true
+
+/**
+ * Returns true when the AI confidence for [fieldName] in [draft] is "low".
+ * Any other value ("high", "medium", unknown, or null draft) returns false,
+ * keeping the safe default behaviour (trust T-41-01).
+ */
+internal fun fieldIsLowConfidence(fieldName: String, draft: TransactionDraft?): Boolean =
+    draft?.confidence?.get(fieldName) == "low"
+
 data class SplitRowData(
     val localId: Int,
     val categoryId: Long? = null,
@@ -99,7 +115,7 @@ fun AddEditTransactionDialog(
     var aiSuggestedFields by remember { mutableStateOf(emptySet<String>()) }
 
     // ── Core State ──
-    var type by rememberSaveable { mutableStateOf(transaction?.type ?: initialType ?: "expense") }
+    var type by rememberSaveable { mutableStateOf(transaction?.type ?: initialType?.takeIf { it.isNotBlank() } ?: "expense") }
 
     val filteredAccounts = remember(type, accounts) {
         when (type) {
@@ -377,6 +393,10 @@ fun AddEditTransactionDialog(
                 showNoteInput = true
             }
             initialDraft.date?.let { selectedDate = it }
+            initialDraft.receiptPath?.let {
+                receiptData = it
+                showReceiptInput = true
+            }
 
             aiSuggestedFields = buildSet {
                 if (initialDraft.typeId != null) add("type")
@@ -387,6 +407,7 @@ fun AddEditTransactionDialog(
                 if (initialDraft.tagIds.isNotEmpty()) add("tags")
                 if (initialDraft.description != null || initialDraft.note != null) add("note")
                 if (initialDraft.date != null) add("date")
+                if (initialDraft.receiptPath != null) add("receipt")
             }
         }
     }
@@ -491,9 +512,16 @@ fun AddEditTransactionDialog(
                         }
                     }
                 ) {
+                    val typeFieldBg = when {
+                        fieldIsLowConfidence("typeId", initialDraft) && isTypeAiField ->
+                            MaterialTheme.colorScheme.errorContainer
+                        isTypeAiField ->
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                        else -> null
+                    }
                     Box(
-                        modifier = if (isTypeAiField) Modifier.background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                        modifier = if (typeFieldBg != null) Modifier.background(
+                            typeFieldBg,
                             RoundedCornerShape(4.dp)
                         ).padding(horizontal = 2.dp) else Modifier
                     ) {
@@ -544,8 +572,41 @@ fun AddEditTransactionDialog(
                         }
                     }
 
+                    // ── Review Banner (amber warning strip for low-confidence AI drafts) ──
+                    if (showReviewBanner(initialDraft)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.tertiaryContainer,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Some fields need your review — AI was not confident about highlighted values.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+
                     // 1. Amount, Date & Account Card
                     val isAmountDateAccountAiField = "amount" in aiSuggestedFields || "date" in aiSuggestedFields || "account" in aiSuggestedFields
+                    val isAmountDateAccountLowConfidence = isAmountDateAccountAiField && (
+                        (fieldIsLowConfidence("amount", initialDraft) && "amount" in aiSuggestedFields) ||
+                        (fieldIsLowConfidence("date", initialDraft) && "date" in aiSuggestedFields) ||
+                        (fieldIsLowConfidence("accountName", initialDraft) && "account" in aiSuggestedFields)
+                    )
                     BadgedBox(
                         badge = {
                             if (isAmountDateAccountAiField) {
@@ -558,9 +619,16 @@ fun AddEditTransactionDialog(
                             }
                         }
                     ) {
+                        val amountDateAccountBg = when {
+                            isAmountDateAccountLowConfidence ->
+                                MaterialTheme.colorScheme.errorContainer
+                            isAmountDateAccountAiField ->
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                            else -> null
+                        }
                         Box(
-                            modifier = if (isAmountDateAccountAiField) Modifier.background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                            modifier = if (amountDateAccountBg != null) Modifier.background(
+                                amountDateAccountBg,
                                 RoundedCornerShape(4.dp)
                             ).padding(horizontal = 2.dp) else Modifier
                         ) {
@@ -615,9 +683,16 @@ fun AddEditTransactionDialog(
                                 }
                             }
                         ) {
+                            val categoryFieldBg = when {
+                                fieldIsLowConfidence("categoryName", initialDraft) && isCategoryAiField ->
+                                    MaterialTheme.colorScheme.errorContainer
+                                isCategoryAiField ->
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                else -> null
+                            }
                             Box(
-                                modifier = if (isCategoryAiField) Modifier.background(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                modifier = if (categoryFieldBg != null) Modifier.background(
+                                    categoryFieldBg,
                                     RoundedCornerShape(4.dp)
                                 ).padding(horizontal = 2.dp) else Modifier
                             ) {
@@ -661,9 +736,16 @@ fun AddEditTransactionDialog(
                                 }
                             }
                         ) {
+                            val peerFieldBg = when {
+                                fieldIsLowConfidence("peerContactName", initialDraft) && isPeerAiField ->
+                                    MaterialTheme.colorScheme.errorContainer
+                                isPeerAiField ->
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                else -> null
+                            }
                             Box(
-                                modifier = if (isPeerAiField) Modifier.background(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                modifier = if (peerFieldBg != null) Modifier.background(
+                                    peerFieldBg,
                                     RoundedCornerShape(4.dp)
                                 ).padding(horizontal = 2.dp) else Modifier
                             ) {
@@ -799,9 +881,16 @@ fun AddEditTransactionDialog(
                                 }
                             }
                         ) {
+                            val noteFieldBg = when {
+                                (fieldIsLowConfidence("description", initialDraft) || fieldIsLowConfidence("note", initialDraft)) && isNoteAiField ->
+                                    MaterialTheme.colorScheme.errorContainer
+                                isNoteAiField ->
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                else -> null
+                            }
                             Box(
-                                modifier = if (isNoteAiField) Modifier.background(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                modifier = if (noteFieldBg != null) Modifier.background(
+                                    noteFieldBg,
                                     RoundedCornerShape(4.dp)
                                 ).padding(horizontal = 2.dp) else Modifier
                             ) {
