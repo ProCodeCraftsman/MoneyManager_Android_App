@@ -136,6 +136,9 @@ dependencies {
     // Coil for images
     implementation("io.coil-kt:coil-compose:2.7.0")
 
+    // NanoHTTPD - embedded HTTP server for AI Edge Gallery skill integration
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
+
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("androidx.hilt:hilt-work:1.2.0")

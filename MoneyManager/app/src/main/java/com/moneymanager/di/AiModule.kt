@@ -1,10 +1,13 @@
 package com.moneymanager.di
 
 import com.moneymanager.data.ai.AiClientRouter
+import com.moneymanager.data.ai.DownloadRepository
+import com.moneymanager.data.ai.DownloadRepositoryImpl
 import com.moneymanager.data.ai.EdgeAiClient
 import com.moneymanager.data.ai.NanoAiClient
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.ai.GenAiClient
+import com.moneymanager.domain.ai.GenerateDraftFromImageUseCase
 import com.moneymanager.domain.ai.GenerateDraftFromTextUseCase
 import com.moneymanager.domain.repository.AiConversationRepository
 import dagger.Module
@@ -19,6 +22,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AiModule {
+
+    @Provides
+    @Singleton
+    fun provideDownloadRepository(impl: DownloadRepositoryImpl): DownloadRepository = impl
 
     @Provides
     @Singleton
@@ -53,5 +60,14 @@ object AiModule {
         conversationRepository: AiConversationRepository,
     ): GenerateDraftFromTextUseCase {
         return GenerateDraftFromTextUseCase(client, conversationRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGenerateDraftFromImageUseCase(
+        @Named("preferredClient") @androidx.annotation.Nullable client: GenAiClient?,
+        conversationRepository: AiConversationRepository,
+    ): GenerateDraftFromImageUseCase {
+        return GenerateDraftFromImageUseCase(client, conversationRepository)
     }
 }

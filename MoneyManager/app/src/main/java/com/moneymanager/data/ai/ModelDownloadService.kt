@@ -78,7 +78,11 @@ class ModelDownloadService : Service() {
             return START_NOT_STICKY
         }
 
+        // startForeground must be called before any stopSelf() on API 26+
+        startForeground(NOTIFICATION_ID, buildNotification("Starting download...", 0, false))
+
         val modelName = intent?.getStringExtra("model_name") ?: run {
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
@@ -86,10 +90,11 @@ class ModelDownloadService : Service() {
         // Look up model from allowlist (embedded or remote)
         // In a foreground service we can't suspend, so resolve synchronously
         val model = runBlocking { modelManager.getModelByName(modelName) }
-        if (model == null) { stopSelf(); return START_NOT_STICKY }
-
-        val notification = buildNotification("Starting download...", 0, false)
-        startForeground(NOTIFICATION_ID, notification)
+        if (model == null) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
         cancelled = false
         downloadJob = serviceScope.launch {

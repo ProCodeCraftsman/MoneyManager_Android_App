@@ -38,6 +38,12 @@ fun AddTransactionScreen(
             onConfirm = { tx, children ->
                 if (children != null) viewModel.addSplitTransaction(tx, children)
                 else viewModel.addTransaction(tx)
+                // Correction learning: record what the user actually saved so future
+                // same-merchant lookups reflect real preferences, not just AI guesses.
+                val hint = initialDraft?.merchantHint
+                if (hint != null && tx.categoryId != null) {
+                    viewModel.recordMerchantCategory(hint, tx.categoryId, tx.type)
+                }
                 onDismiss()
             },
         )

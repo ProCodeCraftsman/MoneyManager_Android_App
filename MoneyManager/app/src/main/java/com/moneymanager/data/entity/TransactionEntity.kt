@@ -33,12 +33,12 @@ data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val accountId: Long,
-    val type: String, // income, expense, savings, transfer, lend, receive, borrow, repay
+    val type: String, // income, expense, savings, transfer, lend, borrow
     val amount: Double, // always positive; sign derived from type
     val categoryId: Long? = null,
     val subCategoryId: Long? = null,
     val goalId: Long? = null,
-    val peerContactId: Long? = null, // link to peer if type = lend/receive, borrow/repay
+    val peerContactId: Long? = null, // link to peer if type = lend/borrow
     val tagIds: String = "", // comma-separated tag IDs
     val date: Long = System.currentTimeMillis(),
     val description: String = "",
@@ -57,6 +57,6 @@ data class TransactionEntity(
     val createdAt: Long = System.currentTimeMillis()
 ) {
     companion object {
-        val VALID_TYPES = listOf("income", "expense", "savings", "transfer", "lend", "receive", "borrow", "repay")
+        val VALID_TYPES = listOf("income", "expense", "savings", "transfer", "lend", "borrow")
     }
 }

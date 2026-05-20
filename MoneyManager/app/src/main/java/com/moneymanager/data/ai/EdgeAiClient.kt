@@ -108,6 +108,32 @@ class EdgeAiClient @Inject constructor(
         }
     }
 
+    // ── GenAiClient: vision / image path ─────────────────────────────────────
+
+    override suspend fun generateDraftFromImage(
+        systemInstruction: String,
+        userMessage: String,
+        imageBytes: ByteArray,
+    ): Result<String> {
+        if (!modelManager.isModelDownloaded()) {
+            return Result.failure(AiUnavailableException("Local model not downloaded"))
+        }
+        val model = modelManager.selectModelForDevice()
+        if (model?.supportsVision != true) {
+            return Result.failure(UnsupportedOperationException("Current model does not support vision"))
+        }
+        resetIdleTimer()
+        return try {
+            val raw = runImageInference(getOrCreateEngine(), systemInstruction, userMessage, imageBytes)
+            Log.d(TAG, "Image inference OK (${raw.length} chars): ${raw.take(300)}")
+            Result.success(raw)
+        } catch (e: Exception) {
+            Log.e(TAG, "Image inference failed", e)
+            close()
+            Result.failure(AiUnavailableException("Image inference error: ${e.message}"))
+        }
+    }
+
     // ── GenAiClient: streaming path ────────────────────────────────────
 
     override suspend fun generateDraftStreaming(
@@ -223,12 +249,20 @@ class EdgeAiClient @Inject constructor(
             Backend.GPU(),
             Backend.CPU(),
         )
+        val visionBackend = if (model.supportsVision) {
+            when (model.defaultConfig.visionAccelerator.lowercase()) {
+                "npu" -> Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir ?: "")
+                "cpu" -> Backend.CPU()
+                else -> Backend.GPU()
+            }
+        } else null
+
         for (backend in backends) {
             try {
                 val cfg = EngineConfig(
                     modelPath = modelPath,
                     backend = backend,
-                    visionBackend = null,
+                    visionBackend = visionBackend,
                     audioBackend = null,
                     maxNumTokens = DEFAULT_MAX_TOKENS,
                     cacheDir = context.cacheDir.absolutePath,
@@ -287,6 +321,42 @@ class EdgeAiClient @Inject constructor(
             throw e
         } catch (e: CancellationException) {
             Log.w(TAG, "Inference cancelled, returning partial result")
+        } finally {
+            try { conv.close() } catch (_: Exception) {}
+            conversation = null
+        }
+        return sb.toString()
+    }
+
+    private suspend fun runImageInference(
+        eng: Engine,
+        systemInstruction: String,
+        userMessage: String,
+        imageBytes: ByteArray,
+    ): String {
+        val sysContents = Contents.of(listOf(Content.Text(systemInstruction)))
+        val conv = eng.createConversation(
+            ConversationConfig(
+                samplerConfig = SamplerConfig(topK = 1, topP = 1.0, temperature = 0.0),
+                systemInstruction = sysContents,
+                tools = listOf(tool(toolSet)),
+                automaticToolCalling = true,
+            )
+        )
+        conversation = conv
+        val sb = StringBuilder()
+        try {
+            conv.sendMessageAsync(
+                Contents.of(listOf(Content.ImageBytes(imageBytes), Content.Text(userMessage))),
+                emptyMap(),
+            ).collect { message ->
+                sb.append(message.toString())
+            }
+        } catch (e: LiteRtLmJniException) {
+            Log.e(TAG, "Native image inference error", e)
+            throw e
+        } catch (e: CancellationException) {
+            Log.w(TAG, "Image inference cancelled, returning partial result")
         } finally {
             try { conv.close() } catch (_: Exception) {}
             conversation = null

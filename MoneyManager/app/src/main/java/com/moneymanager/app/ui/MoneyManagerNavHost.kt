@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SpaceDashboard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,14 +22,24 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.moneymanager.app.ui.auth.AppLockScreen
 import com.moneymanager.app.ui.accounts.AccountsScreen
 import com.moneymanager.app.ui.accounts.AccountsViewModel
 import com.moneymanager.app.ui.addtransaction.AddTransactionScreen
+import com.moneymanager.app.ui.aidraft.AiDraftViewModel
+import com.moneymanager.app.ui.aidraft.AiHistoryScreen
+import com.moneymanager.app.ui.aimodels.AiModelsScreen
+import com.moneymanager.app.ui.aimodels.AllowlistManagerScreen
+import com.moneymanager.app.ui.aidraft.ReceiptScanScreen
+import com.moneymanager.app.ui.aidraft.SmsPickerScreen
+import com.moneymanager.app.ui.aidraft.VoiceMemoScreen
 import com.moneymanager.app.ui.borrowlend.BorrowLendScreen
 import com.moneymanager.app.ui.borrowlend.BorrowLendViewModel
 import com.moneymanager.app.ui.budgets.BudgetsScreen
@@ -54,21 +67,14 @@ import com.moneymanager.app.ui.util.AppLockState
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.data.security.BiometricAuthManager
 import com.moneymanager.data.security.SecurityManager
-import android.net.Uri
-import androidx.compose.material.icons.rounded.*
-import com.moneymanager.app.ui.aidraft.AiDraftViewModel
-import com.moneymanager.app.ui.aidraft.ReceiptScanScreen
-import com.moneymanager.app.ui.aidraft.SmsPickerScreen
-import com.moneymanager.app.ui.aidraft.VoiceMemoScreen
 import com.moneymanager.domain.ai.TransactionDraft
-import kotlinx.serialization.json.Json
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector?) {
     data object Accounts : Screen("accounts", "Accounts", Icons.Default.AccountBalance)
     data object Transactions : Screen(
         route = "transactions?type={type}&accountId={accountId}&startDate={startDate}&endDate={endDate}&goalId={goalId}&categoryId={categoryId}&peerId={peerId}",
         title = "Transactions",
-        icon = Icons.Rounded.ReceiptLong
+        icon = Icons.AutoMirrored.Rounded.ReceiptLong
     ) {
         fun createRoute(
             type: String? = null,
@@ -104,7 +110,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object AiDraftSms : Screen("ai_draft_sms", "AI Draft from SMS", null)
     data object AiDraftReceipt : Screen("ai_draft_receipt", "AI Draft from Receipt", null)
     data object AiDraftVoice : Screen("ai_draft_voice", "AI Draft from Voice", null)
-    data object AddTransaction : Screen("add_transaction?type={type}&draftJson={draftJson}", "Add Transaction", null)
+    data object AiHistory : Screen("ai_history", "AI Conversation History", null)
+    data object AiModels : Screen("ai_models", "AI Models", null)
+    data object AllowlistManager : Screen("allowlist_manager", "Model Allowlist", null)
+    data object AddTransaction : Screen("add_transaction?type={type}", "Add Transaction", null)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -272,7 +281,9 @@ fun MoneyManagerNavHost(
                         onNavigateToPeers = { navController.navigate(Screen.Peers.route) },
                         onNavigateToBudgets = { navController.navigate(Screen.Budgets.route) },
                         onNavigateToGoals = { navController.navigate(Screen.Goals.route) },
-                        onNavigateToRecurring = { navController.navigate(Screen.Recurring.route) }
+                        onNavigateToRecurring = { navController.navigate(Screen.Recurring.route) },
+                        onNavigateToAiHistory = { navController.navigate(Screen.AiHistory.route) },
+                        onNavigateToAiModels = { navController.navigate(Screen.AiModels.route) }
                     )
                 }
                 composable(Screen.Summary.route) {
@@ -338,22 +349,23 @@ fun MoneyManagerNavHost(
                     )
                 }
                 composable(
-                    Screen.AddTransaction.route,
+                    route = "add_transaction?type={type}",
                     deepLinks = listOf(
                         navDeepLink { uriPattern = "moneymanager://add_transaction?type={type}" }
+                    ),
+                    arguments = listOf(
+                        navArgument("type") { type = NavType.StringType; nullable = true; defaultValue = null }
                     )
                 ) { backStackEntry ->
                     val type = backStackEntry.arguments?.getString("type")
-                    val draftJson = backStackEntry.arguments?.getString("draftJson")
-                    val initialDraft: TransactionDraft? = draftJson?.let {
-                        try { Json.decodeFromString<TransactionDraft>(Uri.decode(it)) } catch (e: Exception) { null }
-                    }
-                    val addTxAiDraftViewModel = hiltViewModel<AiDraftViewModel>()
+                    val savedHandle = navController.previousBackStackEntry?.savedStateHandle
+                    val initialDraft: TransactionDraft? = savedHandle?.get<TransactionDraft>("ai_draft")
+                    if (initialDraft != null) savedHandle.remove<TransactionDraft>("ai_draft")
                     AddTransactionScreen(
                         type = type,
                         onDismiss = { navController.popBackStack() },
                         initialDraft = initialDraft,
-                        onDraftDismiss = { addTxAiDraftViewModel.clearDraft() }
+                        onDraftDismiss = { }
                     )
                 }
                 composable(Screen.AiDraftSms.route) {
@@ -362,8 +374,9 @@ fun MoneyManagerNavHost(
                         viewModel = screenViewModel,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToConfirm = { draft ->
+                            navController.currentBackStackEntry?.savedStateHandle?.set("ai_draft", draft)
                             navController.navigate(
-                                "add_transaction?type=${draft.typeId ?: ""}&draftJson=${Uri.encode(Json.encodeToString(draft))}"
+                                "add_transaction?type=${draft.typeId ?: ""}"
                             )
                         }
                     )
@@ -374,8 +387,9 @@ fun MoneyManagerNavHost(
                         viewModel = screenViewModel,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToConfirm = { draft ->
+                            navController.currentBackStackEntry?.savedStateHandle?.set("ai_draft", draft)
                             navController.navigate(
-                                "add_transaction?type=${draft.typeId ?: ""}&draftJson=${Uri.encode(Json.encodeToString(draft))}"
+                                "add_transaction?type=${draft.typeId ?: ""}"
                             )
                         }
                     )
@@ -386,10 +400,27 @@ fun MoneyManagerNavHost(
                         viewModel = screenViewModel,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToConfirm = { draft ->
+                            navController.currentBackStackEntry?.savedStateHandle?.set("ai_draft", draft)
                             navController.navigate(
-                                "add_transaction?type=${draft.typeId ?: ""}&draftJson=${Uri.encode(Json.encodeToString(draft))}"
+                                "add_transaction?type=${draft.typeId ?: ""}"
                             )
                         }
+                    )
+                }
+                composable(Screen.AiHistory.route) {
+                    AiHistoryScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Screen.AiModels.route) {
+                    AiModelsScreen(
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAllowlistManager = { navController.navigate(Screen.AllowlistManager.route) },
+                    )
+                }
+                composable(Screen.AllowlistManager.route) {
+                    AllowlistManagerScreen(
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
             }

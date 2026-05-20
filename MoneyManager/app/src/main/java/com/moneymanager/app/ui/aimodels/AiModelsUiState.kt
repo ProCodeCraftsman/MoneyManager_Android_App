@@ -11,11 +11,14 @@ data class AiModelsUiState(
     val selectedLocalModel: ModelEntry? = null,
     val isLocalModelDownloaded: Boolean = false,
     val localModelDownloadProgress: Float = 0f,
-    val downloadingModelName: String? = null,
+    /** Names of models currently RUNNING or ENQUEUED in WorkManager. */
+    val downloadingModelNames: Set<String> = emptySet(),
     val wifiOnlyDownload: Boolean = true,
     val hfAccessToken: String = "",
     val isHfTokenValid: Boolean = false,
-    val needsHfLogin: Boolean = false,
+    /** true=downloaded, false=not downloaded keyed by model.name */
     val modelDownloadStates: Map<String, Boolean> = emptyMap(),
     val modelProgress: Map<String, ModelDownloadProgress> = emptyMap(),
+    /** Models where an older version exists on disk — show Update button. */
+    val updatableModelNames: Set<String> = emptySet(),
 )

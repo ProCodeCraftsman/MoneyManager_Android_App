@@ -11,12 +11,14 @@ import com.moneymanager.data.entity.PeerContact
 import com.moneymanager.data.entity.TagEntity
 import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.data.preferences.PreferencesManager
+import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.CategoryRepository
 import com.moneymanager.domain.repository.GoalRepository
 import com.moneymanager.domain.repository.PeerContactRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,6 +32,7 @@ class AddTransactionViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
+    private val merchantMemory: MerchantCategoryMemoryRepository,
 ) : AndroidViewModel(application) {
 
     val uiState: StateFlow<AddTransactionUiState> = combine(
@@ -108,8 +111,18 @@ class AddTransactionViewModel @Inject constructor(
     private suspend fun adjustBalance(tx: TransactionEntity, reverse: Boolean) {
         val sign = if (reverse) -1.0 else 1.0
         when (tx.type) {
-            "income", "receive", "borrow" -> accountRepository.updateAccountBalance(tx.accountId, sign * tx.amount)
+            "income", "borrow" -> accountRepository.updateAccountBalance(tx.accountId, sign * tx.amount)
             "expense", "savings", "lend" -> accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
+        }
+    }
+
+    // Called from AddTransactionScreen after saving an AI-drafted transaction.
+    // Records the user's actual category choice so future same-merchant drafts skip AI.
+    fun recordMerchantCategory(merchantHint: String, categoryId: Long, typeId: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val categoryName = uiState.value.categories
+                .firstOrNull { it.id == categoryId }?.name ?: ""
+            merchantMemory.record(merchantHint, categoryId, categoryName, typeId)
         }
     }
 
@@ -120,10 +133,6 @@ class AddTransactionViewModel @Inject constructor(
         val updatedPeer = when (tx.type) {
             "lend" -> peer.copy(
                 totalGiven = peer.totalGiven + (sign * tx.amount),
-                updatedAt = System.currentTimeMillis()
-            )
-            "receive" -> peer.copy(
-                totalReceived = peer.totalReceived + (sign * tx.amount),
                 updatedAt = System.currentTimeMillis()
             )
             "borrow" -> peer.copy(

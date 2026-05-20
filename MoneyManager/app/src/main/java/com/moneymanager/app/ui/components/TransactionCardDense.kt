@@ -71,7 +71,7 @@ fun TransactionCardDense(
     }
 
     val typeColor = when (transaction.type) {
-        "income", "receive" -> MaterialTheme.colorScheme.secondary
+        "income" -> MaterialTheme.colorScheme.secondary
         "expense", "lend" -> COLOR_EXPENSE
         "savings" -> COLOR_SAVINGS
         "transfer" -> COLOR_TRANSFER
@@ -187,7 +187,7 @@ fun TransactionCardDense(
                             style = MaterialTheme.typography.labelSmall,
                             color = COLOR_TRANSFER
                         )
-                    } else if ((transaction.type == "lend" || transaction.type == "receive") && peer != null) {
+                    } else if (transaction.type == "lend" && peer != null) {
                         Icon(
                             imageVector = Icons.Default.AccountBalanceWallet,
                             contentDescription = null,

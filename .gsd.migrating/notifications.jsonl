@@ -1,0 +1,10 @@
+{"id":"ffc95fdb-5ea7-4162-8240-383530cd76e1","ts":"2026-05-20T14:45:25.613Z","severity":"info","message":"Validating token...","source":"notify","read":false}
+{"id":"bc5ba752-4fc7-4782-a4f7-91be2d27bf89","ts":"2026-05-20T14:46:38.068Z","severity":"error","message":"Could not send to chat: Bad Request: chat not found","source":"notify","read":false}
+{"id":"c27a31e5-26b4-42ee-aa1c-bc11a5e81939","ts":"2026-05-20T14:47:47.251Z","severity":"info","message":"Validating token...","source":"notify","read":false}
+{"id":"4cb8ab72-6cff-4ca1-8c19-a2dcbdd2cd6a","ts":"2026-05-20T14:51:19.647Z","severity":"error","message":"Could not send to chat: Bad Request: chat not found","source":"notify","read":false}
+{"id":"2b041cb0-ebe2-46f3-9100-bd23fdb1f24d","ts":"2026-05-20T14:52:34.146Z","severity":"warning","message":"Invalid token format — Telegram bot tokens look like 123456789:ABCdefGHI...","source":"notify","read":false}
+{"id":"f9cd445a-856b-49ad-a627-342429ac2bcc","ts":"2026-05-20T14:52:51.310Z","severity":"info","message":"Validating token...","source":"notify","read":false}
+{"id":"01d7c7ea-7eee-4a36-a81f-5c947ccaab3e","ts":"2026-05-20T14:53:00.917Z","severity":"error","message":"Could not send to chat: Forbidden: the bot can't send messages to the bot","source":"notify","read":false}
+{"id":"e01df101-56ce-442a-931b-3cff9980ee17","ts":"2026-05-20T14:54:25.196Z","severity":"info","message":"Validating token...","source":"notify","read":false}
+{"id":"77f4227d-4578-4205-a734-280b1ea94519","ts":"2026-05-20T14:54:39.690Z","severity":"error","message":"Could not send to chat: Bad Request: group chat was upgraded to a supergroup chat","source":"notify","read":false}
+{"id":"09e11ea0-c1c5-4919-8a1f-f614a0bc8c85","ts":"2026-05-20T15:00:45.684Z","severity":"info","message":"→ /gsd auto discuss I have an Android personal finance app. The local AI integration takes a voice note and outputs parsed JSON, but the draft entry is never created. I need to trace this workflow to find the drop-off.\" \"After fixing this, I want to refactor this pipeline into an  agent-like framework inside the app that handles voice-to-draft reliably.\"","source":"notify","read":false}

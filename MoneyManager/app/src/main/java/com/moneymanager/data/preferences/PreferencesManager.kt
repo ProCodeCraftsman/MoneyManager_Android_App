@@ -40,6 +40,7 @@ class PreferencesManager(private val context: Context) {
         private val HF_ACCESS_TOKEN = stringPreferencesKey("hf_access_token")
         private val HF_TOKEN_EXPIRES_AT = longPreferencesKey("hf_token_expires_at")
         private val USER_OPTED_IN_AI = booleanPreferencesKey("user_opted_in_ai")
+        private val USER_ALLOWLIST_JSON = stringPreferencesKey("user_allowlist_json")
     }
 
     val darkMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -322,5 +323,16 @@ class PreferencesManager(private val context: Context) {
 
     fun getLocalModelDownloadProgressSync(): Float {
         return runBlocking { context.dataStore.data.first()[LOCAL_MODEL_DOWNLOAD_PROGRESS] ?: 0f }
+    }
+
+    val userAllowlistJsonFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[USER_ALLOWLIST_JSON] ?: ""
+    }
+
+    suspend fun getUserAllowlistJson(): String =
+        context.dataStore.data.first()[USER_ALLOWLIST_JSON] ?: ""
+
+    suspend fun setUserAllowlistJson(json: String) {
+        context.dataStore.edit { prefs -> prefs[USER_ALLOWLIST_JSON] = json }
     }
 }

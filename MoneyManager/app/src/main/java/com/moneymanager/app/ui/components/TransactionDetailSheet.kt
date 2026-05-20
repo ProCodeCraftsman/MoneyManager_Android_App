@@ -97,7 +97,7 @@ fun TransactionDetailSheet(
     }
 
     val amountColor = when (transaction.type) {
-        "income", "receive" -> MaterialTheme.colorScheme.primary
+        "income" -> MaterialTheme.colorScheme.primary
         "expense", "lend" -> expenseColor
         else -> MaterialTheme.colorScheme.onSurface
     }
@@ -214,7 +214,7 @@ fun TransactionDetailSheet(
                 }
 
                 // Lend/Borrow: Peer
-                if (peer != null && (transaction.type == "lend" || transaction.type == "borrow" || transaction.type == "receive" || transaction.type == "repay")) {
+                if (peer != null && (transaction.type == "lend" || transaction.type == "borrow")) {
                     InfoRow(
                         icon = Icons.Default.People,
                         label = peer.effectiveDisplayName

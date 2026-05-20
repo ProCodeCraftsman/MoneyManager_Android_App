@@ -58,6 +58,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -86,6 +89,8 @@ import com.moneymanager.app.ui.components.SplitTransactionCard
 import com.moneymanager.app.ui.components.TransactionDetailSheet
 import com.moneymanager.app.ui.components.TransactionsFilterControlsSheet
 import com.moneymanager.app.ui.dialogs.AddEditTransactionDialog
+import com.moneymanager.app.ui.transactions.components.AiDownloadConsentDialog
+import com.moneymanager.app.ui.transactions.components.DownloadProgressBanner
 import com.moneymanager.app.ui.transactions.components.TransactionItem
 import com.moneymanager.app.ui.dialogs.SplitRowData
 import com.moneymanager.app.ui.util.CurrencyUtils
@@ -115,6 +120,15 @@ fun TransactionsScreen(
     onNavigateToAiDraftVoice: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Download consent + progress state (Phase 40 — additive)
+    val showDownloadConsent by viewModel.showDownloadConsentDialog.collectAsStateWithLifecycle()
+    val isDownloading by viewModel.isDownloading.collectAsStateWithLifecycle()
+    val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
+    val downloadProgressCaption by viewModel.downloadProgressCaption.collectAsStateWithLifecycle()
+    val downloadProgressPercent by viewModel.downloadProgressPercent.collectAsStateWithLifecycle()
+    val downloadError by viewModel.downloadError.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Collect paginated transactions as LazyPagingItems
     val pagingTransactions = viewModel.transactionsPagingData.collectAsLazyPagingItems()
@@ -308,7 +322,21 @@ fun TransactionsScreen(
         uiState.filterEndDate
     ).size
 
+    // Show download error as long-duration snackbar (Phase 40)
+    LaunchedEffect(downloadError) {
+        downloadError?.let { snackbarHostState.showSnackbar(it, duration = SnackbarDuration.Long) }
+    }
+
+    // Consent dialog — shown as sibling to Scaffold (not inside it)
+    if (showDownloadConsent) {
+        AiDownloadConsentDialog(
+            onDownload = { viewModel.onDownloadConsented() },
+            onMaybeLater = { viewModel.onDownloadPromptSuppressed() }
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Surface(
                 tonalElevation = 1.dp,
@@ -553,6 +581,16 @@ fun TransactionsScreen(
                         contentPadding = PaddingValues(vertical = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
+
+                        // Phase 40: download progress banner as first LazyColumn item (sticky=false, scrolls away)
+                        item(key = "download_banner") {
+                            DownloadProgressBanner(
+                                isVisible = isDownloading,
+                                progress = downloadProgress,
+                                captionText = downloadProgressCaption,
+                                percentText = downloadProgressPercent
+                            )
+                        }
 
                         if (visibleTransactions.isEmpty() && !isRefreshing) {
                             item {

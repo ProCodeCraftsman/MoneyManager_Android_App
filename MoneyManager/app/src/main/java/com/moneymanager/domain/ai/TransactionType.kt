@@ -42,24 +42,10 @@ enum class TransactionType(
         requiresCategory = false,
         requiresPeer = true
     ),
-    RECEIVE(
-        id = "receive",
-        displayName = "Receive",
-        promptHint = "money received back from someone you lent to",
-        requiresCategory = false,
-        requiresPeer = true
-    ),
     BORROW(
         id = "borrow",
         displayName = "Borrow",
         promptHint = "money borrowed from someone",
-        requiresCategory = false,
-        requiresPeer = true
-    ),
-    REPAY(
-        id = "repay",
-        displayName = "Repay",
-        promptHint = "repayment of borrowed money",
         requiresCategory = false,
         requiresPeer = true
     );
