@@ -85,7 +85,7 @@ fun SplitTransactionCard(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = when (parentTransaction.type) {
-                    "income", "receive" -> MaterialTheme.colorScheme.secondary
+                    "income" -> MaterialTheme.colorScheme.secondary
                     "expense", "lend" -> COLOR_EXPENSE
                     else -> MaterialTheme.colorScheme.onSurface
                 }

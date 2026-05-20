@@ -128,7 +128,7 @@ class BorrowLendViewModel @Inject constructor(
             try {
                 val transaction = TransactionEntity(
                     accountId = state.selectedAccountId,
-                    type = if (type == TransactionType.LEND) "lend" else "receive",
+                    type = if (type == TransactionType.LEND) "lend" else "borrow",
                     amount = state.amount,
                     peerContactId = state.selectedPeerId,
                     date = state.date,

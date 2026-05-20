@@ -414,8 +414,8 @@ class SummaryViewModel @Inject constructor(
         val borrowedPeopleCount = lendingPeople.count { !it.isOwed }
         val lendingNetBalance = totalLent - totalBorrowed
         
-        val settledAmount = SummaryAggregator.sumByType(txs, "receive") + SummaryAggregator.sumByType(txs, "repay")
-        val settledCount = txs.count { it.type == "receive" || it.type == "repay" }
+        val settledAmount = 0.0
+        val settledCount = 0
 
         // Transfer calculations
         val totalTransfersCount = txs.count { it.type == "transfer" }

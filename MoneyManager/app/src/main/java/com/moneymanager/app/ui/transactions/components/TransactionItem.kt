@@ -149,7 +149,7 @@ fun TransactionRow(
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = when (transaction.type) {
-                "income", "receive" -> MaterialTheme.colorScheme.primary
+                "income" -> MaterialTheme.colorScheme.primary
                 "expense", "lend" -> MaterialTheme.colorScheme.error
                 else -> MaterialTheme.colorScheme.onSurface
             }

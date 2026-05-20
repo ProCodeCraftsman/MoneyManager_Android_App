@@ -6,12 +6,14 @@ import android.content.Context
 import com.moneymanager.domain.ai.AiBackend
 import com.moneymanager.data.ai.DeterministicExtractor
 import com.moneymanager.data.ai.LiteRtModelManager
+import com.moneymanager.data.ai.agent.JsSkillEngine
 import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
 import com.moneymanager.data.ai.ModelDownloadService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.moneymanager.data.repository.AiAvailabilityRepository
 import com.moneymanager.domain.ai.AccountEntry
 import com.moneymanager.domain.ai.CategoryEntry
+import com.moneymanager.domain.ai.GenerateDraftFromImageUseCase
 import com.moneymanager.domain.ai.GenerateDraftFromTextUseCase
 import com.moneymanager.domain.ai.PeerEntry
 import com.moneymanager.domain.ai.PromptContextBuilder
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,6 +43,7 @@ import javax.inject.Inject
 class AiDraftViewModel @Inject constructor(
     private val aiAvailabilityRepository: AiAvailabilityRepository,
     private val generateDraftFromTextUseCase: GenerateDraftFromTextUseCase,
+    private val generateDraftFromImageUseCase: GenerateDraftFromImageUseCase,
     private val promptContextBuilder: PromptContextBuilder,
     private val categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
@@ -47,6 +51,7 @@ class AiDraftViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val modelManager: LiteRtModelManager,
     private val merchantMemory: MerchantCategoryMemoryRepository,
+    private val jsSkillEngine: JsSkillEngine,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -64,6 +69,11 @@ class AiDraftViewModel @Inject constructor(
             com.moneymanager.data.repository.AiState())
 
     private var cachedPromptContext: com.moneymanager.domain.ai.PromptContext? = null
+
+    /** True when the selected model has llm_ask_image in taskTypes (vision-capable). */
+    val modelSupportsVision: StateFlow<Boolean> = flow {
+        emit(modelManager.selectModelForDevice()?.supportsVision == true)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
     init {
         viewModelScope.launch {
@@ -131,31 +141,7 @@ class AiDraftViewModel @Inject constructor(
                 }
 
                 // Phase 4 — load prompt context (cached after first call)
-                val promptContext = cachedPromptContext ?: withContext(Dispatchers.IO) {
-                    val categories = categoryRepository.getAllCategories().first()
-                    val accounts = accountRepository.getAllAccounts().first()
-                    val peers = peerContactRepository.getAllPeers().first()
-                    val transactions = transactionRepository.getAllTransactions().first()
-                    val tags = categoryRepository.getAllTags().first()
-
-                    val categoryUsageCounts = transactions
-                        .filter { it.categoryId != null && !it.isSplitChild }
-                        .groupBy { it.categoryId!! }
-                        .mapValues { it.value.size }
-
-                    val categoryEntries = categories.map { CategoryEntry(id = it.id, name = it.name, type = it.type, parentId = it.parentId) }
-                    val accountEntries = accounts.map { AccountEntry(id = it.id, name = it.name) }
-                    val peerEntries = peers.map { PeerEntry(id = it.id, name = it.displayName) }
-                    val tagEntries = tags.map { TagEntry(id = it.id, name = it.name) }
-
-                    promptContextBuilder.build(
-                        categories = categoryEntries,
-                        categoryUsageCounts = categoryUsageCounts,
-                        accounts = accountEntries,
-                        peers = peerEntries,
-                        tags = tagEntries
-                    ).also { cachedPromptContext = it }
-                }
+                val promptContext = loadPromptContext()
 
                 // Phase 5 — single focused AI call (smaller prompt = faster inference)
                 val thinkingLabel = buildString {
@@ -216,6 +202,135 @@ class AiDraftViewModel @Inject constructor(
                 _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
                 _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
             }
+        }
+    }
+
+    fun quickAddFromVoice(rawText: String, saveAsNote: Boolean = true) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isGenerating = true, error = null, generatingStep = "Reading…") }
+            try {
+                val pre = DeterministicExtractor.extract(rawText, "VOICE")
+                val label = buildString {
+                    pre.amount?.let { append(formatAmount(it)) }
+                    if (pre.typeId != null) {
+                        if (isNotEmpty()) append(" · ")
+                        append(pre.typeId.replaceFirstChar { c -> c.uppercase() })
+                    }
+                }
+                _uiState.update { it.copy(generatingStep = "Creating $label…") }
+
+                val typeId = pre.typeId ?: "expense"
+                val epochMs = pre.epochMs ?: System.currentTimeMillis()
+                val description = pre.merchantHint?.take(40) ?: rawText.take(40)
+
+                val inputJson = buildString {
+                    append("""{"amount":${pre.amount ?: 0},"type":"$typeId","description":"${jsonEscape(description)}","date":$epochMs,"accountName":null,"categoryName":null,"note":"${jsonEscape(if (saveAsNote) rawText else "")}","peerName":null}""")
+                }
+
+                val result = withContext(Dispatchers.IO) {
+                    jsSkillEngine.execute("create-transaction", inputJson)
+                }
+
+                val parsed = runCatching {
+                    kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+                        .decodeFromString<com.moneymanager.data.http.CreateTransactionResponse>(result)
+                }.getOrNull()
+
+                if (parsed?.status == "created") {
+                    _navigationEvent.emit(NavigationEvent.NavigateToCreated(parsed.id, label))
+                } else {
+                    val errorMsg = parsed?.error ?: "Failed to create transaction"
+                    _navigationEvent.emit(NavigationEvent.ShowError(errorMsg))
+                }
+            } catch (e: Exception) {
+                _navigationEvent.emit(NavigationEvent.ShowError("Could not create: ${e.message?.take(80) ?: "Unknown error"}"))
+            } finally {
+                _uiState.update { it.copy(isGenerating = false, generatingStep = null) }
+            }
+        }
+    }
+
+    private fun jsonEscape(s: String): String =
+        s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+
+    fun generateDraftFromImage(imageBytes: ByteArray, sourceType: String = "RECEIPT", attachmentPath: String? = null) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isGenerating = true, error = null, generatingStep = "Analyzing receipt image…") }
+            try {
+                val promptContext = loadPromptContext()
+                _uiState.update { it.copy(generatingStep = "AI vision reading receipt…") }
+
+                val result = withContext(Dispatchers.IO) {
+                    generateDraftFromImageUseCase(imageBytes, promptContext, sourceType)
+                }
+
+                result.fold(
+                    onSuccess = { draft ->
+                        val finalDraft = draft.copy(receiptPath = attachmentPath ?: draft.receiptPath)
+                        if (draft.merchantHint != null && draft.categoryId != null &&
+                            draft.confidence["merchant"] != "low") {
+                            viewModelScope.launch(Dispatchers.IO) {
+                                merchantMemory.record(
+                                    merchantHint = draft.merchantHint,
+                                    categoryId = draft.categoryId,
+                                    categoryName = draft.categoryName ?: "",
+                                    typeId = draft.typeId,
+                                )
+                            }
+                        }
+                        _navigationEvent.emit(NavigationEvent.NavigateToDraft(finalDraft))
+                        _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = null) }
+                    },
+                    onFailure = { throwable ->
+                        val error = when {
+                            throwable is com.moneymanager.domain.ai.AiUnavailableException ->
+                                com.moneymanager.domain.ai.AiError.Generic("Could not analyze image. Please try again.")
+                            throwable is UnsupportedOperationException ->
+                                com.moneymanager.domain.ai.AiError.Generic("This model does not support image analysis.")
+                            else ->
+                                com.moneymanager.domain.ai.AiError.InsufficientInformation
+                        }
+                        _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
+                        _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
+                    }
+                )
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                val error = com.moneymanager.domain.ai.AiError.AiCallTimedOut
+                _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
+                _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
+            } catch (e: Exception) {
+                val error = com.moneymanager.domain.ai.AiError.Generic("Could not analyze image. Please try again.")
+                _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
+                _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
+            }
+        }
+    }
+
+    private suspend fun loadPromptContext(): com.moneymanager.domain.ai.PromptContext {
+        return cachedPromptContext ?: withContext(Dispatchers.IO) {
+            val categories = categoryRepository.getAllCategories().first()
+            val accounts = accountRepository.getAllAccounts().first()
+            val peers = peerContactRepository.getAllPeers().first()
+            val transactions = transactionRepository.getAllTransactions().first()
+            val tags = categoryRepository.getAllTags().first()
+
+            val categoryUsageCounts = transactions
+                .filter { it.categoryId != null && !it.isSplitChild }
+                .groupBy { it.categoryId!! }
+                .mapValues { it.value.size }
+
+            val categoryEntries = categories.map { CategoryEntry(id = it.id, name = it.name, type = it.type, parentId = it.parentId) }
+            val accountEntries = accounts.map { AccountEntry(id = it.id, name = it.name) }
+            val peerEntries = peers.map { PeerEntry(id = it.id, name = it.displayName) }
+            val tagEntries = tags.map { TagEntry(id = it.id, name = it.name) }
+
+            promptContextBuilder.build(
+                categories = categoryEntries,
+                categoryUsageCounts = categoryUsageCounts,
+                accounts = accountEntries,
+                peers = peerEntries,
+                tags = tagEntries
+            ).also { cachedPromptContext = it }
         }
     }
 

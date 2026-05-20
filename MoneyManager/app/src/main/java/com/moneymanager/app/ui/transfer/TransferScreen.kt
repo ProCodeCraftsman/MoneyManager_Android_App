@@ -83,7 +83,7 @@ class TransferViewModel @Inject constructor(
                 val fromTransaction = TransactionEntity(
                     accountId = fromAccountId,
                     type = "transfer",
-                    amount = -amount,
+                    amount = amount,
                     note = fromNote,
                     date = timestamp,
                     isTransfer = true

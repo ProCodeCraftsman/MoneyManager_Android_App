@@ -290,14 +290,9 @@ object SummaryAggregator {
                 // (Lend - Receive) -> What they owe me
                 // (Borrow - Repay) -> What I owe them
                 val lent = peerTxs.filter { it.type == "lend" }.sumOf { it.amount }
-                val received = peerTxs.filter { it.type == "receive" }.sumOf { it.amount }
                 val borrowed = peerTxs.filter { it.type == "borrow" }.sumOf { it.amount }
-                val repaid = peerTxs.filter { it.type == "repay" }.sumOf { it.amount }
                 
-                val myOwed = lent - received
-                val theyOwed = borrowed - repaid
-                
-                val net = myOwed - theyOwed
+                val net = lent - borrowed
                 
                 if (net == 0.0) return@mapNotNull null
                 

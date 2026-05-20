@@ -16,5 +16,7 @@ data class AiDraftUiState(
 
 sealed class NavigationEvent {
     data class NavigateToDraft(val draft: TransactionDraft) : NavigationEvent()
+    data class NavigateToCreated(val transactionId: Long, val message: String = "") : NavigationEvent()
+    object NavigateBack : NavigationEvent()
     data class ShowError(val message: String) : NavigationEvent()
 }

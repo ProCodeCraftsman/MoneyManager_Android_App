@@ -53,7 +53,7 @@ fun TransactionEntity.toFormState(categories: List<CategoryEntity> = emptyList()
         )
 
         else -> {
-            // expense, income, receive, repay — display under ExpenseIncome form
+            // expense, income — display under ExpenseIncome form
             val cat = categories.firstOrNull { it.id == categoryId }
             val isSub = cat?.parentId != null
             TransactionFormState.ExpenseIncome(

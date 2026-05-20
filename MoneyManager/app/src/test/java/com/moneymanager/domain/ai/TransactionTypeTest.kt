@@ -8,9 +8,9 @@ import org.junit.Test
 class TransactionTypeTest {
 
     @Test
-    fun `enum has exactly 8 entries in correct order`() {
+    fun `enum has exactly 6 entries in correct order`() {
         val entries = TransactionType.entries
-        assertEquals(8, entries.size)
+        assertEquals(6, entries.size)
         assertEquals(
             listOf(
                 TransactionType.INCOME,
@@ -18,27 +18,25 @@ class TransactionTypeTest {
                 TransactionType.SAVINGS,
                 TransactionType.TRANSFER,
                 TransactionType.LEND,
-                TransactionType.RECEIVE,
-                TransactionType.BORROW,
-                TransactionType.REPAY
+                TransactionType.BORROW
             ),
             entries
         )
     }
 
     @Test
-    fun `allIds returns all 8 id strings in declaration order`() {
+    fun `allIds returns all 6 id strings in declaration order`() {
         val ids = TransactionType.allIds()
-        assertEquals(8, ids.size)
+        assertEquals(6, ids.size)
         assertEquals(
-            listOf("income", "expense", "savings", "transfer", "lend", "receive", "borrow", "repay"),
+            listOf("income", "expense", "savings", "transfer", "lend", "borrow"),
             ids
         )
     }
 
     @Test
     fun `id values match VALID_TYPES exactly`() {
-        val expected = listOf("income", "expense", "savings", "transfer", "lend", "receive", "borrow", "repay")
+        val expected = listOf("income", "expense", "savings", "transfer", "lend", "borrow")
         expected.forEachIndexed { index, expectedId ->
             assertEquals(expectedId, TransactionType.entries[index].id)
         }
@@ -51,9 +49,7 @@ class TransactionTypeTest {
         assertEquals(TransactionType.SAVINGS, TransactionType.fromId("savings"))
         assertEquals(TransactionType.TRANSFER, TransactionType.fromId("transfer"))
         assertEquals(TransactionType.LEND, TransactionType.fromId("lend"))
-        assertEquals(TransactionType.RECEIVE, TransactionType.fromId("receive"))
         assertEquals(TransactionType.BORROW, TransactionType.fromId("borrow"))
-        assertEquals(TransactionType.REPAY, TransactionType.fromId("repay"))
     }
 
     @Test
@@ -61,6 +57,8 @@ class TransactionTypeTest {
         assertNull(TransactionType.fromId("unknown"))
         assertNull(TransactionType.fromId(""))
         assertNull(TransactionType.fromId("INCOME"))
+        assertNull(TransactionType.fromId("receive"))
+        assertNull(TransactionType.fromId("repay"))
     }
 
     @Test
@@ -70,9 +68,7 @@ class TransactionTypeTest {
         assertEquals("Savings", TransactionType.SAVINGS.displayName)
         assertEquals("Transfer", TransactionType.TRANSFER.displayName)
         assertEquals("Lend", TransactionType.LEND.displayName)
-        assertEquals("Receive", TransactionType.RECEIVE.displayName)
         assertEquals("Borrow", TransactionType.BORROW.displayName)
-        assertEquals("Repay", TransactionType.REPAY.displayName)
     }
 
     @Test
@@ -84,9 +80,7 @@ class TransactionTypeTest {
         val noCategory = listOf(
             TransactionType.TRANSFER,
             TransactionType.LEND,
-            TransactionType.RECEIVE,
-            TransactionType.BORROW,
-            TransactionType.REPAY
+            TransactionType.BORROW
         )
         noCategory.forEach { entry ->
             assertTrue("${entry.id}.requiresCategory should be false", !entry.requiresCategory)
@@ -94,11 +88,9 @@ class TransactionTypeTest {
     }
 
     @Test
-    fun `requiresPeer is true only for LEND RECEIVE BORROW REPAY`() {
+    fun `requiresPeer is true only for LEND BORROW`() {
         assertTrue(TransactionType.LEND.requiresPeer)
-        assertTrue(TransactionType.RECEIVE.requiresPeer)
         assertTrue(TransactionType.BORROW.requiresPeer)
-        assertTrue(TransactionType.REPAY.requiresPeer)
 
         val noPeer = listOf(
             TransactionType.INCOME,

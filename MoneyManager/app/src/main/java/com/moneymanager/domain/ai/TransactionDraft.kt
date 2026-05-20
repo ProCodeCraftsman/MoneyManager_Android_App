@@ -17,5 +17,11 @@ data class TransactionDraft(
     val note: String? = null,
     val date: Long? = null,
     val sourceType: String? = null,
-    val sourceSender: String? = null
+    val sourceSender: String? = null,
+    val receiptPath: String? = null,
+    val merchantHint: String? = null,
+    // Vision / confidence metadata — populated by ask-image path, empty for text path
+    val confidence: Map<String, String> = emptyMap(),
+    val needsReview: Boolean = false,
+    val flags: List<String> = emptyList(),
 )

@@ -28,8 +28,8 @@ class AccountsViewModel @Inject constructor(
     ) { accounts, totalAssets, transactions, currencyCode ->
         val comparisonData = accounts.map { account ->
             val accountTxns = transactions.filter { it.accountId == account.id && !it.isSplitParent }
-            val inflow = accountTxns.filter { it.type == "income" || it.type == "receive" || it.type == "borrow" }.sumOf { it.amount }
-            val outflow = accountTxns.filter { it.type == "expense" || it.type == "lend" || it.type == "repay" }.sumOf { it.amount }
+            val inflow = accountTxns.filter { it.type == "income" || it.type == "borrow" }.sumOf { it.amount }
+            val outflow = accountTxns.filter { it.type == "expense" || it.type == "lend" }.sumOf { it.amount }
             AccountBarData(
                 accountName = account.name,
                 inflow = inflow,
@@ -57,7 +57,7 @@ class AccountsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val id = accountRepository.insertAccount(
-                    AccountEntity(name = name, type = type, emoji = emoji, iconType = iconType, balance = balance)
+                    AccountEntity(name = name, type = type, emoji = emoji, iconType = iconType, initialBalance = balance, balance = balance)
                 )
                 if (id > 0) {
                     _events.emit(AccountEvent.Success("Account added successfully"))

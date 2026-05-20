@@ -44,7 +44,7 @@ object TransactionFormConfig {
             setOf(TransactionFeature.PEER, TransactionFeature.RETURN_DATE, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
     )
 
-    fun getType(id: String): FormTypeConfig = allTypes.first { it.id == id }
+    fun getType(id: String): FormTypeConfig = allTypes.firstOrNull { it.id == id } ?: allTypes.first()
     fun hasFeature(typeId: String, feature: TransactionFeature): Boolean = getType(typeId).features.contains(feature)
     fun resolveCategoryType(typeId: String): String = getType(typeId).categoryFilterType ?: typeId
 }

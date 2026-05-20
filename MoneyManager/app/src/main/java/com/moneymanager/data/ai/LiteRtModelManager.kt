@@ -2,49 +2,66 @@ package com.moneymanager.data.ai
 
 import android.app.ActivityManager
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import com.moneymanager.data.preferences.PreferencesManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
-import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
-/**
- * Supported local LiteRT-LM models. Selection is based on device RAM.
- * File info sourced from gallery/model_allowlists/1_0_14.json.
- */
-enum class LocalModel(
-    val filename: String,
+// ─── Runtime model data classes ───────────────────────────────────────────────
+
+data class ModelConfig(
+    val topK: Int = 64,
+    val topP: Float = 0.95f,
+    val temperature: Float = 1.0f,
+    val maxTokens: Int = 1024,
+    val maxContextLength: Int? = null,
+    val accelerators: String = "gpu,cpu",
+    val visionAccelerator: String = "gpu",
+)
+
+data class UpdatableModelFile(
+    val fileName: String,
+    val commitHash: String,
+)
+
+data class ModelEntry(
+    val name: String,
     val modelId: String,
+    val modelFile: String,
     val commitHash: String,
     val sizeBytes: Long,
     val minRamGb: Int,
+    val description: String = "",
+    val defaultConfig: ModelConfig = ModelConfig(),
+    val taskTypes: List<String> = emptyList(),
+    val capabilities: List<String> = emptyList(),
+    val bestForTaskTypes: List<String> = emptyList(),
+    val llmSupportImage: Boolean = false,
+    val llmSupportAudio: Boolean = false,
+    val updatableModelFiles: List<UpdatableModelFile> = emptyList(),
+    val updateInfo: String = "",
+    val customUrl: String? = null,
 ) {
-    // ~584 MB — requires ≥6 GB RAM
-    GEMMA3_1B(
-        filename = "gemma3-1b-it-int4.litertlm",
-        modelId = "litert-community/Gemma3-1B-IT",
-        commitHash = "42d538a932e8d5b12e6b3b455f5572560bd60b2c",
-        sizeBytes = 584_417_280L,
-        minRamGb = 6,
-    ),
-    // ~2.6 GB — requires ≥8 GB RAM; better quality, supports image/audio
-    GEMMA4_E2B(
-        filename = "gemma-4-E2B-it.litertlm",
-        modelId = "litert-community/gemma-4-E2B-it-litert-lm",
-        commitHash = "6e5c4f1e395deb959c494953478fa5cec4b8008f",
-        sizeBytes = 2_588_147_712L,
-        minRamGb = 8,
-    );
-
     val downloadUrl: String
-        get() = "https://huggingface.co/$modelId/resolve/$commitHash/$filename"
+        get() = customUrl
+            ?: "https://huggingface.co/$modelId/resolve/$commitHash/$modelFile"
+
+    val hasThinking: Boolean get() = "llm_thinking" in capabilities
+    val hasSpeculativeDecoding: Boolean get() = "speculative_decoding" in capabilities
+    val isMultimodal: Boolean get() = llmSupportImage || llmSupportAudio
+    val supportsVision: Boolean get() = llmSupportImage && "llm_ask_image" in taskTypes
+    val isBestForAny: Boolean get() = bestForTaskTypes.isNotEmpty()
+    val sizeGb: Float get() = sizeBytes / 1_073_741_824f
 }
+
+// ─── Deprecated progress holder kept for backward compat ──────────────────────
 
 data class DownloadProgress(
     val bytesDownloaded: Long,
@@ -53,127 +70,135 @@ data class DownloadProgress(
     val error: String? = null,
 )
 
+// ─── Manager ──────────────────────────────────────────────────────────────────
+
+private const val TAG = "LiteRtModelManager"
+private const val MODELS_DIR = "models"
+
 @Singleton
 class LiteRtModelManager @Inject constructor(
     private val preferencesManager: PreferencesManager,
+    private val allowlistRepository: ModelAllowlistRepository,
     @ApplicationContext private val context: Context,
 ) {
-    companion object {
-        private const val TAG = "LiteRtModelManager"
-        private const val MODELS_DIR = "models"
+
+    /** All models from the effective allowlist (bundled + user overrides). */
+    suspend fun getAllowlist(): List<ModelEntry> =
+        allowlistRepository.getEffectiveAllowlist().map { it.toModelEntry() }
+
+    /** Models compatible with device RAM. */
+    suspend fun getAvailableModels(): List<ModelEntry> {
+        val ramGb = getTotalRamGb()
+        return getAllowlist().filter { ramGb >= it.minRamGb }
     }
 
-    /** Select the best model the device can run based on available RAM. Returns null if <6 GB. */
-    fun selectModelForDevice(): LocalModel? {
-        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val memInfo = ActivityManager.MemoryInfo()
-        am.getMemoryInfo(memInfo)
-        val totalGb = memInfo.totalMem / (1024L * 1024L * 1024L)
-        return when {
-            totalGb >= LocalModel.GEMMA4_E2B.minRamGb -> LocalModel.GEMMA4_E2B
-            totalGb >= LocalModel.GEMMA3_1B.minRamGb -> LocalModel.GEMMA3_1B
-            else -> null
+    /** Find a model by exact name (case-insensitive). */
+    suspend fun getModelByName(name: String): ModelEntry? =
+        getAllowlist().firstOrNull { it.name.equals(name, ignoreCase = true) }
+
+    /** User's preferred model if compatible, else best available by RAM. */
+    suspend fun getUserSelectedModel(): ModelEntry {
+        val available = getAvailableModels()
+        if (available.isEmpty()) return getAllowlist().firstOrNull()
+            ?: error("No models in allowlist")
+        val preferred = preferencesManager.selectedLocalModel.first()
+        return available.firstOrNull { it.name == preferred } ?: available.first()
+    }
+
+    /** Best model for device based on RAM requirement. */
+    suspend fun selectModelForDevice(): ModelEntry? =
+        getAvailableModels().maxByOrNull { it.minRamGb }
+
+    /** Whether the model's current version file exists on disk. */
+    fun isModelDownloaded(model: ModelEntry): Boolean {
+        val f = getModelFile(model)
+        return f.exists() && f.length() > 100_000L
+    }
+
+    /**
+     * True when an older version from [ModelEntry.updatableModelFiles] is on disk
+     * but the latest file is not — signals "Update available".
+     */
+    fun isModelUpdatable(model: ModelEntry): Boolean {
+        if (isModelDownloaded(model)) return false
+        val dir = modelsDir()
+        return model.updatableModelFiles.any { old ->
+            val f = File(dir, old.fileName)
+            f.exists() && f.length() > 100_000L
         }
     }
 
-    // Store in app-private filesDir — never external storage (HYBRID-07)
-    private fun modelsDir(): File = File(context.filesDir, MODELS_DIR)
-
-    fun getModelFile(model: LocalModel = selectModelForDevice() ?: LocalModel.GEMMA3_1B): File =
-        File(modelsDir(), model.filename)
-
-    fun isModelDownloaded(): Boolean {
-        val model = selectModelForDevice() ?: return false
-        val file = getModelFile(model)
-        return file.exists() && file.length() > 100_000L
+    /** Check if currently on WiFi. */
+    fun isOnWifi(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork ?: return false) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
+    /** Model file path on disk. */
+    fun getModelFile(model: ModelEntry): File =
+        File(modelsDir(), model.modelFile)
+
+    /** True if the currently selected best model is downloaded. */
+    suspend fun isModelDownloaded(): Boolean {
+        val model = selectModelForDevice() ?: return false
+        return isModelDownloaded(model)
+    }
+
+    /** Download a model directly (used by tests / legacy code — prefer DownloadRepository). */
     suspend fun downloadModel(
-        model: LocalModel,
+        model: ModelEntry,
         onProgress: (DownloadProgress) -> Unit,
     ): Result<File> = withContext(Dispatchers.IO) {
-        try {
-            val dir = modelsDir()
-            if (!dir.exists()) dir.mkdirs()
-
-            val outputFile = getModelFile(model)
-            if (outputFile.exists() && outputFile.length() > 100_000L) {
-                Log.d(TAG, "Model already at ${outputFile.absolutePath}")
-                onProgress(DownloadProgress(model.sizeBytes, model.sizeBytes, true))
-                preferencesManager.setLocalModelDownloaded(true)
-                preferencesManager.setLocalModelDownloadProgress(1f)
-                return@withContext Result.success(outputFile)
-            }
-
-            val tmpFile = File(dir, "${model.filename}.tmp")
-            Log.d(TAG, "Downloading ${model.filename} from ${model.downloadUrl}")
-
-            val url = URL(model.downloadUrl)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 30_000
-            connection.readTimeout = 60_000
-            connection.setRequestProperty("User-Agent", "MoneyManager/1.0")
-            connection.connect()
-
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                val msg = "HTTP ${connection.responseCode}: ${connection.responseMessage}"
-                Log.e(TAG, msg)
-                return@withContext Result.failure(Exception(msg))
-            }
-
-            val totalBytes = connection.contentLengthLong.let {
-                if (it > 0) it else model.sizeBytes
-            }
-            val inputStream = connection.inputStream
-            val outputStream = FileOutputStream(tmpFile)
-            val buffer = ByteArray(32 * 1024)
-            var bytesRead: Int
-            var totalRead = 0L
-            var lastReportMs = 0L
-
-            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                outputStream.write(buffer, 0, bytesRead)
-                totalRead += bytesRead
-                val now = System.currentTimeMillis()
-                if (now - lastReportMs > 250) {
-                    lastReportMs = now
-                    val progress = if (totalBytes > 0) totalRead.toFloat() / totalBytes else 0f
-                    preferencesManager.setLocalModelDownloadProgress(progress)
-                    onProgress(DownloadProgress(totalRead, totalBytes, false))
-                }
-            }
-            outputStream.flush()
-            outputStream.close()
-            inputStream.close()
-
-            if (totalBytes > 0 && totalRead < totalBytes * 0.99) {
-                tmpFile.delete()
-                val msg = "Incomplete download: $totalRead / $totalBytes bytes"
-                Log.e(TAG, msg)
-                return@withContext Result.failure(Exception(msg))
-            }
-
-            tmpFile.renameTo(outputFile)
-            Log.d(TAG, "Download complete: ${outputFile.absolutePath} (${outputFile.length()} bytes)")
-
+        val token = preferencesManager.getHfAccessTokenSync()
+        val outputFile = getModelFile(model)
+        val result = ModelDownloader.downloadFile(
+            urlString = model.downloadUrl,
+            outputFile = outputFile,
+            totalBytesHint = model.sizeBytes,
+            accessToken = token.ifEmpty { null },
+            onProgress = { read, total ->
+                onProgress(DownloadProgress(read, total, false))
+            },
+        )
+        if (result.success) {
             preferencesManager.setLocalModelDownloaded(true)
             preferencesManager.setLocalModelDownloadProgress(1f)
-            onProgress(DownloadProgress(totalRead, totalBytes, true))
+            onProgress(DownloadProgress(result.totalBytes, result.totalBytes, true))
             Result.success(outputFile)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Download failed", e)
+        } else {
             preferencesManager.setLocalModelDownloadProgress(0f)
-            onProgress(DownloadProgress(0, 0, false, e.message))
-            Result.failure(e)
+            onProgress(DownloadProgress(0, 0, false, result.error))
+            Result.failure(Exception(result.error ?: "Download failed"))
         }
     }
 
-    fun deleteModel(model: LocalModel) {
+    /** Delete a model file and any partial downloads / old updatable files. */
+    suspend fun deleteModel(model: ModelEntry) {
         getModelFile(model).delete()
+        // Clean up old versions
+        model.updatableModelFiles.forEach { old ->
+            File(modelsDir(), old.fileName).delete()
+        }
+        // Clean up .tmp files
         modelsDir().listFiles { f -> f.name.endsWith(".tmp") }?.forEach { it.delete() }
-        preferencesManager.setLocalModelDownloaded(false)
-        preferencesManager.setLocalModelDownloadProgress(0f)
-        Log.d(TAG, "Deleted ${model.filename}")
+
+        val anyDownloaded = getAvailableModels().any { isModelDownloaded(it) }
+        if (!anyDownloaded) {
+            preferencesManager.setLocalModelDownloaded(false)
+            preferencesManager.setLocalModelDownloadProgress(0f)
+        }
+        Log.d(TAG, "Deleted ${model.name}")
+    }
+
+    // ── Private ──────────────────────────────────────────────────────────
+
+    private fun modelsDir(): File = File(context.filesDir, MODELS_DIR).also { it.mkdirs() }
+
+    private fun getTotalRamGb(): Long {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val info = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(info)
+        return info.totalMem / (1024L * 1024L * 1024L)
     }
 }

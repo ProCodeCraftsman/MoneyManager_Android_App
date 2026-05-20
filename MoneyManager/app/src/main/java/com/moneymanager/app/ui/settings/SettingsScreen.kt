@@ -47,6 +47,8 @@ fun SettingsScreen(
     onNavigateToBudgets: () -> Unit,
     onNavigateToGoals: () -> Unit,
     onNavigateToRecurring: () -> Unit,
+    onNavigateToAiHistory: () -> Unit = {},
+    onNavigateToAiModels: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showCurrencyDialog by remember { mutableStateOf(false) }
@@ -238,6 +240,46 @@ fun SettingsScreen(
                             )
                         },
                         onClick = onNavigateToRecurring
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(7.dp))
+                }
+
+                item {
+                    SettingsSectionHeader(title = "AI Features")
+                }
+
+                item {
+                    SettingsRow(
+                        icon = Icons.Default.AutoAwesome,
+                        title = "AI Models",
+                        subtitle = "Download, manage, and configure AI models",
+                        trailing = {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        onClick = onNavigateToAiModels
+                    )
+                }
+
+                item {
+                    SettingsRow(
+                        icon = Icons.Default.History,
+                        title = "AI Conversation History",
+                        subtitle = "Review prompts and responses from AI Fill",
+                        trailing = {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        onClick = onNavigateToAiHistory
                     )
                 }
 

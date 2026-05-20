@@ -39,4 +39,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPeerContactRepository(impl: PeerContactRepositoryImpl): PeerContactRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAiConversationRepository(impl: AiConversationRepositoryImpl): AiConversationRepository
 }

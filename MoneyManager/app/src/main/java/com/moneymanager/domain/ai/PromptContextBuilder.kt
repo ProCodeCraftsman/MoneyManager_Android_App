@@ -1,6 +1,8 @@
 package com.moneymanager.domain.ai
 
-class PromptContextBuilder {
+import javax.inject.Inject
+
+class PromptContextBuilder @Inject constructor() {
 
     fun build(
         categories: List<CategoryEntry>,
@@ -15,6 +17,7 @@ class PromptContextBuilder {
 
         return PromptContext(
             top20Categories = top20,
+            allCategories = categories,
             accounts = accounts,
             peers = peers,
             tags = tags

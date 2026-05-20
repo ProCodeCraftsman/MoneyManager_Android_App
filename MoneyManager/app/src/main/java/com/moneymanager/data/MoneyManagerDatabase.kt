@@ -6,6 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.moneymanager.data.dao.*
 import com.moneymanager.data.entity.*
+import com.moneymanager.data.entity.MerchantCategoryMemoryEntity
 
 val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -50,6 +51,40 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS merchant_category_memory (
+                merchantKey TEXT NOT NULL PRIMARY KEY,
+                categoryId INTEGER NOT NULL,
+                categoryName TEXT NOT NULL,
+                typeId TEXT,
+                hitCount INTEGER NOT NULL DEFAULT 1,
+                lastUsedAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+}
+
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS ai_conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                rawText TEXT NOT NULL,
+                sourceType TEXT NOT NULL,
+                sourceSender TEXT,
+                prompt TEXT NOT NULL,
+                response TEXT NOT NULL,
+                parsedDraftJson TEXT,
+                success INTEGER NOT NULL,
+                errorMessage TEXT,
+                createdAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+}
+
 val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE peer_contacts ADD COLUMN lookupKey TEXT NOT NULL DEFAULT ''")
@@ -69,9 +104,11 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         BudgetEntity::class,
         GoalEntity::class,
         RecurringEntity::class,
-        PeerContact::class
+        PeerContact::class,
+        AiConversationEntity::class,
+        MerchantCategoryMemoryEntity::class,
     ],
-    version = 8,
+    version = 10,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {
@@ -83,4 +120,6 @@ abstract class MoneyManagerDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun recurringDao(): RecurringDao
     abstract fun peerContactDao(): PeerContactDao
+    abstract fun aiConversationDao(): AiConversationDao
+    abstract fun merchantCategoryMemoryDao(): MerchantCategoryMemoryDao
 }

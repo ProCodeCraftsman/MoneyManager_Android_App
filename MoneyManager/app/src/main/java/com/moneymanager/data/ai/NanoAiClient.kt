@@ -4,7 +4,7 @@ import com.google.mlkit.genai.prompt.Generation
 import com.moneymanager.domain.ai.AiUnavailableException
 import com.moneymanager.domain.ai.GenAiClient
 
-class NanoAiClient : GenAiClient {
+class NanoAiClient @javax.inject.Inject constructor() : GenAiClient {
 
     override suspend fun generateDraft(prompt: String): Result<String> {
         return try {

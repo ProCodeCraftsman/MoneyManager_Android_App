@@ -32,6 +32,16 @@ interface GenAiClient {
         return result
     }
 
+    /**
+     * Vision variant — passes raw image bytes alongside the user message.
+     * Only EdgeAiClient overrides this; all other backends return UnsupportedOperationException.
+     */
+    suspend fun generateDraftFromImage(
+        systemInstruction: String,
+        userMessage: String,
+        imageBytes: ByteArray,
+    ): Result<String> = Result.failure(UnsupportedOperationException("Vision not supported by this backend"))
+
     fun generateDraftWithProgress(prompt: String): Flow<AiResult<String>> = flow {
         emit(AiResult.Loading)
         emit(
