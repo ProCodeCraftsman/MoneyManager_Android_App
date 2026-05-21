@@ -20,11 +20,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.summary.components.*
-import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.constants.TimeFilter
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -61,19 +59,25 @@ fun SummaryScreen(
         viewModel.setActiveTab(SummaryTab.entries[pagerState.currentPage])
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-    ) {
-        SummaryHeader(
-            uiState = uiState,
-            onTimeFilterChange = viewModel::setTimeFilter,
-            onNavigatePeriod = viewModel::navigatePeriod,
-            onCustomDateRange = viewModel::setCustomDateRange,
-            onDateClick = { showDateRangePicker = true }
-        )
-
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
+        topBar = {
+            Surface(tonalElevation = 1.dp, shadowElevation = 1.dp) {
+                SummaryHeader(
+                    uiState = uiState,
+                    onTimeFilterChange = viewModel::setTimeFilter,
+                    onNavigatePeriod = viewModel::navigatePeriod,
+                    onCustomDateRange = viewModel::setCustomDateRange,
+                    onDateClick = { showDateRangePicker = true }
+                )
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
         when {
             uiState.isLoading -> {
                 Box(
@@ -247,6 +251,7 @@ fun SummaryScreen(
                 }
             }
         }
+        }
     }
 
     if (showDateRangePicker) {
@@ -279,13 +284,12 @@ fun SummaryTabRow(
         TabItem("Savings", Icons.Default.Savings, SummaryTab.SAVINGS)
     )
 
-    val categoryColors = LocalCategoryColors.current
     val colorScheme = MaterialTheme.colorScheme
 
     val selectedAccentColor = when (selectedTab) {
         SummaryTab.EXPENSE -> colorScheme.error
         SummaryTab.INCOME -> colorScheme.primary
-        SummaryTab.LENDING -> categoryColors.lending
+        SummaryTab.LENDING -> colorScheme.secondary
         SummaryTab.TRANSFERS -> colorScheme.secondary
         SummaryTab.SAVINGS -> colorScheme.tertiary
     }
@@ -308,7 +312,7 @@ fun SummaryTabRow(
             val tabColor = when (item.tab) {
                 SummaryTab.EXPENSE -> colorScheme.error
                 SummaryTab.INCOME -> colorScheme.primary
-                SummaryTab.LENDING -> categoryColors.lending
+                SummaryTab.LENDING -> colorScheme.secondary
                 SummaryTab.TRANSFERS -> colorScheme.secondary
                 SummaryTab.SAVINGS -> colorScheme.tertiary
             }
@@ -332,8 +336,7 @@ fun SummaryTabRow(
                     Text(
                         text = item.label,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 10.sp
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         ),
                         color = if (isSelected) tabColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
