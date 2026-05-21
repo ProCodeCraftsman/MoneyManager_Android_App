@@ -12,7 +12,8 @@ data class CategorySpend(
     val percentOfTotal: Float,   // 0..100
     val color: androidx.compose.ui.graphics.Color,
     val emoji: String = "📁",
-    val iconType: String = "emoji"
+    val iconType: String = "emoji",
+    val colorIndex: Int = 0
 )
 
 data class BudgetUtilizationRow(
@@ -24,7 +25,8 @@ data class BudgetUtilizationRow(
     val percentOfTotalExpense: Float = 0f,
     val color: androidx.compose.ui.graphics.Color,
     val emoji: String = "📁",
-    val iconType: String = "emoji"
+    val iconType: String = "emoji",
+    val colorIndex: Int = 0
 )
 
 data class LendingPerson(
@@ -46,7 +48,8 @@ data class AccountTransferInfo(
     val outAmount: Double,
     val emoji: String,
     val iconType: String = "emoji",
-    val color: String
+    val color: String,
+    val colorIndex: Int = 0
 )
 
 data class SavingsGoalRow(
@@ -58,7 +61,8 @@ data class SavingsGoalRow(
     val progressPercent: Float,
     val emoji: String,
     val iconType: String = "emoji",
-    val color: androidx.compose.ui.graphics.Color
+    val color: androidx.compose.ui.graphics.Color,
+    val colorIndex: Int = 0
 )
 
 data class SavingsAccountRow(
@@ -68,7 +72,8 @@ data class SavingsAccountRow(
     val balance: Double,
     val emoji: String,
     val iconType: String = "emoji",
-    val color: String
+    val color: String,
+    val colorIndex: Int = 0
 )
 
 data class SummaryUiState(

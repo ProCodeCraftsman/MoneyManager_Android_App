@@ -3,10 +3,9 @@ package com.moneymanager.app.ui.aidraft
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Context
+import com.moneymanager.domain.ai.AiAgent
 import com.moneymanager.domain.ai.AiBackend
-import com.moneymanager.data.ai.DeterministicExtractor
 import com.moneymanager.data.ai.LiteRtModelManager
-import com.moneymanager.data.ai.agent.JsSkillEngine
 import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
 import com.moneymanager.data.ai.ModelDownloadService
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -42,16 +41,13 @@ import javax.inject.Inject
 @HiltViewModel
 class AiDraftViewModel @Inject constructor(
     private val aiAvailabilityRepository: AiAvailabilityRepository,
-    private val generateDraftFromTextUseCase: GenerateDraftFromTextUseCase,
-    private val generateDraftFromImageUseCase: GenerateDraftFromImageUseCase,
+    private val aiAgent: AiAgent,
     private val promptContextBuilder: PromptContextBuilder,
     private val categoryRepository: CategoryRepository,
     private val accountRepository: AccountRepository,
     private val peerContactRepository: PeerContactRepository,
     private val transactionRepository: TransactionRepository,
     private val modelManager: LiteRtModelManager,
-    private val merchantMemory: MerchantCategoryMemoryRepository,
-    private val jsSkillEngine: JsSkillEngine,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -99,209 +95,121 @@ class AiDraftViewModel @Inject constructor(
 
     fun generateDraft(rawText: String, sourceType: String, sourceSender: String? = null, attachmentPath: String? = null) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isGenerating = true, error = null, generatingStep = "Reading…") }
+            _uiState.update { it.copy(isGenerating = true, error = null, agentStep = AgentStep.READING) }
             try {
-                // Phase 1 — deterministic, zero-latency: extract amount/type/date/merchant
-                // before touching the DB or AI. Handles multi-number bills correctly.
-                val pre = DeterministicExtractor.extract(rawText, sourceType)
-
-                val foundLabel = buildString {
-                    pre.amount?.let { append(formatAmount(it)) }
-                    pre.typeId?.let {
-                        if (isNotEmpty()) append(" · ")
-                        append(it.replaceFirstChar { c -> c.uppercase() })
-                    }
-                    pre.merchantHint?.let {
-                        if (isNotEmpty()) append(" · ")
-                        append(it.take(20))
-                    }
-                }
-                val contextStep = if (foundLabel.isNotEmpty()) "Found $foundLabel — loading context…" else "Loading your data…"
-                _uiState.update { it.copy(generatingStep = contextStep) }
-
-                // Phase 2 — merchant cache check: known merchant → skip AI entirely
-                val cachedEntry = pre.merchantHint?.let { hint ->
-                    withContext(Dispatchers.IO) { merchantMemory.lookup(hint) }
-                }
-                if (cachedEntry != null) {
-                    val fastDraft = com.moneymanager.domain.ai.TransactionDraft(
-                        amount = pre.amount,
-                        typeId = pre.typeId ?: cachedEntry.typeId,
-                        date = pre.epochMs,
-                        categoryId = cachedEntry.categoryId,
-                        categoryName = cachedEntry.categoryName,
-                        merchantHint = pre.merchantHint,
-                        sourceType = sourceType,
-                        sourceSender = sourceSender,
-                        receiptPath = attachmentPath,
-                    )
-                    _navigationEvent.emit(NavigationEvent.NavigateToDraft(fastDraft))
-                    _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = null) }
-                    return@launch
-                }
-
-                // Phase 4 — load prompt context (cached after first call)
                 val promptContext = loadPromptContext()
-
-                // Phase 5 — single focused AI call (smaller prompt = faster inference)
-                val thinkingLabel = buildString {
-                    if (foundLabel.isNotEmpty()) { append("Found $foundLabel — ") }
-                    append(when (_uiState.value.aiBackendTier) {
-                        AiBackend.LOCAL_MODEL -> "local AI classifying…"
-                        AiBackend.AICORE -> "AI classifying…"
-                        else -> "classifying…"
-                    })
-                }
-                _uiState.update { it.copy(generatingStep = thinkingLabel) }
-
-                val result = withContext(Dispatchers.IO) {
-                    generateDraftFromTextUseCase(rawText, promptContext, sourceType, sourceSender, pre)
-                }
-
-                result.fold(
-                    onSuccess = { draft ->
-                        val finalDraft = draft.copy(
-                            receiptPath = attachmentPath ?: draft.receiptPath,
-                            merchantHint = pre.merchantHint ?: draft.merchantHint,
-                        )
-                        // Learn: write merchant→category association for future cache hits
-                        if (pre.merchantHint != null && finalDraft.categoryId != null) {
-                            viewModelScope.launch(Dispatchers.IO) {
-                                merchantMemory.record(
-                                    merchantHint = pre.merchantHint,
-                                    categoryId = finalDraft.categoryId,
-                                    categoryName = finalDraft.categoryName ?: "",
-                                    typeId = finalDraft.typeId,
-                                )
+                
+                aiAgent.processText(
+                    rawText = rawText,
+                    context = promptContext,
+                    sourceType = sourceType,
+                    sourceSender = sourceSender,
+                    attachmentPath = attachmentPath,
+                    autoCommit = sourceType == "VOICE" // Example: auto-commit voice if high confidence
+                ).collect { status ->
+                    when (status) {
+                        is AgentStatus.Progress -> {
+                            _uiState.update { it.copy(agentStep = status.step, generatingStep = status.detail) }
+                        }
+                        is AgentStatus.Success -> {
+                            if (status.draft.flags.contains("auto_committed")) {
+                                val txId = status.draft.flags.last().toLongOrNull() ?: 0L
+                                _navigationEvent.emit(NavigationEvent.NavigateToCreated(txId, "Transaction created automatically"))
+                            } else {
+                                _navigationEvent.emit(NavigationEvent.NavigateToDraft(status.draft))
                             }
+                            _uiState.update { it.copy(isGenerating = false, agentStep = null, generatingStep = null) }
                         }
-                        _navigationEvent.emit(NavigationEvent.NavigateToDraft(finalDraft))
-                        _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = null) }
-                    },
-                    onFailure = { throwable ->
-                        val error = when {
-                            throwable is com.moneymanager.domain.ai.AiUnavailableException &&
-                                _uiState.value.aiBackendTier == AiBackend.LOCAL_MODEL &&
-                                !_uiState.value.isLocalModelDownloaded ->
-                                com.moneymanager.domain.ai.AiError.LocalModelNotDownloaded
-                            throwable is com.moneymanager.domain.ai.AiUnavailableException ->
-                                com.moneymanager.domain.ai.AiError.Generic("Could not reach AI. Please try again.")
-                            else ->
-                                com.moneymanager.domain.ai.AiError.InsufficientInformation
+                        is AgentStatus.Failure -> {
+                            val error = mapThrowableToAiError(status.throwable)
+                            _uiState.update { it.copy(isGenerating = false, agentStep = null, error = error.userMessage()) }
+                            _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
                         }
-                        _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
-                        _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
                     }
-                )
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                val error = com.moneymanager.domain.ai.AiError.AiCallTimedOut
-                _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
-                _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
+                }
             } catch (e: Exception) {
-                val error = com.moneymanager.domain.ai.AiError.Generic("Could not generate draft. Please try again.")
-                _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
-                _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
+                _uiState.update { it.copy(isGenerating = false, agentStep = null, error = "Unexpected error: ${e.message}") }
             }
         }
     }
 
-    fun quickAddFromVoice(rawText: String, saveAsNote: Boolean = true) {
+    fun quickAdd(rawText: String, sourceType: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isGenerating = true, error = null, generatingStep = "Reading…") }
+            _uiState.update { it.copy(isGenerating = true, error = null, agentStep = AgentStep.READING) }
             try {
-                val pre = DeterministicExtractor.extract(rawText, "VOICE")
-                val label = buildString {
-                    pre.amount?.let { append(formatAmount(it)) }
-                    if (pre.typeId != null) {
-                        if (isNotEmpty()) append(" · ")
-                        append(pre.typeId.replaceFirstChar { c -> c.uppercase() })
+                val promptContext = loadPromptContext()
+                aiAgent.processText(
+                    rawText = rawText,
+                    context = promptContext,
+                    sourceType = sourceType,
+                    autoCommit = true
+                ).collect { status ->
+                    when (status) {
+                        is AgentStatus.Progress -> {
+                            _uiState.update { it.copy(agentStep = status.step, generatingStep = status.detail) }
+                        }
+                        is AgentStatus.Success -> {
+                            val txId = status.draft.flags.lastOrNull()?.toLongOrNull() ?: 0L
+                            _navigationEvent.emit(NavigationEvent.NavigateToCreated(txId, "Transaction created automatically"))
+                            _uiState.update { it.copy(isGenerating = false, agentStep = null, generatingStep = null) }
+                        }
+                        is AgentStatus.Failure -> {
+                            val error = mapThrowableToAiError(status.throwable)
+                            _uiState.update { it.copy(isGenerating = false, agentStep = null, error = error.userMessage()) }
+                            _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
+                        }
                     }
                 }
-                _uiState.update { it.copy(generatingStep = "Creating $label…") }
-
-                val typeId = pre.typeId ?: "expense"
-                val epochMs = pre.epochMs ?: System.currentTimeMillis()
-                val description = pre.merchantHint?.take(40) ?: rawText.take(40)
-
-                val inputJson = buildString {
-                    append("""{"amount":${pre.amount ?: 0},"type":"$typeId","description":"${jsonEscape(description)}","date":$epochMs,"accountName":null,"categoryName":null,"note":"${jsonEscape(if (saveAsNote) rawText else "")}","peerName":null}""")
-                }
-
-                val result = withContext(Dispatchers.IO) {
-                    jsSkillEngine.execute("create-transaction", inputJson)
-                }
-
-                val parsed = runCatching {
-                    kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                        .decodeFromString<com.moneymanager.data.http.CreateTransactionResponse>(result)
-                }.getOrNull()
-
-                if (parsed?.status == "created") {
-                    _navigationEvent.emit(NavigationEvent.NavigateToCreated(parsed.id, label))
-                } else {
-                    val errorMsg = parsed?.error ?: "Failed to create transaction"
-                    _navigationEvent.emit(NavigationEvent.ShowError(errorMsg))
-                }
             } catch (e: Exception) {
-                _navigationEvent.emit(NavigationEvent.ShowError("Could not create: ${e.message?.take(80) ?: "Unknown error"}"))
-            } finally {
-                _uiState.update { it.copy(isGenerating = false, generatingStep = null) }
+                _uiState.update { it.copy(isGenerating = false, agentStep = null, error = "Unexpected error: ${e.message}") }
             }
         }
     }
 
-    private fun jsonEscape(s: String): String =
-        s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+    private fun mapThrowableToAiError(throwable: Throwable): com.moneymanager.domain.ai.AiError {
+        return when {
+            throwable is com.moneymanager.domain.ai.AiUnavailableException &&
+                    _uiState.value.aiBackendTier == AiBackend.LOCAL_MODEL &&
+                    !_uiState.value.isLocalModelDownloaded ->
+                com.moneymanager.domain.ai.AiError.LocalModelNotDownloaded
+            throwable is com.moneymanager.domain.ai.AiUnavailableException ->
+                com.moneymanager.domain.ai.AiError.Generic("Could not reach AI. Please try again.")
+            else ->
+                com.moneymanager.domain.ai.AiError.InsufficientInformation
+        }
+    }
+
 
     fun generateDraftFromImage(imageBytes: ByteArray, sourceType: String = "RECEIPT", attachmentPath: String? = null) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isGenerating = true, error = null, generatingStep = "Analyzing receipt image…") }
+            _uiState.update { it.copy(isGenerating = true, error = null, agentStep = AgentStep.READING) }
             try {
                 val promptContext = loadPromptContext()
-                _uiState.update { it.copy(generatingStep = "AI vision reading receipt…") }
-
-                val result = withContext(Dispatchers.IO) {
-                    generateDraftFromImageUseCase(imageBytes, promptContext, sourceType)
-                }
-
-                result.fold(
-                    onSuccess = { draft ->
-                        val finalDraft = draft.copy(receiptPath = attachmentPath ?: draft.receiptPath)
-                        if (draft.merchantHint != null && draft.categoryId != null &&
-                            draft.confidence["merchant"] != "low") {
-                            viewModelScope.launch(Dispatchers.IO) {
-                                merchantMemory.record(
-                                    merchantHint = draft.merchantHint,
-                                    categoryId = draft.categoryId,
-                                    categoryName = draft.categoryName ?: "",
-                                    typeId = draft.typeId,
-                                )
-                            }
+                
+                aiAgent.processImage(
+                    imageBytes = imageBytes,
+                    context = promptContext,
+                    sourceType = sourceType,
+                    attachmentPath = attachmentPath,
+                    autoCommit = false // Usually don't auto-commit receipts without review
+                ).collect { status ->
+                    when (status) {
+                        is AgentStatus.Progress -> {
+                            _uiState.update { it.copy(agentStep = status.step, generatingStep = status.detail) }
                         }
-                        _navigationEvent.emit(NavigationEvent.NavigateToDraft(finalDraft))
-                        _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = null) }
-                    },
-                    onFailure = { throwable ->
-                        val error = when {
-                            throwable is com.moneymanager.domain.ai.AiUnavailableException ->
-                                com.moneymanager.domain.ai.AiError.Generic("Could not analyze image. Please try again.")
-                            throwable is UnsupportedOperationException ->
-                                com.moneymanager.domain.ai.AiError.Generic("This model does not support image analysis.")
-                            else ->
-                                com.moneymanager.domain.ai.AiError.InsufficientInformation
+                        is AgentStatus.Success -> {
+                            _navigationEvent.emit(NavigationEvent.NavigateToDraft(status.draft))
+                            _uiState.update { it.copy(isGenerating = false, agentStep = null, generatingStep = null) }
                         }
-                        _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
-                        _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
+                        is AgentStatus.Failure -> {
+                            val error = mapThrowableToAiError(status.throwable)
+                            _uiState.update { it.copy(isGenerating = false, agentStep = null, error = error.userMessage()) }
+                            _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
+                        }
                     }
-                )
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                val error = com.moneymanager.domain.ai.AiError.AiCallTimedOut
-                _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
-                _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
+                }
             } catch (e: Exception) {
-                val error = com.moneymanager.domain.ai.AiError.Generic("Could not analyze image. Please try again.")
-                _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
-                _uiState.update { it.copy(isGenerating = false, generatingStep = null, error = error.userMessage()) }
+                _uiState.update { it.copy(isGenerating = false, agentStep = null, error = "Unexpected error: ${e.message}") }
             }
         }
     }
@@ -320,7 +228,7 @@ class AiDraftViewModel @Inject constructor(
                 .mapValues { it.value.size }
 
             val categoryEntries = categories.map { CategoryEntry(id = it.id, name = it.name, type = it.type, parentId = it.parentId) }
-            val accountEntries = accounts.map { AccountEntry(id = it.id, name = it.name) }
+            val accountEntries = accounts.map { AccountEntry(id = it.id, name = it.name, type = it.type) }
             val peerEntries = peers.map { PeerEntry(id = it.id, name = it.displayName) }
             val tagEntries = tags.map { TagEntry(id = it.id, name = it.name) }
 
@@ -363,7 +271,4 @@ class AiDraftViewModel @Inject constructor(
         _uiState.update { AiDraftUiState() }
     }
 
-    private fun formatAmount(amount: Double): String =
-        if (amount == kotlin.math.floor(amount)) "₹${amount.toLong()}"
-        else "₹${"%.2f".format(amount)}"
 }

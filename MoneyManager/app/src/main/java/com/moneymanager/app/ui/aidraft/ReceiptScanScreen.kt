@@ -367,8 +367,9 @@ fun ReceiptScanScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
+                        val stepLabel = uiState.agentStep?.label ?: uiState.generatingStep ?: "Processing"
                         Text(
-                            text = "${uiState.generatingStep ?: "Processing"}${".".repeat(dotCount)}",
+                            text = "$stepLabel${".".repeat(dotCount)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

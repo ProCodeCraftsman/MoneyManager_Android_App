@@ -51,6 +51,14 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun getCategoryUsageCounts(): Map<Long, Int> =
         transactionDao.getCategoryUsageCounts().associate { it.categoryId to it.count }
 
+    override suspend fun getTransactionsWithAttachments(): List<TransactionEntity> {
+        return transactionDao.getTransactionsWithAttachments()
+    }
+
+    override suspend fun clearAllReceiptPaths() {
+        transactionDao.clearAllReceiptPaths()
+    }
+
     override fun getTransactionsPaged(
         accountId: Long?,
         type: String?,
@@ -59,7 +67,9 @@ class TransactionRepositoryImpl @Inject constructor(
         tagId: Long?,
         startDate: Long?,
         endDate: Long?,
-        query: String?
+        query: String?,
+        sortDescending: Boolean,
+        sortByAmount: Boolean
     ): Flow<PagingData<TransactionEntity>> {
         return Pager(
             config = PagingConfig(
@@ -69,9 +79,12 @@ class TransactionRepositoryImpl @Inject constructor(
                 prefetchDistance = 100
             )
         ) {
-            transactionDao.getTransactionsWithFilters(
-                accountId, type, categoryId, goalId, tagId, startDate, endDate, query
-            )
+            when {
+                sortByAmount && sortDescending -> transactionDao.getTransactionsWithFiltersHighest(accountId, type, categoryId, goalId, tagId, startDate, endDate, query)
+                sortByAmount && !sortDescending -> transactionDao.getTransactionsWithFiltersLowest(accountId, type, categoryId, goalId, tagId, startDate, endDate, query)
+                !sortByAmount && !sortDescending -> transactionDao.getTransactionsWithFiltersOldest(accountId, type, categoryId, goalId, tagId, startDate, endDate, query)
+                else -> transactionDao.getTransactionsWithFilters(accountId, type, categoryId, goalId, tagId, startDate, endDate, query)
+            }
         }.flow
     }
 }

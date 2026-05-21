@@ -2,6 +2,7 @@ package com.moneymanager.app.ui.components
 
 import android.graphics.BitmapFactory
 import android.util.Base64
+import java.io.File
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moneymanager.app.ui.constants.*
 import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.accountTypeIcon
@@ -84,10 +86,12 @@ fun TransactionDetailSheet(
     }
 
     val typeIcon = when {
-        transaction.isSplitParent -> "\uD83D\uDD00"
-        transaction.isTransfer || transaction.type == "transfer" -> "\uE29C"
+        transaction.isSplitParent -> ICON_SPLIT
+        transaction.isTransfer || transaction.type == "transfer" -> ICON_TRANSFER
+        transaction.type == "lend" -> ICON_LEND
+        transaction.type == "borrow" -> ICON_BORROW
         category != null -> category.emoji
-        else -> "\uD83D\uDCB8"
+        else -> ICON_DEFAULT
     }
 
     val amountText = if (transaction.type == "expense") {
@@ -481,6 +485,20 @@ private fun AttachmentPreviewSection(receiptPath: String) {
                     )
                     Spacer(Modifier.width(12.dp))
                 }
+            } else if (File(receiptPath).exists()) {
+                val bitmap = remember(receiptPath) {
+                    BitmapFactory.decodeFile(receiptPath)
+                }
+                bitmap?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = "Receipt",
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                    Spacer(Modifier.width(12.dp))
+                }
             } else {
                 Box(
                     modifier = Modifier
@@ -500,7 +518,7 @@ private fun AttachmentPreviewSection(receiptPath: String) {
             }
             Column {
                 Text(
-                    text = if (receiptPath.startsWith("data:image")) "Receipt Image" else "Attachment",
+                    text = if (receiptPath.startsWith("data:image") || File(receiptPath).exists()) "Receipt Image" else "Attachment",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )

@@ -70,7 +70,14 @@
       "Bash(New-Item -ItemType Directory -Force \"D:\\\\Android projec\\\\MoneyManager\\\\app\\\\src\\\\main\\\\assets\\\\skills\\\\ask-image\")",
       "Bash(Out-Null)",
       "PowerShell(New-Item *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "mcp__gitnexus__detect_changes",
+      "Bash(ls -la \"D:\\\\\\\\Android projec\\\\\\\\MoneyManager\\\\\\\\app\\\\\\\\src\\\\\\\\main\\\\\\\\java\\\\\\\\com\\\\\\\\moneymanager\\\\\\\\app\\\\\\\\ui\\\\\\\\\")",
+      "Bash(find \"D:\\\\\\\\Android projec\\\\\\\\MoneyManager\\\\\\\\app\\\\\\\\src\\\\\\\\main\\\\\\\\java\\\\\\\\com\\\\\\\\moneymanager\\\\\\\\app\\\\\\\\ui\\\\\\\\summary\" -type f -name \"*.kt\")",
+      "Bash(find \"D:\\\\\\\\Android projec\\\\\\\\MoneyManager\\\\\\\\app\\\\\\\\src\\\\\\\\main\\\\\\\\java\\\\\\\\com\\\\\\\\moneymanager\\\\\\\\app\\\\\\\\ui\\\\\\\\transactions\" -type f -name \"*.kt\")",
+      "Bash(find \"D:\\\\\\\\Android projec\\\\\\\\MoneyManager\\\\\\\\app\\\\\\\\src\\\\\\\\main\\\\\\\\java\\\\\\\\com\\\\\\\\moneymanager\\\\\\\\app\\\\\\\\ui\\\\\\\\components\" -type f -name \"*[Ff]ilter*\" -o -name \"*[Dd]ate*\")",
+      "Bash(find \"D:\\\\\\\\Android projec\\\\\\\\MoneyManager\\\\\\\\app\\\\\\\\src\\\\\\\\main\\\\\\\\java\\\\\\\\com\\\\\\\\moneymanager\\\\\\\\app\\\\\\\\ui\" -type f -name \"*.kt\")",
+      "Bash(Select-Object Name)"
     ]
   }
 }

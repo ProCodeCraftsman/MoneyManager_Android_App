@@ -8,6 +8,7 @@ import com.moneymanager.data.MIGRATION_6_7
 import com.moneymanager.data.MIGRATION_7_8
 import com.moneymanager.data.MIGRATION_8_9
 import com.moneymanager.data.MIGRATION_9_10
+import com.moneymanager.data.MIGRATION_10_11
 import com.moneymanager.data.MoneyManagerDatabase
 import com.moneymanager.data.dao.*
 import dagger.Module
@@ -29,7 +30,7 @@ object DatabaseModule {
             MoneyManagerDatabase::class.java,
             "moneymanager.db"
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_2_3, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }

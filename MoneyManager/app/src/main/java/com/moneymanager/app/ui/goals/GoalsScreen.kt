@@ -245,6 +245,7 @@ private fun GoalListRow(
                 CategoryIcon(
                     emoji = goal.emoji,
                     iconType = goal.iconType,
+                    colorIndex = (goal.id % 40).toInt(),
                     fontSize = 18.sp
                 )
             }
@@ -430,7 +431,7 @@ fun AddGoalDialog(onDismiss: () -> Unit, onConfirm: (String, String, String, Dou
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CategoryIcon(emoji = name, iconType = "material", fontSize = 18.sp)
+                                    CategoryIcon(emoji = name, iconType = "material", colorIndex = (index % 40), fontSize = 18.sp)
                                 }
                             }
                         }

@@ -95,6 +95,12 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE categories ADD COLUMN colorIndex INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [
         AccountEntity::class,
@@ -108,7 +114,7 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         AiConversationEntity::class,
         MerchantCategoryMemoryEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

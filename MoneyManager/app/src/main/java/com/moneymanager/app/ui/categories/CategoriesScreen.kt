@@ -101,6 +101,14 @@ class CategoriesViewModel @Inject constructor(
                 return@launch
             }
             _error.value = null
+
+            val colorIndex = if (parentId == null) {
+                val maxIndex = uiState.value.categories.filter { it.parentId == null }.maxOfOrNull { it.colorIndex } ?: -1
+                (maxIndex + 1) % 40
+            } else {
+                uiState.value.categories.find { it.id == parentId }?.colorIndex ?: 0
+            }
+
             categoryRepository.insertCategory(
                 CategoryEntity(
                     name = name,
@@ -108,7 +116,8 @@ class CategoriesViewModel @Inject constructor(
                     iconType = iconType,
                     type = type,
                     parentId = parentId,
-                    isCustom = true
+                    isCustom = true,
+                    colorIndex = colorIndex
                 )
             )
         }
@@ -429,6 +438,7 @@ fun CategorySection(
                         CategoryIcon(
                             emoji = parent.emoji,
                             iconType = parent.iconType,
+                            colorIndex = parent.colorIndex,
                             fontSize = 18.sp
                         )
                     }
@@ -528,6 +538,7 @@ fun CategorySection(
                                 CategoryIcon(
                                     emoji = subCategory.emoji,
                                     iconType = subCategory.iconType,
+                                    colorIndex = subCategory.colorIndex,
                                     fontSize = 13.sp
                                 )
                             }
@@ -694,6 +705,7 @@ fun CategoryDialog(
                                     CategoryIcon(
                                         emoji = name,
                                         iconType = "material",
+                                        colorIndex = category?.colorIndex,
                                         fontSize = 20.sp
                                     )
                                 }
@@ -841,7 +853,7 @@ fun CategoryDialog(
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CategoryIcon(emoji = parent.emoji, iconType = parent.iconType, fontSize = 16.sp)
+                                        CategoryIcon(emoji = parent.emoji, iconType = parent.iconType, colorIndex = parent.colorIndex, fontSize = 16.sp)
                                         Text(parent.name)
                                     }
                                 },

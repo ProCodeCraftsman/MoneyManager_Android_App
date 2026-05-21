@@ -5,7 +5,6 @@ import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import com.moneymanager.app.ui.util.AppLockManager
 import com.moneymanager.data.ai.DeviceCapabilityManager
-import com.moneymanager.data.http.TransactionApiServer
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +17,6 @@ class MoneyManagerApp : Application(), Configuration.Provider {
     @Inject lateinit var appLockManager: AppLockManager
     @Inject lateinit var deviceCapabilityManager: DeviceCapabilityManager
     @Inject lateinit var workerFactory: HiltWorkerFactory
-    @Inject lateinit var transactionApiServer: TransactionApiServer
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -31,6 +29,5 @@ class MoneyManagerApp : Application(), Configuration.Provider {
         CoroutineScope(Dispatchers.IO).launch {
             deviceCapabilityManager.checkAndCacheAvailability()
         }
-        transactionApiServer.startServer()
     }
 }

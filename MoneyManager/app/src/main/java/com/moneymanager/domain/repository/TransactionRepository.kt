@@ -18,7 +18,9 @@ interface TransactionRepository {
         tagId: Long?,
         startDate: Long?,
         endDate: Long?,
-        query: String? = null
+        query: String? = null,
+        sortDescending: Boolean = true,
+        sortByAmount: Boolean = false
     ): Flow<PagingData<TransactionEntity>>
     fun getSplitChildren(parentId: Long): Flow<List<TransactionEntity>>
     suspend fun deleteSplitChildren(parentId: Long)
@@ -28,4 +30,7 @@ interface TransactionRepository {
     suspend fun deleteTransaction(transaction: TransactionEntity)
     suspend fun getTransferSiblings(accountId: Long, toAccountId: Long, amount: Double, excludeId: Long): List<TransactionEntity>
     suspend fun getCategoryUsageCounts(): Map<Long, Int>
+
+    suspend fun getTransactionsWithAttachments(): List<TransactionEntity>
+    suspend fun clearAllReceiptPaths()
 }

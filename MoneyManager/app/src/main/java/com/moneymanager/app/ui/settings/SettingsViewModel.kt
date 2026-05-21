@@ -13,6 +13,9 @@ import com.moneymanager.data.sync.AuthManager
 import com.moneymanager.data.sync.AuthState
 import com.moneymanager.data.sync.FirebaseSyncManager
 import com.moneymanager.data.sync.SyncStatus
+import com.moneymanager.domain.repository.TransactionRepository
+import com.moneymanager.app.ui.util.FileHelper
+import com.moneymanager.data.debug.AppResetManager
 import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +34,8 @@ class SettingsViewModel @Inject constructor(
     private val syncManager: FirebaseSyncManager,
     private val exportRepository: ExportRepository,
     private val securityManager: SecurityManager,
+    private val transactionRepository: TransactionRepository,
+    private val appResetManager: AppResetManager,
 ) : ViewModel() {
 
     private val importResult = MutableStateFlow<ImportResult?>(null)
@@ -46,6 +51,7 @@ class SettingsViewModel @Inject constructor(
         preferencesManager.biometricEnabled,
         preferencesManager.autoLockMinutes,
         preferencesManager.lastSyncTime,
+        preferencesManager.imageAttachmentsEnabled,
         authManager.authState,
         syncManager.getSyncState(),
         importResult,
@@ -59,10 +65,11 @@ class SettingsViewModel @Inject constructor(
         val biometricEnabled = values[5] as Boolean
         val autoLockMinutes = values[6] as Int
         val lastSyncTime = values[7] as Long?
-        val authState = values[8] as AuthState
-        val syncState = values[9] as com.moneymanager.data.sync.SyncState
-        val impResult = values[10] as ImportResult?
-        val expResult = values[11] as ExportResult?
+        val attachmentsEnabled = values[8] as Boolean
+        val authState = values[9] as AuthState
+        val syncState = values[10] as com.moneymanager.data.sync.SyncState
+        val impResult = values[11] as ImportResult?
+        val expResult = values[12] as ExportResult?
 
         val isSignedIn = authState is AuthState.SignedIn
         val user = (authState as? AuthState.SignedIn)?.user
@@ -82,6 +89,7 @@ class SettingsViewModel @Inject constructor(
             lastSyncTime = lastSyncTime,
             importResult = impResult,
             exportResult = expResult,
+            imageAttachmentsEnabled = attachmentsEnabled,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -130,6 +138,22 @@ class SettingsViewModel @Inject constructor(
     fun setAutoLockMinutes(minutes: Int) {
         viewModelScope.launch {
             preferencesManager.setAutoLockMinutes(minutes)
+        }
+    }
+
+    fun setImageAttachmentsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setImageAttachmentsEnabled(enabled)
+        }
+    }
+
+    fun deleteAllAttachments() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val transactions = transactionRepository.getTransactionsWithAttachments()
+            transactions.forEach {
+                FileHelper.deleteReceipt(it.receiptPath)
+            }
+            transactionRepository.clearAllReceiptPaths()
         }
     }
 
@@ -184,5 +208,18 @@ class SettingsViewModel @Inject constructor(
     fun clearResults() {
         importResult.value = null
         exportResult.value = null
+    }
+
+    /**
+     * DEBUG ONLY: Performs a hard reset of the app data (excluding AI models).
+     * This is used for rapid testing of "happy paths" from a clean state.
+     */
+    fun hardResetApp(onComplete: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            appResetManager.hardReset()
+            launch(Dispatchers.Main) {
+                onComplete()
+            }
+        }
     }
 }

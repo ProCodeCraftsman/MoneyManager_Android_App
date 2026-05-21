@@ -150,12 +150,12 @@ class TransactionsViewModel @Inject constructor(
     val allPeers: StateFlow<List<PeerContact>> = peerContactRepository.getAllPeers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Paginated transaction stream — reacts to filter changes via flatMapLatest. */
+    /** Paginated transaction stream — reacts to filter and sort changes via flatMapLatest. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val transactionsPagingData: Flow<PagingData<TransactionEntity>> =
-        combine(_filters, _searchQuery) { filters, query ->
-            filters to query
-        }.flatMapLatest { (filters, query) ->
+        combine(_filters, _searchQuery, _sortBy) { filters, query, sort ->
+            Triple(filters, query, sort)
+        }.flatMapLatest { (filters, query, sort) ->
             transactionRepository.getTransactionsPaged(
                 accountId = filters.accountId,
                 type = filters.type.takeIf { it.isNotEmpty() && it != "All" },
@@ -164,7 +164,9 @@ class TransactionsViewModel @Inject constructor(
                 tagId = filters.tagId,
                 startDate = filters.startDate,
                 endDate = filters.endDate,
-                query = query
+                query = query,
+                sortDescending = sort == TransactionSort.NEWEST || sort == TransactionSort.HIGHEST,
+                sortByAmount = sort == TransactionSort.HIGHEST || sort == TransactionSort.LOWEST
             )
         }.cachedIn(viewModelScope)
 
@@ -189,7 +191,8 @@ class TransactionsViewModel @Inject constructor(
         _sortBy,
         _showSummary,
         _showCategories,
-        categoryUsageCounts
+        categoryUsageCounts,
+        preferencesManager.imageAttachmentsEnabled
     ) { array ->
         val q = array[0] as String
         val f = array[1] as FilterState
@@ -210,6 +213,7 @@ class TransactionsViewModel @Inject constructor(
         val cats = array[11] as Boolean
         @Suppress("UNCHECKED_CAST")
         val counts = array[12] as Map<Long, Int>
+        val attachmentsEnabled = array[13] as Boolean
 
         TransactionsUiState(
             searchQuery = q,
@@ -231,7 +235,8 @@ class TransactionsViewModel @Inject constructor(
             allGoals = g,
             allPeers = p,
             currency = curr,
-            categoryUsageCounts = counts
+            categoryUsageCounts = counts,
+            imageAttachmentsEnabled = attachmentsEnabled
         )
     }.stateIn(
         scope = viewModelScope,
@@ -264,7 +269,7 @@ class TransactionsViewModel @Inject constructor(
             startDate = null,
             endDate = null,
         )
-        _sortBy.value = TransactionSort.NEWEST
+        // _sortBy intentionally NOT reset — sort preference persists across filter clears
     }
 
     fun addTransaction(transaction: TransactionEntity) {

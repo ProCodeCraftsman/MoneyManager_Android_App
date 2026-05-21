@@ -21,4 +21,5 @@ data class SettingsUiState(
     val lastSyncTime: Long? = null,
     val importResult: ImportResult? = null,
     val exportResult: ExportResult? = null,
+    val imageAttachmentsEnabled: Boolean = true,
 )

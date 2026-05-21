@@ -15,5 +15,6 @@ data class CategoryEntity(
     val parentId: Long? = null,
     val isCustom: Boolean = false,
     val isArchived: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val colorIndex: Int = 0
 )

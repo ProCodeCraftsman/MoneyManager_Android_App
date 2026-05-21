@@ -35,7 +35,7 @@ object TransactionFormConfig {
             setOf(TransactionFeature.CATEGORY, TransactionFeature.SPLIT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
         FormTypeConfig("savings", "Savings", "Savings", Icons.Default.Savings,
             setOf(TransactionFeature.CATEGORY, TransactionFeature.SPLIT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT, TransactionFeature.GOAL, TransactionFeature.PLATFORM),
-            categoryFilterType = "expense"),
+            ),
         FormTypeConfig("transfer", "Transfer", "Transfer", Icons.Default.SwapHoriz,
             setOf(TransactionFeature.TO_ACCOUNT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
         FormTypeConfig("lend", "Lending", "Lending", Icons.Default.Handshake,
