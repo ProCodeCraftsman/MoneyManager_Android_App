@@ -34,7 +34,9 @@ import com.moneymanager.app.R
 import com.moneymanager.app.ui.constants.COLOR_EXPENSE
 import com.moneymanager.app.ui.constants.COLOR_SAVINGS
 import com.moneymanager.app.ui.constants.COLOR_TRANSFER
+import com.moneymanager.app.ui.constants.ICON_BORROW
 import com.moneymanager.app.ui.constants.ICON_DEFAULT
+import com.moneymanager.app.ui.constants.ICON_LEND
 import com.moneymanager.app.ui.constants.ICON_SAVINGS
 import com.moneymanager.app.ui.constants.ICON_SPLIT
 import com.moneymanager.app.ui.constants.ICON_TRANSFER
@@ -81,12 +83,13 @@ fun TransactionCardDense(
     val typeIcon = when {
         transaction.isSplitParent -> ICON_SPLIT
         transaction.isTransfer || transaction.type == "transfer" -> ICON_TRANSFER
-        transaction.type == "savings" -> ICON_SAVINGS
+        transaction.type == "lend" -> ICON_LEND
+        transaction.type == "borrow" -> ICON_BORROW
         else -> category?.emoji ?: ICON_DEFAULT
     }
 
     val typeIconType = when {
-        transaction.isSplitParent || transaction.isTransfer || transaction.type == "transfer" || transaction.type == "savings" -> "emoji"
+        transaction.isSplitParent || transaction.isTransfer || transaction.type == "transfer" || transaction.type == "lend" || transaction.type == "borrow" -> "emoji"
         else -> category?.iconType ?: "emoji"
     }
 
@@ -110,7 +113,7 @@ fun TransactionCardDense(
                 .background(typeColor.copy(alpha = 0.1f)),
             Alignment.Center
         ) {
-            CategoryIcon(emoji = typeIcon, iconType = typeIconType, fontSize = 18.sp)
+            CategoryIcon(emoji = typeIcon, iconType = typeIconType, colorIndex = category?.colorIndex, fontSize = 18.sp)
         }
 
             Spacer(Modifier.width(14.dp))

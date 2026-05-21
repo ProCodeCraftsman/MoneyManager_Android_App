@@ -212,6 +212,7 @@ private fun BudgetListItem(
                 CategoryIcon(
                     emoji = category?.emoji ?: "📁",
                     iconType = category?.iconType ?: "emoji",
+                    colorIndex = category?.colorIndex,
                     fontSize = 18.sp
                 )
             }
@@ -312,7 +313,7 @@ fun BudgetDialog(
                                 DropdownMenuItem(
                                     text = {
                                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, fontSize = 16.sp)
+                                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 16.sp)
                                             Text(cat.name)
                                         }
                                     },
@@ -327,7 +328,7 @@ fun BudgetDialog(
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Category:", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                        CategoryIcon(emoji = category?.emoji ?: "📁", iconType = category?.iconType ?: "emoji", fontSize = 18.sp)
+                        CategoryIcon(emoji = category?.emoji ?: "📁", iconType = category?.iconType ?: "emoji", colorIndex = category?.colorIndex, fontSize = 18.sp)
                         Text(category?.name ?: "", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                     }
                 }

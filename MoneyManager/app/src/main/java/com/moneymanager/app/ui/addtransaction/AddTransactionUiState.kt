@@ -15,4 +15,5 @@ data class AddTransactionUiState(
     val currency: String = "INR",
     val categoryUsageCounts: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = true,
+    val imageAttachmentsEnabled: Boolean = true,
 )

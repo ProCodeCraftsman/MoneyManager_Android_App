@@ -1,7 +1,10 @@
 package com.moneymanager.domain.ai
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
+@Parcelize
 @Serializable
 data class TransactionDraft(
     val typeId: String? = null,
@@ -24,4 +27,21 @@ data class TransactionDraft(
     val confidence: Map<String, String> = emptyMap(),
     val needsReview: Boolean = false,
     val flags: List<String> = emptyList(),
-)
+) : Parcelable {
+    fun isHighConfidence(): Boolean {
+        if (needsReview) return false
+        if (amount == null || amount <= 0) return false
+        if (typeId.isNullOrBlank()) return false
+        if (categoryId == null) return false
+        if (accountId == null) return false
+        
+        // If confidence metadata exists, check critical fields
+        if (confidence.isNotEmpty()) {
+            if (confidence["amount"] == "low") return false
+            if (confidence["typeId"] == "low") return false
+            if (confidence["categoryId"] == "low") return false
+        }
+        
+        return true
+    }
+}

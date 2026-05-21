@@ -261,6 +261,20 @@ fun TransactionsScreen(
                 cal.set(Calendar.SECOND, 59)
                 currentPeriodEnd = cal.timeInMillis
             }
+            "Quarter" -> {
+                val month = cal.get(Calendar.MONTH)
+                val quarterStartMonth = (month / 3) * 3
+                cal.set(Calendar.MONTH, quarterStartMonth)
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                currentPeriodStart = cal.timeInMillis
+                cal.add(Calendar.MONTH, 3)
+                cal.add(Calendar.MILLISECOND, -1)
+                currentPeriodEnd = cal.timeInMillis
+            }
             // BUG-04 fix: "All" must explicitly clear the date range in the ViewModel.
             "All" -> {
                 currentPeriodStart = null
@@ -502,12 +516,14 @@ fun TransactionsScreen(
                             ) {
                                 Icon(Icons.Default.Sms, contentDescription = "AI Draft from SMS")
                             }
-                            SmallFloatingActionButton(
-                                onClick = { onNavigateToAiDraftReceipt(); aiDraftExpanded = false },
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ) {
-                                Icon(Icons.Default.Receipt, contentDescription = "AI Draft from Receipt")
+                            if (uiState.imageAttachmentsEnabled) {
+                                SmallFloatingActionButton(
+                                    onClick = { onNavigateToAiDraftReceipt(); aiDraftExpanded = false },
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ) {
+                                    Icon(Icons.Default.Receipt, contentDescription = "AI Draft from Receipt")
+                                }
                             }
                             if (SpeechRecognizer.isRecognitionAvailable(LocalContext.current)) {
                                 SmallFloatingActionButton(
@@ -749,6 +765,7 @@ fun TransactionsScreen(
             goals = uiState.allGoals,
             initialType = preselectedType,
             categoryUsageCounts = uiState.categoryUsageCounts,
+            imageAttachmentsEnabled = uiState.imageAttachmentsEnabled,
             onDismiss = { showAddDialog = false },
             onConfirm = { tx, children ->
                 if (children != null) viewModel.addSplitTransaction(tx, children)
@@ -776,6 +793,7 @@ fun TransactionsScreen(
             goals = uiState.allGoals,
             initialType = editing.type,
             categoryUsageCounts = uiState.categoryUsageCounts,
+            imageAttachmentsEnabled = uiState.imageAttachmentsEnabled,
             onDismiss = { editingTransaction = null },
             onConfirm = { tx, children ->
                 viewModel.updateTransaction(editing, tx, children)
@@ -811,20 +829,13 @@ fun TransactionsScreen(
             currentPeriodName = currentPeriodName,
             onPrevPeriod = { navigatePrevious() },
             onNextPeriod = { navigateNext() },
-            onPeriodTypeSelected = { 
-                timeFilter = it.replace("This ", "").replace("Last ", "")
-                if (it == "Last Month") {
-                    val cal = Calendar.getInstance().apply { add(Calendar.MONTH, -1) }
-                    updatePeriodBasedOnFilter("Month", cal)
-                } else if (it == "This Month") {
-                    updatePeriodBasedOnFilter("Month")
-                } else {
-                    updatePeriodBasedOnFilter(timeFilter)
-                }
+            selectedPeriodGranularity = when (timeFilter) {
+                "Day", "Month", "Year" -> timeFilter
+                else -> ""
             },
-            selectedPeriodType = when {
-                timeFilter == "Month" -> "This Month"
-                else -> timeFilter
+            onGranularitySelected = { granularity ->
+                timeFilter = granularity
+                updatePeriodBasedOnFilter(granularity)
             },
             isAllExpanded = uiState.isAllExpanded,
             onToggleExpand = { viewModel.toggleAllExpanded() },
@@ -834,14 +845,17 @@ fun TransactionsScreen(
             onToggleSummary = { viewModel.setShowSummary(it) },
             showCategories = uiState.showCategories,
             onToggleCategories = { viewModel.setShowCategories(it) },
-            selectedAccountName = uiState.allAccounts.find { it.id == uiState.filterAccountId }?.name ?: "All Accounts",
-            onSelectAccount = { /* Logic to show account picker if needed */ },
-            selectedCategoryName = uiState.allCategories.find { it.id == uiState.filterCategoryId }?.name ?: "All Categories",
-            onSelectCategory = { /* Logic to show category picker */ },
+            accounts = uiState.allAccounts,
+            selectedAccountId = uiState.filterAccountId,
+            onSelectAccount = { viewModel.setAccountFilter(it) },
+            categories = uiState.allCategories,
+            selectedCategoryId = uiState.filterCategoryId,
+            onSelectCategory = { viewModel.setCategoryFilter(it) },
             selectedTransactionType = uiState.filterType.ifEmpty { "All" },
-            onSelectTransactionType = { /* Logic to show type picker */ },
-            selectedTagsLabel = "All",
-            onSelectTags = { },
+            onSelectTransactionType = { viewModel.setTypeFilter(it) },
+            tags = uiState.allTags,
+            selectedTagId = uiState.filterTagId,
+            onSelectTags = { viewModel.setTagFilter(it) },
             onResetAll = { viewModel.clearAllFilters() },
             onApply = { showFilterSheet = false }
         )

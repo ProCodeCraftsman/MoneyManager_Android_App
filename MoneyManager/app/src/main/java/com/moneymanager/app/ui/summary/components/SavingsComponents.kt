@@ -180,7 +180,7 @@ private fun GoalItem(goal: SavingsGoalRow, currencyFormat: java.text.NumberForma
             modifier = Modifier.size(40.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                CategoryIcon(emoji = goal.emoji, iconType = goal.iconType, fontSize = 20.sp)
+                CategoryIcon(emoji = goal.emoji, iconType = goal.iconType, colorIndex = goal.colorIndex, fontSize = 20.sp)
             }
         }
         
@@ -312,7 +312,7 @@ private fun AccountItem(account: SavingsAccountRow, currencyFormat: java.text.Nu
             modifier = Modifier.size(40.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                CategoryIcon(emoji = account.emoji, iconType = account.iconType, fontSize = 20.sp)
+                CategoryIcon(emoji = account.emoji, iconType = account.iconType, colorIndex = account.colorIndex, fontSize = 20.sp)
             }
         }
         

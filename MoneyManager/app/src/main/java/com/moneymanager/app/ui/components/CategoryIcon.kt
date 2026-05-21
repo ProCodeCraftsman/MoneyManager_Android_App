@@ -16,16 +16,36 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.moneymanager.app.ui.theme.CategoryPalettes
+import com.moneymanager.app.ui.theme.LocalAppTheme
+import com.moneymanager.app.ui.theme.LocalIsDarkMode
 import com.moneymanager.app.ui.util.MaterialIconProvider
 
 @Composable
 fun CategoryIcon(
     emoji: String,
     iconType: String = "emoji",
+    colorIndex: Int? = null,
     modifier: Modifier = Modifier,
     fontSize: TextUnit = 18.sp,
     tint: Color = Color.Unspecified
 ) {
+    val currentTheme = LocalAppTheme.current
+    val isDarkMode = LocalIsDarkMode.current
+    val categoryColor = remember(colorIndex, currentTheme, isDarkMode) {
+        if (colorIndex != null) {
+            CategoryPalettes.getColor(currentTheme, isDarkMode, colorIndex)
+        } else {
+            null
+        }
+    }
+
+    val finalTint = when {
+        tint != Color.Unspecified -> tint
+        categoryColor != null -> categoryColor
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
     when (iconType) {
         "material" -> {
             val imageVector = remember(emoji) { MaterialIconProvider.getIcon(emoji) }
@@ -34,7 +54,7 @@ fun CategoryIcon(
                     imageVector = imageVector,
                     contentDescription = null,
                     modifier = modifier,
-                    tint = if (tint != Color.Unspecified) tint else MaterialTheme.colorScheme.onSurface
+                    tint = finalTint
                 )
             } else {
                 Text(
@@ -58,7 +78,8 @@ fun CategoryIcon(
                 text = emoji,
                 modifier = modifier,
                 fontSize = fontSize,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                color = if (categoryColor != null && tint == Color.Unspecified) categoryColor else Color.Unspecified
             )
         }
     }
@@ -68,6 +89,7 @@ fun CategoryIcon(
 fun CategoryIconDisplay(
     emoji: String,
     iconType: String = "emoji",
+    colorIndex: Int? = null,
     modifier: Modifier = Modifier,
     iconSize: androidx.compose.ui.unit.Dp = 36.dp
 ) {
@@ -78,6 +100,7 @@ fun CategoryIconDisplay(
         CategoryIcon(
             emoji = emoji,
             iconType = iconType,
+            colorIndex = colorIndex,
             fontSize = (iconSize.value * 0.5).sp,
             modifier = Modifier.size(iconSize * 0.6f)
         )

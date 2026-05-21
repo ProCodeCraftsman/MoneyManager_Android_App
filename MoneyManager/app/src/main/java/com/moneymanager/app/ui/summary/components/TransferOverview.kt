@@ -190,6 +190,7 @@ private fun AccountTransferRow(
                 CategoryIcon(
                     emoji = account.emoji,
                     iconType = account.iconType,
+                    colorIndex = account.colorIndex,
                     fontSize = 14.sp
                 )
             }

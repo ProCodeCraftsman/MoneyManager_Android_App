@@ -48,11 +48,12 @@ fun NetBalanceCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                val netBalanceColor = if (netBalance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 Text(
                     text = currencyFormat.format(netBalance),
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = netBalanceColor,
                         fontSize = 24.sp
                     )
                 )

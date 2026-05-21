@@ -3,6 +3,7 @@ package com.moneymanager.app.ui.dialogs
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -122,6 +123,7 @@ fun AddEditTransactionDialog(
     goals: List<GoalEntity>,
     initialType: String?,
     categoryUsageCounts: Map<Long, Int> = emptyMap(),
+    imageAttachmentsEnabled: Boolean = true,
     initialDraft: TransactionDraft? = null,
     onDraftDismiss: (() -> Unit)? = null,
     onDismiss: () -> Unit,
@@ -436,7 +438,10 @@ fun AddEditTransactionDialog(
 
     // ── File Picker ──
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { receiptData = FileHelper.saveReceipt(context, it) }
+        uri?.let { 
+            receiptData = FileHelper.saveReceipt(context, it)
+            if (receiptData != null) showReceiptInput = true
+        }
     }
 
     // ── Overlay Dialogs ──
@@ -831,7 +836,13 @@ fun AddEditTransactionDialog(
                                 Icons.Default.AttachFile, "Attach",
                                 if (receiptData == null) "Add" else "1 file",
                                 showReceiptInput
-                            ) { showReceiptInput = !showReceiptInput },
+                            ) {
+                                if (receiptData != null) {
+                                    showReceiptPreview = true
+                                } else {
+                                    filePicker.launch("image/*")
+                                }
+                            },
                             UtilityActionItemData(
                                 Icons.AutoMirrored.Filled.CallSplit, "Split",
                                 if (!splitEnabled) "Off" else "On",
@@ -839,9 +850,10 @@ fun AddEditTransactionDialog(
                             ) { splitEnabled = !splitEnabled },
                         ).filter { a ->
                             when (a.label) {
-                                "Tags"  -> TransactionFeature.TAGS in features
-                                "Split" -> TransactionFeature.SPLIT in features
-                                else    -> true
+                                "Tags"   -> TransactionFeature.TAGS in features
+                                "Split"  -> TransactionFeature.SPLIT in features
+                                "Attach" -> imageAttachmentsEnabled
+                                else     -> true
                             }
                         }.forEach { a ->
                             UtilityActionItem(
@@ -1550,6 +1562,13 @@ private fun FormReceiptPreviewDialog(receiptData: String, onDismiss: () -> Unit)
                     bitmap?.let {
                         Image(it.asImageBitmap(), "Receipt", modifier = Modifier.fillMaxWidth())
                     }
+                } else if (File(receiptData).exists()) {
+                    val bitmap = remember(receiptData) {
+                        BitmapFactory.decodeFile(receiptData)
+                    }
+                    bitmap?.let {
+                        Image(it.asImageBitmap(), "Receipt", modifier = Modifier.fillMaxWidth())
+                    }
                 } else {
                     Icon(
                         Icons.Default.PictureAsPdf, null,
@@ -1600,7 +1619,7 @@ private fun FormCategorySearchDialog(
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, fontSize = 24.sp)
+                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 24.sp)
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(cat.name)
@@ -1820,7 +1839,7 @@ internal fun CategoryCarousel(
                         shadowElevation = if (isSelected) 3.dp else 0.dp
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, fontSize = 24.sp)
+                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 24.sp)
                         }
                     }
                     if (isSelected) {

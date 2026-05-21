@@ -64,7 +64,11 @@ fun MoneyManagerTheme(
         AppTheme.MIDNIGHT_BLUE -> midnightBlueCategoryColors
     }
 
-    CompositionLocalProvider(LocalCategoryColors provides categoryColors) {
+    CompositionLocalProvider(
+        LocalCategoryColors provides categoryColors,
+        LocalAppTheme provides appTheme,
+        LocalIsDarkMode provides isDarkMode
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
@@ -377,3 +381,6 @@ val LocalCategoryColors = staticCompositionLocalOf {
         savings = Color.Unspecified
     )
 }
+
+val LocalAppTheme = staticCompositionLocalOf { AppTheme.MIDNIGHT_BLUE }
+val LocalIsDarkMode = staticCompositionLocalOf { false }

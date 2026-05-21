@@ -145,7 +145,8 @@ object SummaryAggregator {
                 percentOfTotalExpense = percentOfTotal,
                 color = parseColor(category?.color),
                 emoji = category?.emoji ?: "📁",
-                iconType = category?.iconType ?: "emoji"
+                iconType = category?.iconType ?: "emoji",
+                colorIndex = category?.colorIndex ?: 0
             )
         }
         .sortedByDescending { it.spent }
@@ -177,7 +178,8 @@ object SummaryAggregator {
                     percentOfTotal = (amount / total * 100.0).toFloat(),
                     color = parseColor(category?.color, categoryId ?: 0L),
                     emoji = category?.emoji ?: "💰",
-                    iconType = category?.iconType ?: "emoji"
+                    iconType = category?.iconType ?: "emoji",
+                    colorIndex = category?.colorIndex ?: 0
                 )
             }
             .sortedByDescending { it.amount }
@@ -333,7 +335,8 @@ object SummaryAggregator {
                 outAmount = outAmount,
                 emoji = account.emoji,
                 iconType = account.iconType,
-                color = account.color
+                color = account.color,
+                colorIndex = (account.id % 40).toInt()
             )
         }.sortedByDescending { it.transferCount }
     }
@@ -350,7 +353,8 @@ object SummaryAggregator {
                     balance = account.balance,
                     emoji = account.emoji,
                     iconType = account.iconType,
-                    color = account.color
+                    color = account.color,
+                    colorIndex = (account.id % 40).toInt()
                 )
             }.sortedByDescending { it.balance }
     }
@@ -384,7 +388,8 @@ object SummaryAggregator {
                 progressPercent = progress,
                 emoji = goal.emoji,
                 iconType = goal.iconType,
-                color = parseColor(null, goal.id)
+                color = parseColor(null, goal.id),
+                colorIndex = (goal.id % 40).toInt()
             )
         }.sortedByDescending { it.progressPercent }
     }

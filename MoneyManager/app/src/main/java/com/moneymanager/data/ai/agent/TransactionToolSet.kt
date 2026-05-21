@@ -47,7 +47,6 @@ class TransactionToolSet @Inject constructor(
     private val categoryRepository: CategoryRepository,
     private val peerRepository: PeerContactRepository,
     private val merchantMemory: MerchantCategoryMemoryRepository,
-    private val jsSkillEngine: JsSkillEngine,
 ) : ToolSet {
 
     private val _actionChannel = Channel<ToolProgressAction>(Channel.UNLIMITED)
@@ -148,21 +147,4 @@ class TransactionToolSet @Inject constructor(
         }
     }
 
-    @Tool(description = "Execute a JavaScript skill bundled in the app. Skill 'create-transaction' creates a transaction via the local API. Pass the required data as a JSON string in 'input'.")
-    fun runJsSkill(
-        @ToolParam(description = "Name of the skill to execute, e.g. 'create-transaction'")
-        skillName: String,
-        @ToolParam(description = "JSON string with the input data for the skill")
-        input: String,
-    ): Map<String, String> {
-        sendProgress("runJsSkill", true, "Running skill '$skillName'...")
-        return try {
-            val result = jsSkillEngine.execute(skillName, input)
-            mapOf("result" to result)
-        } catch (e: Exception) {
-            mapOf("error" to "${e::class.simpleName}: ${e.message}")
-        } finally {
-            sendProgress("runJsSkill", false)
-        }
-    }
 }

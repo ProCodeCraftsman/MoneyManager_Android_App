@@ -26,7 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.components.CategoryIcon
+import com.moneymanager.app.ui.constants.ICON_BORROW
 import com.moneymanager.app.ui.constants.ICON_DEFAULT
+import com.moneymanager.app.ui.constants.ICON_LEND
 import com.moneymanager.app.ui.constants.ICON_SAVINGS
 import com.moneymanager.app.ui.constants.ICON_TRANSFER
 import com.moneymanager.data.entity.AccountEntity
@@ -81,12 +83,13 @@ fun TransactionRow(
 
     val typeIcon = when {
         transaction.isTransfer || transaction.type == "transfer" -> ICON_TRANSFER
-        transaction.type == "savings" -> ICON_SAVINGS
+        transaction.type == "lend" -> ICON_LEND
+        transaction.type == "borrow" -> ICON_BORROW
         category != null && showCategory -> category.emoji
         else -> ICON_DEFAULT
     }
     val typeIconType = when {
-        transaction.isTransfer || transaction.type == "transfer" || transaction.type == "savings" -> "emoji"
+        transaction.isTransfer || transaction.type == "transfer" || transaction.type == "lend" || transaction.type == "borrow" -> "emoji"
         category != null && showCategory -> category.iconType
         else -> "emoji"
     }
@@ -110,6 +113,7 @@ fun TransactionRow(
             CategoryIcon(
                 emoji = typeIcon,
                 iconType = typeIconType,
+                colorIndex = category?.colorIndex,
                 fontSize = 18.sp,
                 modifier = Modifier.size(20.dp)
             )

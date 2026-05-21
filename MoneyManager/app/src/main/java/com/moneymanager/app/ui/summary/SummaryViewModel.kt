@@ -97,19 +97,6 @@ class SummaryViewModel @Inject constructor(
                 endCal[Calendar.SECOND] = 59
                 endCal[Calendar.MILLISECOND] = 999
             }
-            TimeFilter.WEEK -> {
-                startCal[Calendar.DAY_OF_WEEK] = startCal.firstDayOfWeek
-                startCal[Calendar.HOUR_OF_DAY] = 0
-                startCal[Calendar.MINUTE] = 0
-                startCal[Calendar.SECOND] = 0
-                startCal[Calendar.MILLISECOND] = 0
-                endCal.timeInMillis = startCal.timeInMillis
-                endCal.add(Calendar.DAY_OF_MONTH, 6)
-                endCal[Calendar.HOUR_OF_DAY] = 23
-                endCal[Calendar.MINUTE] = 59
-                endCal[Calendar.SECOND] = 59
-                endCal[Calendar.MILLISECOND] = 999
-            }
             TimeFilter.MONTH -> {
                 startCal[Calendar.DAY_OF_MONTH] = 1
                 startCal[Calendar.HOUR_OF_DAY] = 0
@@ -141,85 +128,6 @@ class SummaryViewModel @Inject constructor(
                 endCal.set(2100, Calendar.DECEMBER, 31, 23, 59, 59)
                 endCal[Calendar.MILLISECOND] = 999
             }
-            TimeFilter.LAST_MONTH -> {
-                startCal.add(Calendar.MONTH, -1)
-                startCal[Calendar.DAY_OF_MONTH] = 1
-                startCal[Calendar.HOUR_OF_DAY] = 0
-                startCal[Calendar.MINUTE] = 0
-                startCal[Calendar.SECOND] = 0
-                startCal[Calendar.MILLISECOND] = 0
-                endCal.timeInMillis = startCal.timeInMillis
-                endCal[Calendar.DAY_OF_MONTH] = endCal.getActualMaximum(Calendar.DAY_OF_MONTH)
-                endCal[Calendar.HOUR_OF_DAY] = 23
-                endCal[Calendar.MINUTE] = 59
-                endCal[Calendar.SECOND] = 59
-                endCal[Calendar.MILLISECOND] = 999
-            }
-            TimeFilter.THIS_QUARTER -> {
-                val currentMonth = startCal.get(Calendar.MONTH)
-                val quarterStartMonth = (currentMonth / 3) * 3
-                startCal.set(Calendar.MONTH, quarterStartMonth)
-                startCal.set(Calendar.DAY_OF_MONTH, 1)
-                startCal[Calendar.HOUR_OF_DAY] = 0
-                startCal[Calendar.MINUTE] = 0
-                startCal[Calendar.SECOND] = 0
-                startCal[Calendar.MILLISECOND] = 0
-                endCal.set(Calendar.MONTH, quarterStartMonth + 2)
-                endCal.set(Calendar.DAY_OF_MONTH, endCal.getActualMaximum(Calendar.DAY_OF_MONTH))
-                endCal[Calendar.HOUR_OF_DAY] = 23
-                endCal[Calendar.MINUTE] = 59
-                endCal[Calendar.SECOND] = 59
-                endCal[Calendar.MILLISECOND] = 999
-            }
-            TimeFilter.LAST_QUARTER -> {
-                startCal.add(Calendar.MONTH, -3)
-                val quarterStart = (startCal.get(Calendar.MONTH) / 3) * 3
-                startCal.set(Calendar.MONTH, quarterStart)
-                startCal.set(Calendar.DAY_OF_MONTH, 1)
-                startCal[Calendar.HOUR_OF_DAY] = 0
-                startCal[Calendar.MINUTE] = 0
-                startCal[Calendar.SECOND] = 0
-                startCal[Calendar.MILLISECOND] = 0
-                endCal.timeInMillis = startCal.timeInMillis
-                endCal.set(Calendar.MONTH, quarterStart + 2)
-                endCal.set(Calendar.DAY_OF_MONTH, endCal.getActualMaximum(Calendar.DAY_OF_MONTH))
-                endCal[Calendar.HOUR_OF_DAY] = 23
-                endCal[Calendar.MINUTE] = 59
-                endCal[Calendar.SECOND] = 59
-                endCal[Calendar.MILLISECOND] = 999
-            }
-            TimeFilter.TODAY -> {
-                startCal[Calendar.HOUR_OF_DAY] = 0
-                startCal[Calendar.MINUTE] = 0
-                startCal[Calendar.SECOND] = 0
-                startCal[Calendar.MILLISECOND] = 0
-                endCal[Calendar.HOUR_OF_DAY] = 23
-                endCal[Calendar.MINUTE] = 59
-                endCal[Calendar.SECOND] = 59
-                endCal[Calendar.MILLISECOND] = 999
-            }
-            TimeFilter.LAST_7_DAYS -> {
-                startCal.add(Calendar.DAY_OF_YEAR, -6)
-                startCal[Calendar.HOUR_OF_DAY] = 0
-                startCal[Calendar.MINUTE] = 0
-                startCal[Calendar.SECOND] = 0
-                startCal[Calendar.MILLISECOND] = 0
-                endCal[Calendar.HOUR_OF_DAY] = 23
-                endCal[Calendar.MINUTE] = 59
-                endCal[Calendar.SECOND] = 59
-                endCal[Calendar.MILLISECOND] = 999
-            }
-            TimeFilter.LAST_30_DAYS -> {
-                startCal.add(Calendar.DAY_OF_YEAR, -29)
-                startCal[Calendar.HOUR_OF_DAY] = 0
-                startCal[Calendar.MINUTE] = 0
-                startCal[Calendar.SECOND] = 0
-                startCal[Calendar.MILLISECOND] = 0
-                endCal[Calendar.HOUR_OF_DAY] = 23
-                endCal[Calendar.MINUTE] = 59
-                endCal[Calendar.SECOND] = 59
-                endCal[Calendar.MILLISECOND] = 999
-            }
             TimeFilter.CUSTOM -> {
                 if (customStart != null && customEnd != null) {
                     return Pair(customStart, customEnd)
@@ -242,23 +150,9 @@ class SummaryViewModel @Inject constructor(
     private fun getFilterDisplayDate(filter: TimeFilter, calendar: Calendar): String {
         return when (filter) {
             TimeFilter.DAY -> SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(calendar.time)
-            TimeFilter.WEEK -> {
-                val start = calendar.clone() as Calendar
-                start[Calendar.DAY_OF_WEEK] = start.firstDayOfWeek
-                val end = start.clone() as Calendar
-                end.add(Calendar.DAY_OF_MONTH, 6)
-                val df = SimpleDateFormat("MMM dd", Locale.getDefault())
-                "${df.format(start.time)} - ${df.format(end.time)}"
-            }
             TimeFilter.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
             TimeFilter.YEAR -> SimpleDateFormat("yyyy", Locale.getDefault()).format(calendar.time)
             TimeFilter.ALL -> "All Time"
-            TimeFilter.LAST_MONTH -> "Last Month"
-            TimeFilter.THIS_QUARTER -> "This Quarter"
-            TimeFilter.LAST_QUARTER -> "Last Quarter"
-            TimeFilter.TODAY -> "Today"
-            TimeFilter.LAST_7_DAYS -> "Last 7 Days"
-            TimeFilter.LAST_30_DAYS -> "Last 30 Days"
             TimeFilter.CUSTOM -> "Custom Range"
         }
     }
@@ -284,7 +178,6 @@ class SummaryViewModel @Inject constructor(
         val prevBaseDate = p.baseDate.clone() as Calendar
         when (p.filter) {
             TimeFilter.DAY -> prevBaseDate.add(Calendar.DAY_OF_YEAR, -1)
-            TimeFilter.WEEK -> prevBaseDate.add(Calendar.WEEK_OF_YEAR, -1)
             TimeFilter.MONTH -> prevBaseDate.add(Calendar.MONTH, -1)
             TimeFilter.YEAR -> prevBaseDate.add(Calendar.YEAR, -1)
             else -> prevBaseDate.add(Calendar.MONTH, -1)
@@ -535,7 +428,6 @@ class SummaryViewModel @Inject constructor(
         val newDate = currentPeriodDate.value.clone() as Calendar
         when (selectedFilter.value) {
             TimeFilter.DAY -> newDate.add(Calendar.DAY_OF_YEAR, offset)
-            TimeFilter.WEEK -> newDate.add(Calendar.WEEK_OF_YEAR, offset)
             TimeFilter.MONTH -> newDate.add(Calendar.MONTH, offset)
             TimeFilter.YEAR -> newDate.add(Calendar.YEAR, offset)
             else -> {}

@@ -34,7 +34,7 @@ interface TransactionDao {
     fun getTransactionsByTag(tagId: Long): Flow<List<TransactionEntity>>
 
     @Query("""
-        SELECT * FROM transactions 
+        SELECT * FROM transactions
         WHERE (:accountId IS NULL OR accountId = :accountId)
         AND (:type IS NULL OR type = :type)
         AND (:categoryId IS NULL OR categoryId = :categoryId)
@@ -42,16 +42,103 @@ interface TransactionDao {
         AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
         AND (:startDate IS NULL OR date >= :startDate)
         AND (:endDate IS NULL OR date <= :endDate)
-        AND (:query IS NULL OR :query = '' OR 
-            note LIKE '%' || :query || '%' OR 
-            description LIKE '%' || :query || '%' OR 
-            categoryId IN (SELECT id FROM categories WHERE name LIKE '%' || :query || '%') OR 
+        AND (:query IS NULL OR :query = '' OR
+            note LIKE '%' || :query || '%' OR
+            description LIKE '%' || :query || '%' OR
+            categoryId IN (SELECT id FROM categories WHERE name LIKE '%' || :query || '%') OR
             accountId IN (SELECT id FROM accounts WHERE name LIKE '%' || :query || '%') OR
             CAST(amount AS TEXT) LIKE '%' || :query || '%'
         )
         ORDER BY date DESC
     """)
     fun getTransactionsWithFilters(
+        accountId: Long?,
+        type: String?,
+        categoryId: Long?,
+        goalId: Long?,
+        tagId: Long?,
+        startDate: Long?,
+        endDate: Long?,
+        query: String?
+    ): PagingSource<Int, TransactionEntity>
+
+    @Query("""
+        SELECT * FROM transactions
+        WHERE (:accountId IS NULL OR accountId = :accountId)
+        AND (:type IS NULL OR type = :type)
+        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:goalId IS NULL OR goalId = :goalId)
+        AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
+        AND (:startDate IS NULL OR date >= :startDate)
+        AND (:endDate IS NULL OR date <= :endDate)
+        AND (:query IS NULL OR :query = '' OR
+            note LIKE '%' || :query || '%' OR
+            description LIKE '%' || :query || '%' OR
+            categoryId IN (SELECT id FROM categories WHERE name LIKE '%' || :query || '%') OR
+            accountId IN (SELECT id FROM accounts WHERE name LIKE '%' || :query || '%') OR
+            CAST(amount AS TEXT) LIKE '%' || :query || '%'
+        )
+        ORDER BY date ASC
+    """)
+    fun getTransactionsWithFiltersOldest(
+        accountId: Long?,
+        type: String?,
+        categoryId: Long?,
+        goalId: Long?,
+        tagId: Long?,
+        startDate: Long?,
+        endDate: Long?,
+        query: String?
+    ): PagingSource<Int, TransactionEntity>
+
+    @Query("""
+        SELECT * FROM transactions
+        WHERE (:accountId IS NULL OR accountId = :accountId)
+        AND (:type IS NULL OR type = :type)
+        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:goalId IS NULL OR goalId = :goalId)
+        AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
+        AND (:startDate IS NULL OR date >= :startDate)
+        AND (:endDate IS NULL OR date <= :endDate)
+        AND (:query IS NULL OR :query = '' OR
+            note LIKE '%' || :query || '%' OR
+            description LIKE '%' || :query || '%' OR
+            categoryId IN (SELECT id FROM categories WHERE name LIKE '%' || :query || '%') OR
+            accountId IN (SELECT id FROM accounts WHERE name LIKE '%' || :query || '%') OR
+            CAST(amount AS TEXT) LIKE '%' || :query || '%'
+        )
+        ORDER BY amount DESC
+    """)
+    fun getTransactionsWithFiltersHighest(
+        accountId: Long?,
+        type: String?,
+        categoryId: Long?,
+        goalId: Long?,
+        tagId: Long?,
+        startDate: Long?,
+        endDate: Long?,
+        query: String?
+    ): PagingSource<Int, TransactionEntity>
+
+    @Query("""
+        SELECT * FROM transactions
+        WHERE (:accountId IS NULL OR accountId = :accountId)
+        AND (:type IS NULL OR type = :type)
+        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:goalId IS NULL OR goalId = :goalId)
+        AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
+        AND (:startDate IS NULL OR date >= :startDate)
+        AND (:endDate IS NULL OR date <= :endDate)
+        AND (:query IS NULL OR :query = '' OR
+            note LIKE '%' || :query || '%' OR
+            description LIKE '%' || :query || '%' OR
+            categoryId IN (SELECT id FROM categories WHERE name LIKE '%' || :query || '%') OR
+            accountId IN (SELECT id FROM accounts WHERE name LIKE '%' || :query || '%') OR
+            CAST(amount AS TEXT) LIKE '%' || :query || '%'
+        )
+        ORDER BY amount ASC
+    """)
+    fun getTransactionsWithFiltersLowest(
         accountId: Long?,
         type: String?,
         categoryId: Long?,
@@ -82,4 +169,10 @@ interface TransactionDao {
 
     @Query("SELECT categoryId, COUNT(*) AS count FROM transactions WHERE categoryId IS NOT NULL AND isSplitChild = 0 GROUP BY categoryId ORDER BY count DESC")
     suspend fun getCategoryUsageCounts(): List<CategoryCount>
+
+    @Query("SELECT * FROM transactions WHERE receiptPath IS NOT NULL")
+    suspend fun getTransactionsWithAttachments(): List<TransactionEntity>
+
+    @Query("UPDATE transactions SET receiptPath = NULL")
+    suspend fun clearAllReceiptPaths()
 }

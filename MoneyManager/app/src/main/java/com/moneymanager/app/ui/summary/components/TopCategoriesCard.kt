@@ -111,6 +111,7 @@ private fun BudgetCategoryRow(
                 CategoryIcon(
                     emoji = row.emoji,
                     iconType = row.iconType,
+                    colorIndex = row.colorIndex,
                     fontSize = 14.sp
                 )
             }

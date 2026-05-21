@@ -42,7 +42,8 @@ class AddTransactionViewModel @Inject constructor(
         goalRepository.getAllGoals(),
         peerContactRepository.getAllPeers(),
         preferencesManager.currency,
-        transactionRepository.getAllTransactions()
+        transactionRepository.getAllTransactions(),
+        preferencesManager.imageAttachmentsEnabled
     ) { array ->
         @Suppress("UNCHECKED_CAST")
         val accounts = array[0] as List<AccountEntity>
@@ -57,6 +58,7 @@ class AddTransactionViewModel @Inject constructor(
         val currency = array[5] as String
         @Suppress("UNCHECKED_CAST")
         val transactions = array[6] as List<TransactionEntity>
+        val attachmentsEnabled = array[7] as Boolean
 
         AddTransactionUiState(
             accounts = accounts,
@@ -70,6 +72,7 @@ class AddTransactionViewModel @Inject constructor(
                 .groupBy { it.categoryId!! }
                 .mapValues { it.value.size },
             isLoading = false,
+            imageAttachmentsEnabled = attachmentsEnabled,
         )
     }.stateIn(
         scope = viewModelScope,

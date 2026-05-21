@@ -350,7 +350,7 @@ fun VoiceMemoScreen(
                     }
 
                     OutlinedButton(
-                        onClick = { viewModel.quickAddFromVoice(transcription.trim(), saveAsNote) },
+                        onClick = { viewModel.quickAdd(transcription.trim(), "VOICE") },
                         enabled = transcription.isNotBlank() && !uiState.isGenerating && !isRecording
                     ) {
                         if (uiState.isGenerating) {
@@ -377,8 +377,9 @@ fun VoiceMemoScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
+                            val stepLabel = uiState.agentStep?.label ?: uiState.generatingStep ?: "Processing"
                             Text(
-                                text = "${uiState.generatingStep ?: "Processing"}${".".repeat(dotCount)}",
+                                text = "$stepLabel${".".repeat(dotCount)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

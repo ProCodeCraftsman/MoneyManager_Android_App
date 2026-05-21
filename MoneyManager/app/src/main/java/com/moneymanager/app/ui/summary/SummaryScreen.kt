@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.summary.components.*
+import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.constants.TimeFilter
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -278,21 +279,39 @@ fun SummaryTabRow(
         TabItem("Savings", Icons.Default.Savings, SummaryTab.SAVINGS)
     )
 
+    val categoryColors = LocalCategoryColors.current
+    val colorScheme = MaterialTheme.colorScheme
+
+    val selectedAccentColor = when (selectedTab) {
+        SummaryTab.EXPENSE -> colorScheme.error
+        SummaryTab.INCOME -> colorScheme.primary
+        SummaryTab.LENDING -> categoryColors.lending
+        SummaryTab.TRANSFERS -> colorScheme.secondary
+        SummaryTab.SAVINGS -> colorScheme.tertiary
+    }
+
     TabRow(
         selectedTabIndex = selectedTab.ordinal,
         containerColor = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.primary,
+        contentColor = selectedAccentColor,
         divider = {},
         indicator = { tabPositions ->
             TabRowDefaults.SecondaryIndicator(
                 Modifier.tabIndicatorOffset(tabPositions[selectedTab.ordinal]),
-                color = MaterialTheme.colorScheme.primary,
+                color = selectedAccentColor,
                 height = 3.dp
             )
         }
     ) {
         tabs.forEach { item ->
             val isSelected = selectedTab == item.tab
+            val tabColor = when (item.tab) {
+                SummaryTab.EXPENSE -> colorScheme.error
+                SummaryTab.INCOME -> colorScheme.primary
+                SummaryTab.LENDING -> categoryColors.lending
+                SummaryTab.TRANSFERS -> colorScheme.secondary
+                SummaryTab.SAVINGS -> colorScheme.tertiary
+            }
             Tab(
                 selected = isSelected,
                 onClick = { onTabSelected(item.tab) },
@@ -306,7 +325,7 @@ fun SummaryTabRow(
                     Icon(
                         imageVector = item.icon,
                         contentDescription = null,
-                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        tint = if (isSelected) tabColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -316,7 +335,7 @@ fun SummaryTabRow(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 10.sp
                         ),
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        color = if (isSelected) tabColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
             }

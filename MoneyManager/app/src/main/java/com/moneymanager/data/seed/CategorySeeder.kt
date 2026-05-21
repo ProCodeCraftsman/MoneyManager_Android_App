@@ -6,6 +6,7 @@ import com.moneymanager.domain.repository.CategoryRepository
 object CategorySeeder {
     suspend fun seed(categoryRepository: CategoryRepository) {
         // *********************** EXPENSE CATEGORIES ***********************
+        var globalColorIndex = 0
         val expenseCategories = listOf(
             CategorySeed("Food & Dining", "restaurant", listOf(
                 SubCategory("Provision", "local_grocery_store"),
@@ -110,7 +111,7 @@ object CategorySeeder {
             CategorySeed("Miscellaneous", "category")
         )
 
-        expenseCategories.forEach { seedCategory(it, "expense", categoryRepository) }
+        expenseCategories.forEach { seedCategory(it, "expense", categoryRepository,globalColorIndex++) }
 
         // *********************** INCOME CATEGORIES ***********************
         val incomeCategories = listOf(
@@ -144,7 +145,7 @@ object CategorySeeder {
             ))
         )
 
-        incomeCategories.forEach { seedCategory(it, "income", categoryRepository) }
+        incomeCategories.forEach { seedCategory(it, "income", categoryRepository, globalColorIndex++) }
 
         // *********************** SAVINGS / INVESTMENT CATEGORIES ***********************
         val savingsCategories = listOf(
@@ -195,13 +196,15 @@ object CategorySeeder {
             ))
         )
 
-        savingsCategories.forEach { seedCategory(it, "savings", categoryRepository) }
+        savingsCategories.forEach { seedCategory(it, "savings", categoryRepository, globalColorIndex++) }
     }
 
     private suspend fun seedCategory(
         seed: CategorySeed,
         type: String,
-        categoryRepository: CategoryRepository
+        categoryRepository: CategoryRepository,
+        colorIndex: Int
+
     ) {
         val existing = categoryRepository.getCategoryByName(seed.name, type)
         val categoryId = if (existing == null) {
@@ -211,7 +214,8 @@ object CategorySeeder {
                     emoji = seed.icon,
                     iconType = "material",
                     type = type,
-                    isCustom = false
+                    isCustom = false,
+                    colorIndex = colorIndex
                 )
             )
         } else {
@@ -227,7 +231,8 @@ object CategorySeeder {
                         iconType = "material",
                         type = type,
                         parentId = categoryId,
-                        isCustom = false
+                        isCustom = false,
+                        colorIndex = colorIndex
                     )
                 )
             }
