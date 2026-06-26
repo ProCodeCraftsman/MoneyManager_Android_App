@@ -1,13 +1,16 @@
 package com.moneymanager.app.ui.recurring
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,9 +42,11 @@ fun RecurringFormScreen(
     var selectedType by remember { mutableStateOf("expense") }
     var selectedAccount by remember { mutableStateOf<AccountEntity?>(null) }
     var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
+    var selectedSubCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var note by remember { mutableStateOf("") }
     var selectedFrequency by remember { mutableStateOf("monthly") }
     var startDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var endDate by remember { mutableStateOf<Long?>(null) }
     var reminderEnabled by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var existingRecurring by remember { mutableStateOf<RecurringEntity?>(null) }
@@ -57,9 +62,11 @@ fun RecurringFormScreen(
                 selectedType = recurring.type
                 selectedAccount = uiState.accounts.find { it.id == recurring.accountId }
                 selectedCategory = uiState.categories.find { it.id == recurring.categoryId }
+                selectedSubCategory = uiState.categories.find { it.id == recurring.subCategoryId }
                 note = recurring.note
                 selectedFrequency = recurring.frequency
                 startDate = recurring.nextDate
+                endDate = recurring.endDate
                 reminderEnabled = recurring.reminderEnabled
             }
         }
@@ -108,7 +115,11 @@ fun RecurringFormScreen(
                 listOf("income", "expense", "savings").forEach { type ->
                     FilterChip(
                         selected = selectedType == type,
-                        onClick = { selectedType = type },
+                        onClick = { 
+                            selectedType = type
+                            selectedCategory = null
+                            selectedSubCategory = null
+                        },
                         label = { Text(type.replaceFirstChar { it.uppercase() }) },
                         modifier = Modifier.weight(1f)
                     )
@@ -147,10 +158,11 @@ fun RecurringFormScreen(
                 }
             }
             
-            // Category dropdown (for expense type)
-            if (selectedType == "expense") {
+            // Category dropdown
+            val mainCategories = uiState.categories.filter { it.type == selectedType && it.parentId == null }
+            if (mainCategories.isNotEmpty()) {
                 var categoryExpanded by remember { mutableStateOf(false) }
-                val filteredCategories = uiState.categories.filter { it.type == "expense" }
+                
                 ExposedDropdownMenuBox(
                     expanded = categoryExpanded,
                     onExpandedChange = { categoryExpanded = it }
@@ -169,14 +181,52 @@ fun RecurringFormScreen(
                         expanded = categoryExpanded,
                         onDismissRequest = { categoryExpanded = false }
                     ) {
-                        filteredCategories.forEach { category ->
+                        mainCategories.forEach { category ->
                             DropdownMenuItem(
                                 text = { Text(category.name) },
                                 onClick = {
                                     selectedCategory = category
+                                    selectedSubCategory = null // Reset sub-category
                                     categoryExpanded = false
                                 }
                             )
+                        }
+                    }
+                }
+
+                // Sub-category dropdown
+                if (selectedCategory != null) {
+                    val subCategories = uiState.categories.filter { it.parentId == selectedCategory?.id }
+                    if (subCategories.isNotEmpty()) {
+                        var subCategoryExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = subCategoryExpanded,
+                            onExpandedChange = { subCategoryExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedSubCategory?.name ?: "Select Sub-Category",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Sub-Category (Optional)") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subCategoryExpanded) },
+                                modifier = Modifier
+                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                    .fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = subCategoryExpanded,
+                                onDismissRequest = { subCategoryExpanded = false }
+                            ) {
+                                subCategories.forEach { subCat ->
+                                    DropdownMenuItem(
+                                        text = { Text(subCat.name) },
+                                        onClick = {
+                                            selectedSubCategory = subCat
+                                            subCategoryExpanded = false
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -224,13 +274,79 @@ fun RecurringFormScreen(
             }
             
             // Start date display
+            var showStartDatePicker by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = dateFormat.format(Date(startDate)),
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Start Date") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().clickable { showStartDatePicker = true },
+                enabled = false, // Use clickable instead to show dialog
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
+
+            if (showStartDatePicker) {
+                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = startDate)
+                DatePickerDialog(
+                    onDismissRequest = { showStartDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { startDate = it }
+                            showStartDatePicker = false
+                        }) { Text("OK") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showStartDatePicker = false }) { Text("Cancel") }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
+            
+            // End date selection
+            var showEndDatePicker by remember { mutableStateOf(false) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = endDate?.let { dateFormat.format(Date(it)) } ?: "No End Date",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("End Date (Optional)") },
+                    modifier = Modifier.weight(1f).clickable { showEndDatePicker = true },
+                    enabled = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = if (endDate != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+                if (endDate != null) {
+                    IconButton(onClick = { endDate = null }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear End Date")
+                    }
+                }
+            }
+
+            if (showEndDatePicker) {
+                val datePickerState = rememberDatePickerState(initialSelectedDateMillis = endDate ?: (startDate + 86400000))
+                DatePickerDialog(
+                    onDismissRequest = { showEndDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { endDate = it }
+                            showEndDatePicker = false
+                        }) { Text("OK") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showEndDatePicker = false }) { Text("Cancel") }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
             
             // Reminder toggle
             Row(
@@ -262,9 +378,11 @@ fun RecurringFormScreen(
                             type = selectedType,
                             amount = amountValue,
                             categoryId = selectedCategory?.id,
+                            subCategoryId = selectedSubCategory?.id,
                             note = note,
                             frequency = selectedFrequency,
                             nextDate = startDate,
+                            endDate = endDate,
                             isActive = existingRecurring?.isActive ?: true,
                             reminderEnabled = reminderEnabled,
                             createdAt = existingRecurring?.createdAt ?: System.currentTimeMillis()

@@ -2,74 +2,81 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="320"
-    android:viewportHeight="320">
+    android:viewportWidth="128"
+    android:viewportHeight="128">
 
-    <!-- Coin -->
-    <path
-        android:fillColor="@color/logo_gold"
-        android:pathData="M160,58a14,14 0 1,1 0,28a14,14 0 1,1 0,-28" />
+    <group
+        android:scaleX="0.65"
+        android:scaleY="0.65"
+        android:pivotX="64"
+        android:pivotY="64">
 
-    <!-- Coin Slot -->
-    <path
-        android:strokeColor="@color/logo_gold"
-        android:strokeWidth="8"
-        android:strokeLineCap="round"
-        android:pathData="M132,92h56" />
+        <!-- Blue folder body -->
+        <path
+            android:fillColor="#1A73E8"
+            android:pathData="M28,48 h64 a12,12 0 0,1 12,12 v40 a12,12 0 0,1 -12,12 h-64 a12,12 0 0,1 -12,-12 v-40 a12,12 0 0,1 12,-12 Z" />
 
-    <!-- Piggy Box Body -->
-    <path
-        android:strokeColor="@color/logo_gold"
-        android:strokeWidth="10"
-        android:strokeLineJoin="round"
-        android:pathData="M114,108h92a28,28 0 0,1 28,28v56a28,28 0 0,1 -28,28h-92a28,28 0 0,1 -28,-28v-56a28,28 0 0,1 28,-28z" />
+        <!-- Rotated book/file -->
+        <group
+            android:rotation="12"
+            android:pivotX="60"
+            android:pivotY="48">
 
-    <!-- Inner Vault Line -->
-    <path
-        android:strokeColor="@color/logo_gold"
-        android:strokeWidth="4"
-        android:alpha="0.45"
-        android:pathData="M124,130h72a16,16 0 0,1 16,16v36a16,16 0 0,1 -16,16h-72a16,16 0 0,1 -16,-16v-36a16,16 0 0,1 16,-16z" />
+            <path
+                android:fillColor="#34A853"
+                android:pathData="M34,12 h48 a6,6 0 0,1 6,6 v52 a6,6 0 0,1 -6,6 h-48 a6,6 0 0,1 -6,-6 v-52 a6,6 0 0,1 6,-6 Z" />
 
-    <!-- Minimal Lock / Ledger Mark -->
-    <path
-        android:fillColor="@color/logo_gold"
-        android:pathData="M152,148h16a6,6 0 0,1 6,6v22a6,6 0 0,1 -6,6h-16a6,6 0 0,1 -6,-6v-22a6,6 0 0,1 6,-6z" />
+            <path
+                android:fillColor="#00000000"
+                android:strokeColor="#188038"
+                android:strokeWidth="3"
+                android:strokeAlpha="0.4"
+                android:pathData="M38,18 h40 a4,4 0 0,1 4,4 v44 a4,4 0 0,1 -4,4 h-40 a4,4 0 0,1 -4,-4 v-44 a4,4 0 0,1 4,-4 Z" />
 
-    <!-- Small Ledger Lines -->
-    <path
-        android:strokeColor="@color/logo_navy"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:alpha="0.35"
-        android:pathData="M152,158h16" />
+            <path
+                android:fillColor="#EA4335"
+                android:pathData="M50,12 h16 v64 h-16 Z" />
+        </group>
 
-    <path
-        android:strokeColor="@color/logo_navy"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:alpha="0.25"
-        android:pathData="M152,166h14" />
+        <!-- Blue folder flap -->
+        <path
+            android:fillColor="#4285F4"
+            android:pathData="M16,72 L104,56 L104,100 A12,12 0 0,1 92,112 L28,112 A12,12 0 0,1 16,100 Z" />
 
-    <!-- Feet -->
-    <path
-        android:strokeColor="@color/logo_gold"
-        android:strokeWidth="8"
-        android:strokeLineCap="round"
-        android:pathData="M114,228v14" />
+        <!-- Folder edge depth line -->
+        <path
+            android:fillColor="#1A73E8"
+            android:fillAlpha="0.4"
+            android:pathData="M16,72 L104,56 L104,60 L16,76 Z" />
 
-    <path
-        android:strokeColor="@color/logo_gold"
-        android:strokeWidth="8"
-        android:strokeLineCap="round"
-        android:pathData="M206,228v14" />
+        <!-- Yellow trend circle -->
+        <path
+            android:fillColor="#FBBC05"
+            android:pathData="M98,70 A24,24 0 0,1 122,94 A24,24 0 0,1 98,118 A24,24 0 0,1 74,94 A24,24 0 0,1 98,70 Z" />
 
-    <!-- Base Shadow Accent -->
-    <path
-        android:strokeColor="@color/logo_gold"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:alpha="0.5"
-        android:pathData="M122,256h76" />
+        <!-- Circle inner ring -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#F9AB00"
+            android:strokeWidth="3"
+            android:pathData="M98,76 A18,18 0 0,1 116,94 A18,18 0 0,1 98,112 A18,18 0 0,1 80,94 A18,18 0 0,1 98,76 Z" />
+
+        <!-- Upward arrow stem -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:pathData="M98,104 L98,84" />
+
+        <!-- Arrow chevron -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M88,94 L98,84 L108,94" />
+    </group>
 
 </vector>

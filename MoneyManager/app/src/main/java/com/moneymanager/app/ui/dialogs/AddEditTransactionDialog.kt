@@ -749,6 +749,23 @@ fun AddEditTransactionDialog(
                         }
                     }
 
+                    // 11. Action Buttons
+                    FormActionButtons(
+                        isEdit = isEdit,
+                        amountValid = amount.isNotEmpty() && amount.toDoubleOrNull() != null,
+                        accountValid = selectedAccountId != null,
+                        accentColor = accentColor,
+                        onCancel = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() },
+                        onSave = {
+                            val tx = buildTransaction()
+                            if (tx != null) {
+                                val children = if (splitEnabled && TransactionFeature.SPLIT in features)
+                                    buildSplitChildren(tx.id) else null
+                                onConfirm(tx, children)
+                            }
+                        }
+                    )
+
                     // 3. Peer Picker
                     if (TransactionFeature.PEER in features) {
                         val isPeerAiField = "peer" in aiSuggestedFields
@@ -826,17 +843,24 @@ fun AddEditTransactionDialog(
                                 Icons.AutoMirrored.Filled.Notes, "Note",
                                 if (description.isEmpty()) "Add note" else description,
                                 showNoteInput
-                            ) { showNoteInput = !showNoteInput },
+                            ) { 
+                                showNoteInput = !showNoteInput
+                                if (showNoteInput) isCalculatorVisible = false
+                            },
                             UtilityActionItemData(
                                 Icons.Default.LocalOffer, "Tags",
                                 if (selectedTagIds.isEmpty()) "Add tags" else "${selectedTagIds.size} tags",
                                 showTagInput
-                            ) { showTagInput = !showTagInput },
+                            ) { 
+                                showTagInput = !showTagInput
+                                if (showTagInput) isCalculatorVisible = false
+                            },
                             UtilityActionItemData(
                                 Icons.Default.AttachFile, "Attach",
                                 if (receiptData == null) "Add" else "1 file",
                                 showReceiptInput
                             ) {
+                                isCalculatorVisible = false
                                 if (receiptData != null) {
                                     showReceiptPreview = true
                                 } else {
@@ -847,7 +871,10 @@ fun AddEditTransactionDialog(
                                 Icons.AutoMirrored.Filled.CallSplit, "Split",
                                 if (!splitEnabled) "Off" else "On",
                                 splitEnabled
-                            ) { splitEnabled = !splitEnabled },
+                            ) { 
+                                splitEnabled = !splitEnabled
+                                if (splitEnabled) isCalculatorVisible = false
+                            },
                         ).filter { a ->
                             when (a.label) {
                                 "Tags"   -> TransactionFeature.TAGS in features
@@ -885,6 +912,7 @@ fun AddEditTransactionDialog(
                             showSplitCategoryDropdown = showSplitCategoryDropdown,
                             onUpdateRow = { index, updated ->
                                 splitRows = splitRows.toMutableList().also { it[index] = updated }
+                                isCalculatorVisible = false
                             },
                             onRemoveRow = { index ->
                                 splitRows = splitRows.toMutableList().also { it.removeAt(index) }
@@ -892,8 +920,12 @@ fun AddEditTransactionDialog(
                             onToggleDropdown = { rowId ->
                                 showSplitCategoryDropdown =
                                     if (showSplitCategoryDropdown == rowId) null else rowId
+                                if (showSplitCategoryDropdown != null) isCalculatorVisible = false
                             },
-                            onAddRow = { splitRows = splitRows + SplitRowData(splitIdCounter++) }
+                            onAddRow = { 
+                                splitRows = splitRows + SplitRowData(splitIdCounter++)
+                                isCalculatorVisible = false
+                            }
                         )
                     }
 
@@ -931,7 +963,11 @@ fun AddEditTransactionDialog(
                             ) {
                                 OutlinedTextField(
                                     value = description,
-                                    onValueChange = { aiSuggestedFields = aiSuggestedFields - "note"; description = it },
+                                    onValueChange = { 
+                                        aiSuggestedFields = aiSuggestedFields - "note"
+                                        description = it 
+                                        isCalculatorVisible = false
+                                    },
                                     label = { Text("Note") },
                                     modifier = Modifier.fillMaxWidth(),
                                     maxLines = 1
@@ -974,6 +1010,7 @@ fun AddEditTransactionDialog(
                                     onTagQueryChange = { newQuery ->
                                         tagQuery = newQuery
                                         showTagDropdown = newQuery.isNotEmpty()
+                                        if (newQuery.isNotEmpty()) isCalculatorVisible = false
                                     },
                                     onRemoveTag = { aiSuggestedFields = aiSuggestedFields - "tags"; selectedTagIds = selectedTagIds - it },
                                     onTagSelected = { tag ->
@@ -1024,22 +1061,6 @@ fun AddEditTransactionDialog(
                         )
                     }
 
-                    // 11. Action Buttons
-                    FormActionButtons(
-                        isEdit = isEdit,
-                        amountValid = amount.isNotEmpty() && amount.toDoubleOrNull() != null,
-                        accountValid = selectedAccountId != null,
-                        accentColor = accentColor,
-                        onCancel = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() },
-                        onSave = {
-                            val tx = buildTransaction()
-                            if (tx != null) {
-                                val children = if (splitEnabled && TransactionFeature.SPLIT in features)
-                                    buildSplitChildren(tx.id) else null
-                                onConfirm(tx, children)
-                            }
-                        }
-                    )
                     Spacer(Modifier.height(4.dp))
                 }
             }
@@ -1057,7 +1078,7 @@ fun AddEditTransactionDialog(
             onCategorySelected = { cat ->
                 aiSuggestedFields = aiSuggestedFields - "category"
                 selectedCategoryId = cat.id
-                expandedCategoryId = cat.parentId
+                expandedCategoryId = if (cat.parentId != null) cat.parentId else cat.id
                 showCategorySearch = false
             },
             onDismiss = { showCategorySearch = false }

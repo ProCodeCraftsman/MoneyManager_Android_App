@@ -85,11 +85,14 @@ fun TransactionCardDense(
         transaction.isTransfer || transaction.type == "transfer" -> ICON_TRANSFER
         transaction.type == "lend" -> ICON_LEND
         transaction.type == "borrow" -> ICON_BORROW
+        transaction.type == "savings" -> ICON_SAVINGS
         else -> category?.emoji ?: ICON_DEFAULT
     }
 
     val typeIconType = when {
-        transaction.isSplitParent || transaction.isTransfer || transaction.type == "transfer" || transaction.type == "lend" || transaction.type == "borrow" -> "emoji"
+        transaction.isSplitParent || transaction.isTransfer || transaction.type == "transfer" || 
+        transaction.type == "lend" || transaction.type == "borrow" || 
+        transaction.type == "savings" -> "emoji"
         else -> category?.iconType ?: "emoji"
     }
 

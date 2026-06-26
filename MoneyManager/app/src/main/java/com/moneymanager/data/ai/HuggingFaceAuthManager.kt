@@ -9,6 +9,8 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
+enum class HfTokenValidation { VALID, INVALID_TOKEN, ACCESS_DENIED, NETWORK_ERROR }
+
 @Singleton
 class HuggingFaceAuthManager @Inject constructor(
     private val preferencesManager: PreferencesManager,
@@ -37,7 +39,8 @@ class HuggingFaceAuthManager @Inject constructor(
             if (accessToken != null && accessToken.isNotEmpty()) {
                 connection.setRequestProperty("Authorization", "Bearer $accessToken")
             }
-            connection.requestMethod = "GET"
+            connection.requestMethod = "HEAD"
+            connection.instanceFollowRedirects = false
             connection.connect()
             val code = connection.responseCode
             connection.disconnect()
@@ -55,14 +58,16 @@ class HuggingFaceAuthManager @Inject constructor(
     }
 
     /**
-     * Returns true if [token] grants access to [url].
-     * A 401 or 403 means the token is definitively invalid for this resource.
-     * Any other outcome (200, redirect, network error) is treated as "proceed" —
-     * the actual download will surface a real error if the server rejects it.
+     * Checks whether [token] grants access to [url].
+     * Uses HEAD + no-redirect so the HuggingFace auth response is inspected directly
+     * rather than the S3 CDN response after a 302 redirect.
      */
-    fun validateToken(url: String, token: String): Boolean {
-        val code = checkUrlAccess(url, token)
-        return code != HttpURLConnection.HTTP_UNAUTHORIZED &&
-            code != HttpURLConnection.HTTP_FORBIDDEN
+    fun validateToken(url: String, token: String): HfTokenValidation {
+        return when (checkUrlAccess(url, token)) {
+            HttpURLConnection.HTTP_UNAUTHORIZED -> HfTokenValidation.INVALID_TOKEN
+            HttpURLConnection.HTTP_FORBIDDEN -> HfTokenValidation.ACCESS_DENIED
+            -1 -> HfTokenValidation.NETWORK_ERROR
+            else -> HfTokenValidation.VALID
+        }
     }
 }

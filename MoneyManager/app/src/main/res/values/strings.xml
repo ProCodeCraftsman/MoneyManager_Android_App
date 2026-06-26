@@ -69,4 +69,6 @@
     <string name="they_owe_you">They owe you %s</string>
     <string name="you_owe_them">You owe them %s</string>
     <string name="select_peer">Select Partner</string>
+    <!-- Placeholder: replaced by google-services plugin once Firebase web OAuth client is configured -->
+    <string name="default_web_client_id">PLACEHOLDER_REPLACE_WITH_FIREBASE_WEB_CLIENT_ID</string>
 </resources>

@@ -239,8 +239,8 @@ class EdgeAiClient @Inject constructor(
      * NPU → GPU → CPU fallback chain. Mirrors gallery's LlmChatModelHelper backend selection.
      */
     private suspend fun buildEngine(): Engine {
-        val model = modelManager.selectModelForDevice()
-            ?: throw AiUnavailableException("Device RAM too low for local model")
+        val model = try { modelManager.getUserSelectedModel() }
+            catch (_: Exception) { throw AiUnavailableException("Device RAM too low for local model") }
         val modelPath = modelManager.getModelFile(model).absolutePath
         Log.d(TAG, "Initializing Engine: ${model.modelFile} at $modelPath")
 

@@ -142,22 +142,9 @@ fun TransactionsScreen(
     var currentPeriodStart by remember { mutableStateOf<Long?>(null) }
     var currentPeriodEnd by remember { mutableStateOf<Long?>(null) }
 
-    val periodTransactions = remember(visibleTransactions, currentPeriodStart, currentPeriodEnd) {
-        val start = currentPeriodStart
-        val end = currentPeriodEnd
-        if (start != null && end != null) {
-            visibleTransactions.filter { it.date in start..end }
-        } else {
-            visibleTransactions
-        }
-    }
-    val periodIncome = remember(periodTransactions) {
-        periodTransactions.filter { it.type == "income" }.sumOf { it.amount }
-    }
-    val periodExpense = remember(periodTransactions) {
-        periodTransactions.filter { it.type == "expense" }.sumOf { it.amount }
-    }
-    val periodCount = periodTransactions.size
+    val periodIncome = uiState.totalIncome
+    val periodExpense = uiState.totalExpense
+    val periodCount = uiState.totalCount
 
     LaunchedEffect(initialType, initialAccountId, initialStartDate, initialEndDate, initialGoalId, initialCategoryId, initialPeerId) {
         if (initialType != null) viewModel.setTypeFilter(initialType)
@@ -678,7 +665,54 @@ fun TransactionsScreen(
                                 }
 
                                 if (!isCollapsed) {
-                                    items(transactions.filter { !it.isSplitChild }, key = { it.id }) { tx ->
+                                    val filteredTransactions = transactions.filter { !it.isSplitChild }.let { filtered ->
+                                        val result = mutableListOf<Pair<TransactionEntity, Long?>>()
+                                        val handledIds = mutableSetOf<Long>()
+
+                                        for (i in filtered.indices) {
+                                            val tx = filtered[i]
+                                            if (handledIds.contains(tx.id)) continue
+
+                                            if (tx.type == "transfer" && tx.toAccountId == null) {
+                                                // Try to find its mirrored leg in the same list (within the same day)
+                                                var mirrorFound = false
+                                                for (j in i + 1 until filtered.size) {
+                                                    val other = filtered[j]
+                                                    if (other.type == "transfer" &&
+                                                        other.amount == tx.amount &&
+                                                        other.date == tx.date &&
+                                                        other.id != tx.id &&
+                                                        !handledIds.contains(other.id)) {
+
+                                                        // Found a mirror. Heuristic: if note has "to", this is the source side.
+                                                        val isSource = tx.note.contains("to", ignoreCase = true) ||
+                                                                       !other.note.contains("to", ignoreCase = true)
+
+                                                        if (isSource) {
+                                                            result.add(tx to other.accountId)
+                                                        } else {
+                                                            result.add(other to tx.accountId)
+                                                        }
+
+                                                        handledIds.add(tx.id)
+                                                        handledIds.add(other.id)
+                                                        mirrorFound = true
+                                                        break
+                                                    }
+                                                }
+                                                if (!mirrorFound) {
+                                                    result.add(tx to null)
+                                                    handledIds.add(tx.id)
+                                                }
+                                            } else {
+                                                result.add(tx to null)
+                                                handledIds.add(tx.id)
+                                            }
+                                        }
+                                        result
+                                    }
+
+                                    items(filteredTransactions, key = { it.first.id }) { (tx, overrideId) ->
                                         if (tx.isSplitParent) {
                                             val splitChildren by viewModel.getSplitChildren(tx.id).collectAsStateWithLifecycle(initialValue = emptyList())
                                             val isExpanded = expandedSplitIds.contains(tx.id)
@@ -692,7 +726,7 @@ fun TransactionsScreen(
                                                 currencyFormat = currencyFormat,
                                                 isExpanded = isExpanded,
                                                 onToggleExpand = { toggleSplitExpand(tx.id) },
-                                                onEdit = { editingTransaction = it },
+                                                onClickParent = { viewingTransaction = it },
                                                 onClickChild = { viewingTransaction = it }
                                             )
                                         } else {
@@ -702,7 +736,9 @@ fun TransactionsScreen(
                                                 categories = uiState.allCategories,
                                                 peers = uiState.allPeers,
                                                 currencyFormat = currencyFormat,
+                                                activeAccountId = uiState.filterAccountId,
                                                 showCategory = uiState.showCategories,
+                                                overrideToAccountId = overrideId,
                                                 onClick = { viewingTransaction = it }
                                             )
                                         }
@@ -803,8 +839,15 @@ fun TransactionsScreen(
     }
 
     viewingTransaction?.let { viewing ->
+        val splitChildren by if (viewing.isSplitParent) {
+            viewModel.getSplitChildren(viewing.id).collectAsStateWithLifecycle(initialValue = emptyList())
+        } else {
+            remember { mutableStateOf(emptyList<TransactionEntity>()) }
+        }
+
         TransactionDetailSheet(
             transaction = viewing,
+            splitChildren = splitChildren,
             accounts = uiState.allAccounts,
             categories = uiState.allCategories,
             tags = uiState.allTags,
@@ -815,6 +858,10 @@ fun TransactionsScreen(
             onEdit = {
                 viewingTransaction = null
                 editingTransaction = viewing
+            },
+            onDuplicate = {
+                viewModel.duplicateTransaction(viewing)
+                viewingTransaction = null
             },
             onDelete = {
                 viewingTransaction = null

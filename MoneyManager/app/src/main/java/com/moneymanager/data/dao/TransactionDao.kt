@@ -7,6 +7,12 @@ import kotlinx.coroutines.flow.Flow
 
 data class CategoryCount(val categoryId: Long, val count: Int)
 
+data class TransactionSummary(
+    val totalIncome: Double,
+    val totalExpense: Double,
+    val totalCount: Int
+)
+
 @Dao
 interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC")
@@ -15,7 +21,7 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE date BETWEEN :startDate AND :endDate ORDER BY date DESC")
     fun getTransactionsByDateRange(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
 
-    @Query("SELECT * FROM transactions WHERE accountId = :accountId ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE (accountId = :accountId OR toAccountId = :accountId) ORDER BY date DESC")
     fun getTransactionsByAccount(accountId: Long): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE goalId = :goalId ORDER BY date DESC")
@@ -35,7 +41,7 @@ interface TransactionDao {
 
     @Query("""
         SELECT * FROM transactions
-        WHERE (:accountId IS NULL OR accountId = :accountId)
+        WHERE (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
         AND (:categoryId IS NULL OR categoryId = :categoryId)
         AND (:goalId IS NULL OR goalId = :goalId)
@@ -64,7 +70,7 @@ interface TransactionDao {
 
     @Query("""
         SELECT * FROM transactions
-        WHERE (:accountId IS NULL OR accountId = :accountId)
+        WHERE (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
         AND (:categoryId IS NULL OR categoryId = :categoryId)
         AND (:goalId IS NULL OR goalId = :goalId)
@@ -93,7 +99,7 @@ interface TransactionDao {
 
     @Query("""
         SELECT * FROM transactions
-        WHERE (:accountId IS NULL OR accountId = :accountId)
+        WHERE (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
         AND (:categoryId IS NULL OR categoryId = :categoryId)
         AND (:goalId IS NULL OR goalId = :goalId)
@@ -122,7 +128,7 @@ interface TransactionDao {
 
     @Query("""
         SELECT * FROM transactions
-        WHERE (:accountId IS NULL OR accountId = :accountId)
+        WHERE (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
         AND (:categoryId IS NULL OR categoryId = :categoryId)
         AND (:goalId IS NULL OR goalId = :goalId)
@@ -148,6 +154,39 @@ interface TransactionDao {
         endDate: Long?,
         query: String?
     ): PagingSource<Int, TransactionEntity>
+
+    @Query("""
+        SELECT 
+            TOTAL(CASE WHEN type = 'income' THEN amount ELSE 0 END) as totalIncome,
+            TOTAL(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as totalExpense,
+            COUNT(*) as totalCount
+        FROM transactions
+        WHERE isSplitChild = 0
+        AND (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
+        AND (:type IS NULL OR type = :type)
+        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:goalId IS NULL OR goalId = :goalId)
+        AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
+        AND (:startDate IS NULL OR date >= :startDate)
+        AND (:endDate IS NULL OR date <= :endDate)
+        AND (:query IS NULL OR :query = '' OR
+            note LIKE '%' || :query || '%' OR
+            description LIKE '%' || :query || '%' OR
+            categoryId IN (SELECT id FROM categories WHERE name LIKE '%' || :query || '%') OR
+            accountId IN (SELECT id FROM accounts WHERE name LIKE '%' || :query || '%') OR
+            CAST(amount AS TEXT) LIKE '%' || :query || '%'
+        )
+    """)
+    fun getTransactionSummaryWithFilters(
+        accountId: Long?,
+        type: String?,
+        categoryId: Long?,
+        goalId: Long?,
+        tagId: Long?,
+        startDate: Long?,
+        endDate: Long?,
+        query: String?
+    ): Flow<TransactionSummary>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: TransactionEntity): Long

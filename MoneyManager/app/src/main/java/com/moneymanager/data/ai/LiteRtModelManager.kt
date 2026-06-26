@@ -139,10 +139,13 @@ class LiteRtModelManager @Inject constructor(
     fun getModelFile(model: ModelEntry): File =
         File(modelsDir(), model.modelFile)
 
-    /** True if the currently selected best model is downloaded. */
+    /** True if the user-selected model is downloaded. */
     suspend fun isModelDownloaded(): Boolean {
-        val model = selectModelForDevice() ?: return false
-        return isModelDownloaded(model)
+        return try {
+            isModelDownloaded(getUserSelectedModel())
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /** Download a model directly (used by tests / legacy code — prefer DownloadRepository). */

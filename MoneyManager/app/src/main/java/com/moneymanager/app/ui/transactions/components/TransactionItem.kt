@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.components.CategoryIcon
@@ -44,7 +45,9 @@ fun TransactionItem(
     categories: List<CategoryEntity>,
     peers: List<PeerContact> = emptyList(),
     currencyFormat: NumberFormat,
+    activeAccountId: Long? = null,
     showCategory: Boolean = true,
+    overrideToAccountId: Long? = null,
     onClick: (TransactionEntity) -> Unit,
 ) {
     Column {
@@ -54,7 +57,9 @@ fun TransactionItem(
             categories = categories,
             peers = peers,
             currencyFormat = currencyFormat,
+            activeAccountId = activeAccountId,
             showCategory = showCategory,
+            overrideToAccountId = overrideToAccountId,
             onClick = { onClick(transaction) }
         )
         HorizontalDivider(
@@ -72,24 +77,36 @@ fun TransactionRow(
     categories: List<CategoryEntity>,
     peers: List<PeerContact> = emptyList(),
     currencyFormat: NumberFormat,
+    activeAccountId: Long? = null,
     showCategory: Boolean = true,
+    overrideToAccountId: Long? = null,
     onClick: () -> Unit
 ) {
     val account = remember(transaction.accountId, accounts) { accounts.find { it.id == transaction.accountId } }
+    val toAccount = remember(transaction.toAccountId, overrideToAccountId, accounts) {
+        val id = overrideToAccountId ?: transaction.toAccountId
+        id?.let { accounts.find { it.id == id } }
+    }
     val category = remember(transaction.categoryId, categories) { categories.find { it.id == transaction.categoryId } }
     val peer = remember(transaction.peerContactId, peers) {
         transaction.peerContactId?.let { id -> peers.find { it.id == id } }
     }
 
+    val isTransfer = transaction.isTransfer || transaction.type == "transfer"
+    val isIncoming = isTransfer && activeAccountId != null && 
+                     (transaction.toAccountId == activeAccountId || transaction.note.contains("from", ignoreCase = true))
+
     val typeIcon = when {
-        transaction.isTransfer || transaction.type == "transfer" -> ICON_TRANSFER
+        isTransfer -> ICON_TRANSFER
         transaction.type == "lend" -> ICON_LEND
         transaction.type == "borrow" -> ICON_BORROW
+        transaction.type == "savings" -> ICON_SAVINGS
         category != null && showCategory -> category.emoji
         else -> ICON_DEFAULT
     }
     val typeIconType = when {
-        transaction.isTransfer || transaction.type == "transfer" || transaction.type == "lend" || transaction.type == "borrow" -> "emoji"
+        isTransfer || transaction.type == "lend" || 
+        transaction.type == "borrow" || transaction.type == "savings" -> "emoji"
         category != null && showCategory -> category.iconType
         else -> "emoji"
     }
@@ -120,23 +137,43 @@ fun TransactionRow(
         }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            val hasDescription = transaction.description.isNotBlank()
-            val cat = if (showCategory) category else null
-            val title = when {
-                hasDescription -> transaction.description
-                cat != null -> cat.name
-                else -> transaction.type.replaceFirstChar { it.uppercase() }
+            val title: String
+            val subtitle: String?
+            
+            if (isTransfer) {
+                val fromName = account?.name ?: "Account"
+                val toName = toAccount?.name ?: "Account"
+                title = "Transfer"
+                val isOrphanedIncoming = toAccount == null && transaction.note.contains("from", ignoreCase = true)
+                subtitle = if (isOrphanedIncoming) "$toName → $fromName" else "$fromName → $toName"
+            } else {
+                val cat = if (showCategory) category else null
+                val isSimpleType = transaction.type in setOf("expense", "income", "savings")
+                if (isSimpleType) {
+                    title = cat?.name ?: transaction.type.replaceFirstChar { it.uppercase() }
+                    subtitle = account?.name
+                } else {
+                    val hasDescription = transaction.description.isNotBlank()
+                    title = when {
+                        hasDescription -> transaction.description
+                        cat != null -> cat.name
+                        else -> transaction.type.replaceFirstChar { it.uppercase() }
+                    }
+                    subtitle = when {
+                        hasDescription && cat != null -> cat.name
+                        !hasDescription && peer != null -> peer.effectiveDisplayName
+                        !hasDescription && account != null -> account.name
+                        else -> null
+                    }
+                }
             }
-            val subtitle = when {
-                hasDescription && cat != null -> cat.name
-                !hasDescription && peer != null -> peer.effectiveDisplayName
-                !hasDescription && account != null -> account.name
-                else -> null
-            }
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             if (subtitle != null) {
                 Text(
@@ -147,16 +184,30 @@ fun TransactionRow(
             }
         }
         Spacer(modifier = Modifier.width(8.dp))
-        val amountPrefix = if (transaction.type == "expense") "-" else ""
+        val amountPrefix = when {
+            isTransfer -> when {
+                activeAccountId == null -> ""
+                isIncoming -> "+"
+                else -> "-"
+            }
+            transaction.type == "expense" -> "-"
+            else -> ""
+        }
+        val amountColor = when {
+            isTransfer -> when {
+                activeAccountId == null -> MaterialTheme.colorScheme.secondary
+                isIncoming -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.error
+            }
+            transaction.type == "income" -> MaterialTheme.colorScheme.primary
+            transaction.type == "expense" || transaction.type == "lend" -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.onSurface
+        }
         Text(
             text = "$amountPrefix${currencyFormat.format(transaction.amount)}",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = when (transaction.type) {
-                "income" -> MaterialTheme.colorScheme.primary
-                "expense", "lend" -> MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.onSurface
-            }
+            color = amountColor
         )
         Spacer(modifier = Modifier.width(4.dp))
         Icon(
