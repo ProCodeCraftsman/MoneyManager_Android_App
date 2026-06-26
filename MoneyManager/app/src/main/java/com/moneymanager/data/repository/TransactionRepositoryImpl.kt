@@ -4,6 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.moneymanager.data.dao.TransactionDao
+import com.moneymanager.data.dao.TransactionSummary
 import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.domain.repository.TransactionRepository
 import kotlinx.coroutines.flow.Flow
@@ -86,5 +87,20 @@ class TransactionRepositoryImpl @Inject constructor(
                 else -> transactionDao.getTransactionsWithFilters(accountId, type, categoryId, goalId, tagId, startDate, endDate, query)
             }
         }.flow
+    }
+
+    override fun getTransactionSummary(
+        accountId: Long?,
+        type: String?,
+        categoryId: Long?,
+        goalId: Long?,
+        tagId: Long?,
+        startDate: Long?,
+        endDate: Long?,
+        query: String?
+    ): Flow<TransactionSummary> {
+        return transactionDao.getTransactionSummaryWithFilters(
+            accountId, type, categoryId, goalId, tagId, startDate, endDate, query
+        )
     }
 }

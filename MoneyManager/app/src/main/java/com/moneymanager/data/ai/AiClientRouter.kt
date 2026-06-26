@@ -57,6 +57,19 @@ class AiClientRouter @Inject constructor(
         )
     }
 
+    // ── Vision / image path ───────────────────────────────────────────────────
+
+    override suspend fun generateDraftFromImage(
+        systemInstruction: String,
+        userMessage: String,
+        imageBytes: ByteArray,
+    ): Result<String> {
+        return route(
+            aicoreFn  = { nanoAiClient.generateDraftFromImage(systemInstruction, userMessage, imageBytes) },
+            localFn   = { edgeAiClient.generateDraftFromImage(systemInstruction, userMessage, imageBytes) },
+        )
+    }
+
     // ── Internal routing ───────────────────────────────────────────────────────
 
     private suspend fun route(

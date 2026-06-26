@@ -44,14 +44,20 @@ fun SplitTransactionCard(
     currencyFormat: NumberFormat,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
-    onEdit: (TransactionEntity) -> Unit,
-    onClickChild: (TransactionEntity) -> Unit = onEdit,
+    onClickParent: (TransactionEntity) -> Unit,
+    onClickChild: (TransactionEntity) -> Unit,
 ) {
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onToggleExpand)
+                .clickable {
+                    if (splitChildren.isEmpty()) {
+                        onClickParent(parentTransaction)
+                    } else {
+                        onToggleExpand()
+                    }
+                }
                 .padding(horizontal = 20.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

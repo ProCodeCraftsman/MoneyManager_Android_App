@@ -1,6 +1,7 @@
 package com.moneymanager.app.ui.aimodels
 
 import androidx.compose.animation.animateContentSize
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.domain.ai.AiBackend
+import com.moneymanager.data.ai.HfTokenValidation
 import com.moneymanager.data.ai.ModelEntry
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,6 +33,7 @@ fun AiModelsScreen(
     viewModel: AiModelsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val hfTokenState by viewModel.hfTokenState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showHfLoginDialog by remember { mutableStateOf(false) }
     var showHfTokenDialog by remember { mutableStateOf(false) }
@@ -40,6 +44,15 @@ fun AiModelsScreen(
                 is AiModelsEvent.Snackbar -> snackbarHostState.showSnackbar(event.message)
                 is AiModelsEvent.NeedsHfLogin -> showHfLoginDialog = true
             }
+        }
+    }
+
+    // Auto-close login dialog 1.5 s after success so the user sees the confirmation.
+    LaunchedEffect(hfTokenState) {
+        if (hfTokenState is HfTokenState.Accepted) {
+            delay(1500)
+            showHfLoginDialog = false
+            viewModel.resetTokenState()
         }
     }
 
@@ -64,13 +77,11 @@ fun AiModelsScreen(
         if (showHfLoginDialog) {
             HuggingFaceLoginDialog(
                 currentToken = uiState.hfAccessToken,
-                onDismiss = { showHfLoginDialog = false },
+                tokenState = hfTokenState,
+                onDismiss = { showHfLoginDialog = false; viewModel.resetTokenState() },
                 onOpenHf = { viewModel.openHuggingFaceModelAgreement() },
                 onOpenTokenPage = { viewModel.openHuggingFaceLogin() },
-                onTokenEntered = { token ->
-                    showHfLoginDialog = false
-                    viewModel.downloadModelWithToken(token)
-                },
+                onTokenEntered = { token -> viewModel.downloadModelWithToken(token) },
                 onClearToken = { viewModel.clearHuggingFaceToken() },
             )
         }
@@ -110,8 +121,10 @@ fun AiModelsScreen(
                 item {
                     HuggingFaceTokenRow(
                         hasToken = uiState.isHfTokenValid,
+                        maskedToken = maskHfToken(uiState.hfAccessToken),
                         onLoginClick = { showHfLoginDialog = true },
                         onManageToken = { showHfTokenDialog = true },
+                        onDeleteToken = { viewModel.clearHuggingFaceToken() },
                     )
                 }
             }
@@ -209,6 +222,14 @@ private fun ModelCard(
                         text = "${"%.1f".format(model.sizeGb)} GB · ${model.minRamGb}+ GB RAM",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = model.modelId,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     if (model.capabilities.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(4.dp))
@@ -423,7 +444,13 @@ private fun WifiOnlyRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun HuggingFaceTokenRow(hasToken: Boolean, onLoginClick: () -> Unit, onManageToken: () -> Unit) {
+private fun HuggingFaceTokenRow(
+    hasToken: Boolean,
+    maskedToken: String,
+    onLoginClick: () -> Unit,
+    onManageToken: () -> Unit,
+    onDeleteToken: () -> Unit,
+) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Icon(Icons.Default.Key, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
@@ -431,16 +458,27 @@ private fun HuggingFaceTokenRow(hasToken: Boolean, onLoginClick: () -> Unit, onM
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(if (hasToken) "HuggingFace Token" else "HuggingFace Login", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            Text(if (hasToken) "Token configured" else "Required for gated models", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                if (hasToken) maskedToken else "Required for gated models",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (hasToken) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        if (hasToken) TextButton(onClick = onManageToken) { Text("Manage") }
-        else Button(onClick = onLoginClick) { Text("Login") }
+        if (hasToken) {
+            IconButton(onClick = onDeleteToken) {
+                Icon(Icons.Default.Delete, "Remove token", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+            }
+            TextButton(onClick = onManageToken) { Text("Edit") }
+        } else {
+            Button(onClick = onLoginClick) { Text("Login") }
+        }
     }
 }
 
 @Composable
 private fun HuggingFaceLoginDialog(
     currentToken: String,
+    tokenState: HfTokenState,
     onDismiss: () -> Unit,
     onOpenHf: () -> Unit,
     onOpenTokenPage: () -> Unit,
@@ -448,39 +486,98 @@ private fun HuggingFaceLoginDialog(
     onClearToken: () -> Unit,
 ) {
     var tokenInput by remember { mutableStateOf(currentToken) }
+    val isAccepted = tokenState is HfTokenState.Accepted
+    val isValidating = tokenState is HfTokenState.Validating
+    val errorMessage = when {
+        tokenState is HfTokenState.Failed && tokenState.reason == HfTokenValidation.INVALID_TOKEN ->
+            "Invalid token — double-check it was copied correctly."
+        tokenState is HfTokenState.Failed && tokenState.reason == HfTokenValidation.ACCESS_DENIED ->
+            "Your token is valid, but this model requires license acceptance. Tap \"Open model page\" above and accept the terms first."
+        tokenState is HfTokenState.Failed && tokenState.reason == HfTokenValidation.NETWORK_ERROR ->
+            "Network error — check your connection and try again."
+        else -> null
+    }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Key, null) },
-        title = { Text("HuggingFace Access") },
+        onDismissRequest = { if (!isValidating && !isAccepted) onDismiss() },
+        icon = {
+            if (isAccepted)
+                Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
+            else
+                Icon(Icons.Default.Key, null)
+        },
+        title = { Text(if (isAccepted) "Token Saved!" else "HuggingFace Access") },
         text = {
-            Column {
-                Text("This model requires a HuggingFace access token.", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("1. Accept the license at the model page", style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = onOpenHf) { Text("Open model page") }
-                Text("2. Generate a token in HuggingFace settings", style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = onOpenTokenPage) { Text("Open token settings") }
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = tokenInput,
-                    onValueChange = { tokenInput = it },
-                    label = { Text("HuggingFace Token") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+            if (isAccepted) {
+                Text(
+                    "Token accepted. Your download has started.",
+                    style = MaterialTheme.typography.bodyMedium,
                 )
-                if (currentToken.isNotEmpty()) {
-                    TextButton(
-                        onClick = { onClearToken(); tokenInput = "" },
-                        modifier = Modifier.align(Alignment.End),
-                    ) {
-                        Text("Clear stored token", color = MaterialTheme.colorScheme.error)
+            } else {
+                Column {
+                    Text("This model requires a HuggingFace access token.", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("1. Accept the license at the model page", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = onOpenHf, enabled = !isValidating) { Text("Open model page") }
+                    Text("2. Generate a token in HuggingFace settings", style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = onOpenTokenPage, enabled = !isValidating) { Text("Open token settings") }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = tokenInput,
+                        onValueChange = { tokenInput = it },
+                        label = { Text("HuggingFace Token") },
+                        singleLine = true,
+                        enabled = !isValidating,
+                        isError = errorMessage != null,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (errorMessage != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            errorMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    if (currentToken.isNotEmpty()) {
+                        TextButton(
+                            onClick = { onClearToken(); tokenInput = "" },
+                            enabled = !isValidating,
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
+                            Text("Clear stored token", color = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
             }
         },
-        confirmButton = { Button(onClick = { onTokenEntered(tokenInput.trim()) }, enabled = tokenInput.isNotBlank()) { Text("Validate & Download") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = {
+            if (!isAccepted) {
+                Button(
+                    onClick = { onTokenEntered(tokenInput.trim()) },
+                    enabled = tokenInput.isNotBlank() && !isValidating,
+                ) {
+                    if (isValidating) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Validating…")
+                    } else {
+                        Text("Validate & Download")
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            if (!isAccepted) {
+                TextButton(onClick = onDismiss, enabled = !isValidating) { Text("Cancel") }
+            }
+        },
     )
+}
+
+private fun maskHfToken(token: String): String {
+    if (token.length <= 6) return if (token.isEmpty()) "" else "****"
+    return "${token.take(3)}****${token.takeLast(3)}"
 }
 
 @Composable

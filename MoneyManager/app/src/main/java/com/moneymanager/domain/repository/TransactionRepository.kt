@@ -2,6 +2,7 @@ package com.moneymanager.domain.repository
 
 import androidx.paging.PagingData
 import com.moneymanager.data.dao.CategoryCount
+import com.moneymanager.data.dao.TransactionSummary
 import com.moneymanager.data.entity.TransactionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -22,6 +23,16 @@ interface TransactionRepository {
         sortDescending: Boolean = true,
         sortByAmount: Boolean = false
     ): Flow<PagingData<TransactionEntity>>
+    fun getTransactionSummary(
+        accountId: Long?,
+        type: String?,
+        categoryId: Long?,
+        goalId: Long?,
+        tagId: Long?,
+        startDate: Long?,
+        endDate: Long?,
+        query: String?
+    ): Flow<TransactionSummary>
     fun getSplitChildren(parentId: Long): Flow<List<TransactionEntity>>
     suspend fun deleteSplitChildren(parentId: Long)
     suspend fun getTransactionById(id: Long): TransactionEntity?

@@ -101,6 +101,12 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE recurring ADD COLUMN endDate INTEGER")
+    }
+}
+
 @Database(
     entities = [
         AccountEntity::class,
@@ -114,7 +120,7 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         AiConversationEntity::class,
         MerchantCategoryMemoryEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

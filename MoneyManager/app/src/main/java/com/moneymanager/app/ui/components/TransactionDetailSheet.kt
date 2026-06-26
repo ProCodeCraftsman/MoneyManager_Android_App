@@ -36,6 +36,7 @@ import java.util.Locale
 @Composable
 fun TransactionDetailSheet(
     transaction: TransactionEntity,
+    splitChildren: List<TransactionEntity> = emptyList(),
     accounts: List<AccountEntity>,
     categories: List<CategoryEntity>,
     tags: List<TagEntity>,
@@ -44,6 +45,7 @@ fun TransactionDetailSheet(
     currency: String,
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val category = remember(transaction.categoryId, categories) {
@@ -80,18 +82,21 @@ fun TransactionDetailSheet(
     val expenseColor = categoryColors.expense
 
     val title = when {
+        transaction.isTransfer || transaction.type == "transfer" -> "Transfer"
         transaction.description.isNotBlank() -> transaction.description
+        transaction.isSplitParent -> "Split Transaction"
         category != null -> category.name
         else -> transaction.type.replaceFirstChar { it.uppercase() }
     }
 
-    val typeIcon = when {
-        transaction.isSplitParent -> ICON_SPLIT
-        transaction.isTransfer || transaction.type == "transfer" -> ICON_TRANSFER
-        transaction.type == "lend" -> ICON_LEND
-        transaction.type == "borrow" -> ICON_BORROW
-        category != null -> category.emoji
-        else -> ICON_DEFAULT
+    val (typeIcon, typeIconType) = when {
+        transaction.isSplitParent -> ICON_SPLIT to "emoji"
+        transaction.isTransfer || transaction.type == "transfer" -> ICON_TRANSFER to "emoji"
+        transaction.type == "lend" -> ICON_LEND to "emoji"
+        transaction.type == "borrow" -> ICON_BORROW to "emoji"
+        transaction.type == "savings" -> ICON_SAVINGS to "emoji"
+        category != null -> category.emoji to category.iconType
+        else -> ICON_DEFAULT to "emoji"
     }
 
     val amountText = if (transaction.type == "expense") {
@@ -101,8 +106,11 @@ fun TransactionDetailSheet(
     }
 
     val amountColor = when (transaction.type) {
-        "income" -> MaterialTheme.colorScheme.primary
-        "expense", "lend" -> expenseColor
+        "income" -> categoryColors.income
+        "expense" -> categoryColors.expense
+        "transfer" -> categoryColors.transfer
+        "lend", "borrow" -> categoryColors.lending
+        "savings" -> categoryColors.savings
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -162,7 +170,14 @@ fun TransactionDetailSheet(
                         .background(amountColor.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(typeIcon, fontSize = 22.sp)
+                    CategoryIcon(
+                        emoji = typeIcon,
+                        iconType = typeIconType,
+                        colorIndex = category?.colorIndex,
+                        fontSize = 22.sp,
+                        modifier = Modifier.size(24.dp),
+                        tint = amountColor
+                    )
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
@@ -174,7 +189,12 @@ fun TransactionDetailSheet(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = if (category != null) category.name else transaction.type.replaceFirstChar { it.uppercase() },
+                        text = when {
+                            transaction.isSplitParent -> "Split Parent"
+                            transaction.isSplitChild -> "Split Item"
+                            category != null -> category.name
+                            else -> transaction.type.replaceFirstChar { it.uppercase() }
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -206,6 +226,14 @@ fun TransactionDetailSheet(
                     icon = Icons.Default.CalendarToday,
                     label = "${dateFormat.format(Date(transaction.date))} at ${timeFormat.format(Date(transaction.date))}"
                 )
+
+                // Split Child: Indicator
+                if (transaction.isSplitChild) {
+                    InfoRow(
+                        icon = Icons.AutoMirrored.Filled.CallSplit,
+                        label = "Part of a Split Transaction"
+                    )
+                }
 
                 // Transfer: From Account → To Account
                 if (transaction.isTransfer || transaction.type == "transfer") {
@@ -314,6 +342,64 @@ fun TransactionDetailSheet(
                 if (transaction.receiptPath != null) {
                     AttachmentPreviewSection(receiptPath = transaction.receiptPath)
                 }
+
+                // Split Breakdown
+                if (transaction.isSplitParent && splitChildren.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Split Breakdown",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                    splitChildren.forEach { child ->
+                        val childCategory = categories.find { it.id == child.categoryId }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CategoryIcon(
+                                        emoji = childCategory?.emoji ?: ICON_DEFAULT,
+                                        iconType = childCategory?.iconType ?: "emoji",
+                                        colorIndex = childCategory?.colorIndex,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = child.note.ifEmpty { childCategory?.name ?: "Category" },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (child.note.isNotEmpty() && childCategory != null) {
+                                        Text(
+                                            text = childCategory.name,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                text = CurrencyUtils.getCurrencyFormat(currency).format(child.amount),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(20.dp))
@@ -333,6 +419,17 @@ fun TransactionDetailSheet(
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                OutlinedButton(
+                    onClick = onDuplicate,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Duplicate", fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 OutlinedButton(
                     onClick = onEdit,
                     modifier = Modifier

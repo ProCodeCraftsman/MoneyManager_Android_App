@@ -1,7 +1,15 @@
 package com.moneymanager.app.ui.aimodels
 
 import com.moneymanager.domain.ai.AiBackend
+import com.moneymanager.data.ai.HfTokenValidation
 import com.moneymanager.data.ai.ModelEntry
+
+sealed interface HfTokenState {
+    data object Idle : HfTokenState
+    data object Validating : HfTokenState
+    data object Accepted : HfTokenState
+    data class Failed(val reason: HfTokenValidation) : HfTokenState
+}
 
 data class AiModelsUiState(
     val backendTier: AiBackend = AiBackend.NONE,

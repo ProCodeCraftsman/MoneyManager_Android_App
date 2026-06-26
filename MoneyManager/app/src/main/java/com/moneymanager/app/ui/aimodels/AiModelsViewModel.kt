@@ -10,6 +10,7 @@ import com.moneymanager.domain.ai.AiBackend
 import com.moneymanager.data.ai.DeviceCapabilityManager
 import com.moneymanager.data.ai.DownloadRepository
 import com.moneymanager.data.ai.DownloadWorker
+import com.moneymanager.data.ai.HfTokenValidation
 import com.moneymanager.data.ai.HuggingFaceAuthManager
 import com.moneymanager.data.ai.LiteRtModelManager
 import com.moneymanager.data.ai.ModelAllowlistRepository
@@ -52,6 +53,9 @@ class AiModelsViewModel @Inject constructor(
 
     /** Model waiting for HF token before download can proceed. */
     private val _pendingModel = MutableStateFlow<ModelEntry?>(null)
+
+    private val _hfTokenState = MutableStateFlow<HfTokenState>(HfTokenState.Idle)
+    val hfTokenState: StateFlow<HfTokenState> = _hfTokenState.asStateFlow()
 
     /** Loaded model list — refreshed on allowlist change. */
     private val _models = MutableStateFlow<List<ModelEntry>>(emptyList())
@@ -180,18 +184,29 @@ class AiModelsViewModel @Inject constructor(
     fun downloadModelWithToken(token: String) {
         val model = _pendingModel.value ?: return
         viewModelScope.launch {
-            val valid = withContext(Dispatchers.IO) {
+            _hfTokenState.value = HfTokenState.Validating
+            val result = withContext(Dispatchers.IO) {
                 hfAuthManager.validateToken(model.downloadUrl, token)
             }
-            if (!valid) {
-                _events.send(AiModelsEvent.Snackbar("Token rejected (401/403) — check the token has access to this model"))
-                return@launch
+            when (result) {
+                HfTokenValidation.VALID -> {
+                    preferencesManager.setHfAccessToken(token)
+                    downloadRepository.downloadModel(model)
+                    _pendingModel.value = null
+                    _hfTokenState.value = HfTokenState.Accepted
+                }
+                HfTokenValidation.INVALID_TOKEN ->
+                    _hfTokenState.value = HfTokenState.Failed(result)
+                HfTokenValidation.ACCESS_DENIED ->
+                    _hfTokenState.value = HfTokenState.Failed(result)
+                HfTokenValidation.NETWORK_ERROR ->
+                    _hfTokenState.value = HfTokenState.Failed(result)
             }
-            preferencesManager.setHfAccessToken(token)
-            downloadRepository.downloadModel(model)
-            _pendingModel.value = null
-            _events.send(AiModelsEvent.Snackbar("Downloading ${model.name}…"))
         }
+    }
+
+    fun resetTokenState() {
+        _hfTokenState.value = HfTokenState.Idle
     }
 
     fun cancelDownload(model: ModelEntry) {

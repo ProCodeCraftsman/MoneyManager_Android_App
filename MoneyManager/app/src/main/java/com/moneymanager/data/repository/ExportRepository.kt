@@ -53,29 +53,42 @@ class ExportRepository @Inject constructor(
 ) {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
+    /** Returns all app data as UTF-8 JSON bytes for Drive backup. */
+    suspend fun exportToJsonBytes(): ByteArray = withContext(Dispatchers.IO) {
+        buildExportJson().toString(2).toByteArray(Charsets.UTF_8)
+    }
+
+    /** Imports all app data from UTF-8 JSON bytes (Drive restore). */
+    suspend fun importFromJsonBytes(data: ByteArray): ImportResult {
+        return importFromJsonString(data.toString(Charsets.UTF_8))
+    }
+
+    private suspend fun buildExportJson(): JSONObject = withContext(Dispatchers.IO) {
+        JSONObject().apply {
+            put("appVersion", "1.0.0")
+            put("dataVersion", 1)
+            put("exportedAt", System.currentTimeMillis())
+            put("accounts", exportAccounts())
+            put("transactions", exportTransactions())
+            put("categories", exportCategories())
+            put("budgets", exportBudgets())
+            put("goals", exportGoals())
+            put("tags", exportTags())
+            put("peers", exportPeers())
+            put("recurring", exportRecurring())
+        }
+    }
+
     suspend fun exportToJson(uri: Uri): ExportResult = withContext(Dispatchers.IO) {
         try {
-            val json = JSONObject()
-            
-            json.put("appVersion", "1.0.0")
-            json.put("dataVersion", 1)
-            json.put("exportedAt", System.currentTimeMillis())
-            
-            json.put("accounts", exportAccounts())
-            json.put("transactions", exportTransactions())
-            json.put("categories", exportCategories())
-            json.put("budgets", exportBudgets())
-            json.put("goals", exportGoals())
-            json.put("tags", exportTags())
-            json.put("peers", exportPeers())
-            json.put("recurring", exportRecurring())
-            
+            val json = buildExportJson()
+
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                 OutputStreamWriter(outputStream).use { writer ->
                     writer.write(json.toString(2))
                 }
             }
-            
+
             ExportResult(success = true, message = "Data exported successfully")
         } catch (e: Exception) {
             ExportResult(success = false, message = "Export failed: ${e.message}")
@@ -116,8 +129,16 @@ class ExportRepository @Inject constructor(
                 }
             } ?: return@withContext ImportResult(success = false, message = "Could not read file")
 
+            importFromJsonString(json)
+        } catch (e: Exception) {
+            ImportResult(success = false, message = "Import failed: ${e.message}")
+        }
+    }
+
+    private suspend fun importFromJsonString(json: String): ImportResult = withContext(Dispatchers.IO) {
+        try {
             val jsonObject = JSONObject(json)
-            
+
             var accountsImported = 0
             var transactionsImported = 0
             var categoriesImported = 0
@@ -238,6 +259,7 @@ class ExportRepository @Inject constructor(
             obj.put("balance", account.balance)
             obj.put("currency", account.currency)
             obj.put("emoji", account.emoji)
+            obj.put("iconType", account.iconType)
             obj.put("color", account.color)
             obj.put("peerContactId", account.peerContactId)
             obj.put("createdAt", account.createdAt)
@@ -446,9 +468,18 @@ class ExportRepository @Inject constructor(
     private suspend fun exportAccountsCsv(): String {
         val accounts = accountDao.getAllAccounts().first()
         val sb = StringBuilder()
-        sb.appendLine("name,type,balance,currency,color")
+        sb.appendLine("name,type,initial_balance,balance,currency,color,emoji,icon_type")
         accounts.forEach { acc ->
-            sb.appendLine("${acc.name},${acc.type},${acc.balance},${acc.currency},${acc.color}")
+            sb.appendLine(
+                "\"${acc.name.replace("\"", "\"\"")}\"," +
+                "${acc.type}," +
+                "${acc.initialBalance}," +
+                "${acc.balance}," +
+                "${acc.currency}," +
+                "${acc.color}," +
+                "${acc.emoji}," +
+                "${acc.iconType}"
+            )
         }
         return sb.toString()
     }
@@ -456,9 +487,18 @@ class ExportRepository @Inject constructor(
     private suspend fun exportCategoriesCsv(): String {
         val categories = categoryDao.getAllCategoriesWithArchived().first()
         val sb = StringBuilder()
-        sb.appendLine("name,type,emoji,icon_type,parent_id,is_custom")
+        sb.appendLine("name,type,emoji,icon_type,color,parent_id,is_custom,is_archived")
         categories.forEach { cat ->
-            sb.appendLine("${cat.name},${cat.type},${cat.emoji},${cat.iconType},${cat.parentId ?: ""},${cat.isCustom}")
+            sb.appendLine(
+                "\"${cat.name.replace("\"", "\"\"")}\"," +
+                "${cat.type}," +
+                "${cat.emoji}," +
+                "${cat.iconType}," +
+                "${cat.color}," +
+                "${cat.parentId ?: ""}," +
+                "${cat.isCustom}," +
+                "${cat.isArchived}"
+            )
         }
         return sb.toString()
     }
@@ -478,7 +518,15 @@ class ExportRepository @Inject constructor(
         val sb = StringBuilder()
         sb.appendLine("name,emoji,icon_type,target_amount,current_amount,deadline,is_completed")
         goals.forEach { goal ->
-            sb.appendLine("${goal.name},${goal.emoji},${goal.iconType},${goal.targetAmount},${goal.currentAmount},${goal.deadline?.let { dateFormat.format(Date(it)) } ?: ""},${goal.isCompleted}")
+            sb.appendLine(
+                "\"${goal.name.replace("\"", "\"\"")}\"," +
+                "${goal.emoji}," +
+                "${goal.iconType}," +
+                "${goal.targetAmount}," +
+                "${goal.currentAmount}," +
+                "\"${goal.deadline?.let { dateFormat.format(Date(it)) } ?: ""}\"," +
+                "${goal.isCompleted}"
+            )
         }
         return sb.toString()
     }
@@ -488,7 +536,14 @@ class ExportRepository @Inject constructor(
         return buildString {
             appendLine("displayName,phoneNumber,email,description,totalGiven,totalReceived")
             peers.forEach { peer ->
-                appendLine("${peer.displayName},${peer.phoneNumber},${peer.email},${peer.description},${peer.totalGiven},${peer.totalReceived}")
+                appendLine(
+                    "\"${peer.displayName.replace("\"", "\"\"")}\"," +
+                    "\"${peer.phoneNumber.replace("\"", "\"\"")}\"," +
+                    "\"${peer.email.replace("\"", "\"\"")}\"," +
+                    "\"${peer.description.replace("\"", "\"\"")}\"," +
+                    "${peer.totalGiven}," +
+                    "${peer.totalReceived}"
+                )
             }
         }
     }
@@ -581,7 +636,7 @@ class ExportRepository @Inject constructor(
         val sb = StringBuilder()
         sb.appendLine("id,name,color")
         tags.forEach { tag ->
-            sb.appendLine("${tag.id},${tag.name},${tag.color}")
+            sb.appendLine("${tag.id},\"${tag.name.replace("\"", "\"\"")}\",${tag.color}")
         }
         return sb.toString()
     }
@@ -603,6 +658,7 @@ class ExportRepository @Inject constructor(
                 balance = obj.getDouble("balance"),
                 currency = obj.optString("currency", "INR"),
                 emoji = obj.optString("emoji", "🏦"),
+                iconType = obj.optString("iconType", "emoji"),
                 color = obj.optString("color", "#2a6049"),
                 peerContactId = if (obj.has("peerContactId") && !obj.isNull("peerContactId")) obj.getLong("peerContactId") else null,
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
@@ -658,6 +714,7 @@ class ExportRepository @Inject constructor(
                 id = obj.optLong("id", 0),
                 name = obj.getString("name"),
                 emoji = obj.optString("emoji", "📁"),
+                iconType = obj.optString("iconType", "emoji"),
                 color = obj.optString("color", "#90A4AE"),
                 type = obj.getString("type"),
                 parentId = if (obj.has("parentId") && !obj.isNull("parentId")) obj.getLong("parentId") else null,
@@ -697,6 +754,7 @@ class ExportRepository @Inject constructor(
                 id = obj.optLong("id", 0),
                 name = obj.getString("name"),
                 emoji = obj.optString("emoji", "🎯"),
+                iconType = obj.optString("iconType", "emoji"),
                 targetAmount = obj.getDouble("targetAmount"),
                 currentAmount = obj.optDouble("currentAmount", 0.0),
                 deadline = if (obj.has("deadline") && !obj.isNull("deadline")) obj.getLong("deadline") else null,
@@ -776,12 +834,15 @@ class ExportRepository @Inject constructor(
     private suspend fun importPeersFromCsv(csv: String): Int {
         var count = 0
         val lines = csv.lines().drop(1)
+        val existingNames = peerContactDao.getAllPeers().first().map { it.displayName }.toHashSet()
         for (line in lines) {
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
             if (parts.size >= 2) {
+                val displayName = parts[0]
+                if (existingNames.contains(displayName)) continue
                 val peer = com.moneymanager.data.entity.PeerContact(
-                    displayName = parts[0],
+                    displayName = displayName,
                     phoneNumber = parts.getOrNull(1) ?: "",
                     email = parts.getOrNull(2) ?: "",
                     description = parts.getOrNull(3) ?: "",
@@ -789,6 +850,7 @@ class ExportRepository @Inject constructor(
                     totalReceived = parts.getOrNull(5)?.toDoubleOrNull() ?: 0.0,
                 )
                 peerContactDao.insertPeer(peer)
+                existingNames.add(displayName)
                 count++
             }
         }
@@ -940,9 +1002,12 @@ class ExportRepository @Inject constructor(
                 val account = AccountEntity(
                     name = name,
                     type = parts[1],
-                    balance = parts[2].toDoubleOrNull() ?: 0.0,
-                    currency = parts.getOrNull(3) ?: "INR",
-                    color = parts.getOrNull(4) ?: "#2a6049",
+                    initialBalance = parts.getOrNull(2)?.toDoubleOrNull() ?: 0.0,
+                    balance = parts.getOrNull(3)?.toDoubleOrNull() ?: 0.0,
+                    currency = parts.getOrNull(4) ?: "INR",
+                    color = parts.getOrNull(5) ?: "#2a6049",
+                    emoji = parts.getOrNull(6) ?: "🏦",
+                    iconType = parts.getOrNull(7) ?: "emoji",
                 )
                 accountDao.insertAccount(account)
                 existingNames.add(name)
@@ -966,8 +1031,11 @@ class ExportRepository @Inject constructor(
                     name = name,
                     type = type,
                     emoji = parts.getOrNull(2) ?: "📁",
-                    parentId = parts.getOrNull(3)?.toLongOrNull(),
-                    isCustom = parts.getOrNull(4)?.toBooleanStrictOrNull() ?: false,
+                    iconType = parts.getOrNull(3) ?: "emoji",
+                    color = parts.getOrNull(4) ?: "#90A4AE",
+                    parentId = parts.getOrNull(5)?.toLongOrNull(),
+                    isCustom = parts.getOrNull(6)?.toBooleanStrictOrNull() ?: false,
+                    isArchived = parts.getOrNull(7)?.toBooleanStrictOrNull() ?: false,
                 )
                 categoryDao.insertCategory(category)
                 count++
@@ -979,15 +1047,19 @@ class ExportRepository @Inject constructor(
     private suspend fun importTagsFromCsv(csv: String): Int {
         var count = 0
         val lines = csv.lines().drop(1)
+        val existingNames = tagDao.getAllTags().first().map { it.name }.toHashSet()
         for (line in lines) {
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
-            if (parts.isNotEmpty()) {
+            if (parts.size >= 2) {
+                val name = parts[1]
+                if (existingNames.contains(name)) continue
                 val tag = TagEntity(
-                    name = parts[0],
-                    color = parts.getOrNull(1) ?: "#c8420a",
+                    name = name,
+                    color = parts.getOrNull(2) ?: "#c8420a",
                 )
                 tagDao.insertTag(tag)
+                existingNames.add(name)
                 count++
             }
         }
@@ -997,17 +1069,24 @@ class ExportRepository @Inject constructor(
     private suspend fun importBudgetsFromCsv(csv: String): Int {
         var count = 0
         val lines = csv.lines().drop(1)
+        val existingKeys = budgetDao.getAllBudgets().first()
+            .map { "${it.categoryId}_${it.month}" }.toHashSet()
         for (line in lines) {
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
             if (parts.size >= 3) {
+                val categoryId = parts[0].toLongOrNull() ?: continue
+                val month = parts[2]
+                val key = "${categoryId}_${month}"
+                if (existingKeys.contains(key)) continue
                 val budget = BudgetEntity(
-                    categoryId = parts[0].toLongOrNull() ?: continue,
+                    categoryId = categoryId,
                     amount = parts[1].toDoubleOrNull() ?: 0.0,
-                    month = parts[2],
+                    month = month,
                     isSavingsTarget = parts.getOrNull(3)?.toBooleanStrictOrNull() ?: false,
                 )
                 budgetDao.insertBudget(budget)
+                existingKeys.add(key)
                 count++
             }
         }
@@ -1017,21 +1096,26 @@ class ExportRepository @Inject constructor(
     private suspend fun importGoalsFromCsv(csv: String): Int {
         var count = 0
         val lines = csv.lines().drop(1)
+        val existingNames = goalDao.getAllGoals().first().map { it.name }.toHashSet()
         for (line in lines) {
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
             if (parts.size >= 4) {
+                val name = parts[0]
+                if (existingNames.contains(name)) continue
                 val goal = GoalEntity(
-                    name = parts[0],
+                    name = name,
                     emoji = parts.getOrNull(1) ?: "🎯",
-                    targetAmount = parts[2].toDoubleOrNull() ?: 0.0,
-                    currentAmount = parts[3].toDoubleOrNull() ?: 0.0,
-                    deadline = parts.getOrNull(4)?.let {
+                    iconType = parts.getOrNull(2) ?: "emoji",
+                    targetAmount = parts.getOrNull(3)?.toDoubleOrNull() ?: 0.0,
+                    currentAmount = parts.getOrNull(4)?.toDoubleOrNull() ?: 0.0,
+                    deadline = parts.getOrNull(5)?.let {
                         try { dateFormat.parse(it)?.time } catch (e: Exception) { null }
                     },
-                    isCompleted = parts.getOrNull(5)?.toBooleanStrictOrNull() ?: false,
+                    isCompleted = parts.getOrNull(6)?.toBooleanStrictOrNull() ?: false,
                 )
                 goalDao.insertGoal(goal)
+                existingNames.add(name)
                 count++
             }
         }

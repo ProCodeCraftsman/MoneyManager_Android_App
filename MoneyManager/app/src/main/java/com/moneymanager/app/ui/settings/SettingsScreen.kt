@@ -1,6 +1,9 @@
 package com.moneymanager.app.ui.settings
 
+import android.app.Activity
 import android.net.Uri
+import androidx.activity.result.IntentSenderRequest
+import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -30,9 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.components.ScrollToTopBox
+import com.moneymanager.app.ui.settings.backup.DriveBackupSection
 import com.moneymanager.app.ui.theme.AppTheme
 import com.moneymanager.data.repository.ExportType
-import com.moneymanager.data.sync.SyncStatus
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -52,7 +55,6 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showCurrencyDialog by remember { mutableStateOf(false) }
-    var showSignInDialog by remember { mutableStateOf(false) }
     var showCsvTypeDialog by remember { mutableStateOf(false) }
     var showThemeDropdown by remember { mutableStateOf(false) }
     var showAutoLockDialog by remember { mutableStateOf(false) }
@@ -63,8 +65,19 @@ fun SettingsScreen(
     var selectedCsvType by remember { mutableStateOf<ExportType?>(null) }
     val lazyListState = rememberLazyListState()
 
+    val context = LocalContext.current
+    val driveAuthLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        viewModel.handleDriveAuthorizationData(result.data)
+    }
+    LaunchedEffect(uiState.driveBackup.pendingAuthIntent) {
+        val pendingIntent = uiState.driveBackup.pendingAuthIntent ?: return@LaunchedEffect
+        driveAuthLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
+        viewModel.onDriveAuthorizationConsumed()
+    }
+
     val currencies = listOf("INR", "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "BRL")
-    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()) }
 
     val csvTypes = listOf(
         "Accounts" to ExportType.ACCOUNTS,
@@ -140,16 +153,9 @@ fun SettingsScreen(
             ) {
                 item {
                     ProfileHeader(
-                        isSignedIn = uiState.isSignedIn,
-                        userName = uiState.userName,
-                        userEmail = uiState.userEmail,
-                        userPhone = uiState.userPhone,
-                        syncStatus = uiState.syncStatus,
-                        lastSyncTime = uiState.lastSyncTime,
-                        dateFormat = dateFormat,
-                        onSignInClick = { showSignInDialog = true },
-                        onSignOutClick = { viewModel.signOut() },
-                        onSyncClick = { viewModel.triggerSync() }
+                        driveUiState = uiState.driveBackup,
+                        onSignInClick = { viewModel.signInWithDrive(context as Activity) },
+                        onSignOutClick = { viewModel.driveSignOut() },
                     )
                 }
 
@@ -422,6 +428,24 @@ fun SettingsScreen(
                 }
 
                 item {
+                    DriveBackupSection(
+                        uiState = uiState.driveBackup,
+                        onBackup = { passphrase -> viewModel.backupToDrive(passphrase) },
+                        onCheckRestore = { viewModel.checkForDriveBackup() },
+                        onRestore = { passphrase -> viewModel.restoreFromDrive(passphrase) },
+                        onClearFoundBackup = { viewModel.clearFoundDriveBackup() },
+                        onAutoBackupToggle = { enabled -> viewModel.setDriveAutoBackup(enabled) },
+                        onFrequencyChange = { weekly -> viewModel.setDriveBackupFrequency(weekly) },
+                        onClearDriveError = { viewModel.clearDriveError() },
+                        onClearDriveOp = { viewModel.clearDriveOp() },
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(7.dp))
+                }
+
+                item {
                     SettingsSectionHeader(title = "Data Management")
                 }
 
@@ -677,24 +701,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showSignInDialog) {
-        AlertDialog(
-            onDismissRequest = { showSignInDialog = false },
-            title = { Text("Sign in Required") },
-            text = { Text("Please sign in with Google to enable cloud backup and sync across devices.") },
-            confirmButton = {
-                TextButton(onClick = { showSignInDialog = false }) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSignInDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     if (showCsvTypeDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -856,16 +862,9 @@ fun SettingsScreen(
 
 @Composable
 private fun ProfileHeader(
-    isSignedIn: Boolean,
-    userName: String?,
-    userEmail: String?,
-    userPhone: String?,
-    syncStatus: SyncStatus,
-    lastSyncTime: Long?,
-    dateFormat: SimpleDateFormat,
+    driveUiState: DriveBackupUiState,
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
-    onSyncClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -885,7 +884,7 @@ private fun ProfileHeader(
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            if (isSignedIn) {
+            if (driveUiState.isSignedIn) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         modifier = Modifier.size(56.dp),
@@ -894,7 +893,9 @@ private fun ProfileHeader(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = (userName?.firstOrNull()?.uppercase() ?: "?"),
+                                text = (driveUiState.displayName?.firstOrNull()
+                                    ?: driveUiState.email?.firstOrNull()
+                                    ?: 'G').uppercaseChar().toString(),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimary
@@ -904,23 +905,16 @@ private fun ProfileHeader(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = userName ?: "User",
+                            text = driveUiState.displayName ?: "Google Account",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
-                        if (userEmail != null) {
+                        if (driveUiState.email != null) {
                             Text(
-                                text = userEmail,
+                                text = driveUiState.email,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                            )
-                        }
-                        if (userPhone != null) {
-                            Text(
-                                text = userPhone,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -944,62 +938,22 @@ private fun ProfileHeader(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = when (syncStatus) {
-                            is SyncStatus.Offline -> Icons.Default.CloudOff
-                            is SyncStatus.Syncing -> Icons.Default.CloudSync
-                            is SyncStatus.Success, is SyncStatus.Idle -> Icons.Default.CloudDone
-                            is SyncStatus.Error -> Icons.Default.CloudOff
-                        },
+                        Icons.Default.CloudDone,
                         contentDescription = null,
-                        tint = when (syncStatus) {
-                            is SyncStatus.Error -> MaterialTheme.colorScheme.error
-                            else -> MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                        },
+                        tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = when (syncStatus) {
-                                is SyncStatus.Idle -> if (isSignedIn) "Ready to sync" else "Not signed in"
-                                is SyncStatus.Syncing -> "Syncing..."
-                                is SyncStatus.Success -> "Synced"
-                                is SyncStatus.Error -> "Sync failed"
-                                is SyncStatus.Offline -> "Offline"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                        )
-                        if (lastSyncTime != null && syncStatus !is SyncStatus.Error) {
-                            Text(
-                                text = "Last sync: ${dateFormat.format(Date(lastSyncTime))}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                    if (syncStatus is SyncStatus.Syncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        FilledTonalIconButton(
-                            onClick = onSyncClick,
-                            modifier = Modifier.size(32.dp),
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f),
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) {
-                            Icon(
-                                Icons.Default.Sync,
-                                contentDescription = "Sync now",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        text = if (driveUiState.lastBackupTime != null)
+                            "Last backup: ${
+                                java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault())
+                                    .format(java.util.Date(driveUiState.lastBackupTime))
+                            }"
+                        else "Drive backup ready — no backup yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                    )
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1009,12 +963,20 @@ private fun ProfileHeader(
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(28.dp)
-                            )
+                            if (driveUiState.isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(28.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.width(16.dp))
@@ -1026,19 +988,27 @@ private fun ProfileHeader(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Text(
-                            text = "Sign in to sync your data",
+                            text = if (driveUiState.isLoading) "Signing in..." else "Sign in to enable Drive backup",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                         )
                     }
-                    OutlinedButton(
-                        onClick = onSignInClick,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.4f))
-                    ) {
-                        Text("Sign In", fontSize = 12.sp)
+                    if (driveUiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        OutlinedButton(
+                            onClick = onSignInClick,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.4f))
+                        ) {
+                            Text("Sign In", fontSize = 12.sp)
+                        }
                     }
                 }
             }

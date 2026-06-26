@@ -28,6 +28,13 @@ class RecurringGenerationWorker @AssistedInject constructor(
             val dueRecurring = recurringDao.getDueRecurring(currentTime)
 
             for (recurring in dueRecurring) {
+                // Check if recurring has ended
+                if (recurring.endDate != null && recurring.nextDate > recurring.endDate) {
+                    val finishedRecurring = recurring.copy(isActive = false)
+                    recurringDao.updateRecurring(finishedRecurring)
+                    continue
+                }
+
                 createTransactionFromRecurring(recurring)
                 updateNextDate(recurring)
             }
@@ -44,6 +51,8 @@ class RecurringGenerationWorker @AssistedInject constructor(
             type = recurring.type,
             amount = recurring.amount,
             categoryId = recurring.categoryId,
+            subCategoryId = recurring.subCategoryId,
+            goalId = recurring.goalId,
             date = recurring.nextDate,
             note = recurring.note,
             isRecurring = true,
@@ -66,7 +75,14 @@ class RecurringGenerationWorker @AssistedInject constructor(
 
     private suspend fun updateNextDate(recurring: RecurringEntity) {
         val newNextDate = calculateNextDate(recurring.nextDate, recurring.frequency)
-        val updatedRecurring = recurring.copy(nextDate = newNextDate)
+        
+        // If the new next date is beyond end date, mark as inactive
+        val shouldBeActive = recurring.endDate == null || newNextDate <= recurring.endDate
+        
+        val updatedRecurring = recurring.copy(
+            nextDate = newNextDate,
+            isActive = shouldBeActive
+        )
         recurringDao.updateRecurring(updatedRecurring)
     }
 

@@ -1,5 +1,6 @@
 package com.moneymanager.app.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -118,11 +119,20 @@ fun SplitRowCard(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.width(100.dp), singleLine = true
                 )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable {
+                        if (remainingAmount > 0) {
+                            val currentAmt = row.amount.toDoubleOrNull() ?: 0.0
+                            val newAmt = currentAmt + remainingAmount
+                            onUpdate(row.copy(amount = "%.2f".format(Locale.US, newAmt)))
+                        }
+                    }
+                ) {
                     Text(
-                        "Left",
+                        "Fill",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (remainingAmount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         "$currencySymbol${"%.2f".format(Locale.US, remainingAmount)}",

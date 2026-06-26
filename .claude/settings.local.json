@@ -77,7 +77,20 @@
       "Bash(find \"D:\\\\\\\\Android projec\\\\\\\\MoneyManager\\\\\\\\app\\\\\\\\src\\\\\\\\main\\\\\\\\java\\\\\\\\com\\\\\\\\moneymanager\\\\\\\\app\\\\\\\\ui\\\\\\\\transactions\" -type f -name \"*.kt\")",
       "Bash(find \"D:\\\\\\\\Android projec\\\\\\\\MoneyManager\\\\\\\\app\\\\\\\\src\\\\\\\\main\\\\\\\\java\\\\\\\\com\\\\\\\\moneymanager\\\\\\\\app\\\\\\\\ui\\\\\\\\components\" -type f -name \"*[Ff]ilter*\" -o -name \"*[Dd]ate*\")",
       "Bash(find \"D:\\\\\\\\Android projec\\\\\\\\MoneyManager\\\\\\\\app\\\\\\\\src\\\\\\\\main\\\\\\\\java\\\\\\\\com\\\\\\\\moneymanager\\\\\\\\app\\\\\\\\ui\" -type f -name \"*.kt\")",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(npx gitnexus *)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Android projec\\\\MoneyManager\\\\app\\\\src\\\\main\\\\res\\\\mipmap-mdpi\" -Force | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Android projec\\\\MoneyManager\\\\app\\\\src\\\\main\\\\res\\\\mipmap-hdpi\" -Force | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Android projec\\\\MoneyManager\\\\app\\\\src\\\\main\\\\res\\\\mipmap-xhdpi\" -Force | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Android projec\\\\MoneyManager\\\\app\\\\src\\\\main\\\\res\\\\mipmap-xxhdpi\" -Force | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Android projec\\\\MoneyManager\\\\app\\\\src\\\\main\\\\res\\\\mipmap-xxxhdpi\" -Force | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Android projec\\\\MoneyManager\\\\app\\\\src\\\\main\\\\res\\\\mipmap-anydpi-v26\" -Force | ForEach-Object { $_.FullName })",
+      "Bash(.\\\\gradlew.bat assembleDebug)",
+      "Bash(Select-Object -Last 50)",
+      "Bash(grep -i \"\\\\.kt$\")",
+      "Bash(Select-Object FullName)",
+      "Bash(grep -E \"\\\\.\\(kt|java\\)$\")",
+      "Bash(Select-Object -First 100)"
     ]
   }
 }

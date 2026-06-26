@@ -36,6 +36,7 @@ data class RecurringEntity(
     val frequency: String, // daily, weekly, biweekly, monthly, yearly
     val startDate: Long = System.currentTimeMillis(),
     val nextDate: Long,
+    val endDate: Long? = null,
     val isActive: Boolean = true,
     val reminderEnabled: Boolean = false,
     val reminderDays: Int = 0,

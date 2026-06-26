@@ -1,0 +1,2 @@
+"id","account_id","category_id","sub_category_id","goal_id","peer_contact_id","tag_ids","date","amount","type","note","description","receipt_path","recurring_id","split_data","investment_platform","expected_return_date","created_at","is_recurring","is_split_parent","is_split_child","parent_transaction_id","is_transfer","to_account_id"
+"","Cash","Food & Dining","Provision","","","","2025-04-16 06:02:00","175.0","expense","","","","","","","","2025-04-16 06:02:00","false","false","false","","false",""

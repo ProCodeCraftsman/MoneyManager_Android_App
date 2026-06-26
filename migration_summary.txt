@@ -1,0 +1,62 @@
+================================================================================
+MIGRATION SUMMARY
+================================================================================
+Total entries processed: 1123
+  Expenses: 1054 (total: Rs.1407959.52)
+  Income: 15 (total: Rs.1452192.00)
+  Transfers: 15 (total: Rs.188638.00)
+  Savings/Investments: 38 (total: Rs.307014.00)
+  Lend: 1 (total: Rs.20000.00)
+
+================================================================================
+MISCLASSIFIED SAVINGS/INVESTMENT ENTRIES
+(Originally recorded as '(-) Expense' -- corrected to type='savings')
+================================================================================
+  [May 02, 2025 7:07 AM] Rs.  12200.00 | investment                | 
+  [Jun 02, 2025 1:23 PM] Rs.  12200.00 | investment                | Mutual fund SIP
+  [Jul 01, 2025 12:05 PM] Rs.  12200.00 | investment                | investments
+  [Aug 04, 2025 12:31 PM] Rs.  12000.00 | investment                | SIP
+  [Sep 01, 2025 9:59 PM] Rs.  12200.00 | investment                | SIPs
+  [Nov 18, 2025 9:31 AM] Rs.   7000.00 | investment                | 
+  [Jan 01, 2026 12:38 PM] Rs.  13200.00 | investment                | SIP
+  [Jan 01, 2026 2:59 PM] Rs.   3350.00 | investment                | Kiyan fund
+  [Jan 05, 2026 2:00 PM] Rs.   4167.00 | investment                | NPS
+  [Jan 05, 2026 2:23 PM] Rs.   5000.00 | investment                | investment in stocks
+  [Feb 01, 2026 12:54 PM] Rs.   5000.00 | investment                | Stocks
+  [Feb 01, 2026 3:24 PM] Rs.  13200.00 | investment                | SIPs
+  [Feb 01, 2026 3:30 PM] Rs.   3350.00 | investment                | Kiyu investments
+  [Feb 03, 2026 2:08 PM] Rs.   5000.00 | investment                | NPS pension fund investment
+  [Feb 12, 2026 9:47 AM] Rs.   5000.00 | investment                | shares of happiest mind
+  [Mar 01, 2026 10:45 AM] Rs.  14000.00 | investment                | groww 5.6k indmoney 8.4k
+  [Mar 01, 2026 10:59 AM] Rs.   5000.00 | investment                | SBI FD 1 year 6.25% returns
+  [Mar 01, 2026 5:22 PM] Rs.   4000.00 | investment                | indmoney and grow ETF bought
+  [Mar 01, 2026 6:58 PM] Rs.   5000.00 | investment                | NPS
+  [Mar 01, 2026 7:13 PM] Rs.   3350.00 | investment                | Kiyu investment funds ind money invesco india mid cap fund
+  [Mar 12, 2026 9:33 AM] Rs.   5218.00 | investment                | IiRCTC stock
+  [Apr 03, 2026 12:00 PM] Rs.   7400.00 | investment                | indmoney SIP
+  [Apr 07, 2026 9:22 AM] Rs.   6600.00 | investment                | SIP Grow
+  [Apr 08, 2026 9:10 PM] Rs.   5000.00 | investment                | NPS
+  [Apr 08, 2026 9:15 PM] Rs.   5000.00 | investment                | 5000 in SBI FD
+  [Apr 08, 2026 9:21 PM] Rs.   5000.00 | investment                | FD HDFC savings
+  [Apr 08, 2026 9:26 PM] Rs.   3350.00 | investment                | kiyu fund ettan EMI
+  [Apr 10, 2026 10:52 PM] Rs.  10056.00 | investment                | wint wealth
+  [May 01, 2026 2:57 PM] Rs.   7400.00 | investment                | Ind money Monthly SIP
+  [May 01, 2026 2:58 PM] Rs.   6600.00 | investment                | Grow  monthly SIP
+  [May 01, 2026 3:44 PM] Rs.  10002.00 | investment                | wint wealth bond
+  [May 01, 2026 3:52 PM] Rs.   9971.00 | investment                | wint wealth Bond
+  [May 01, 2026 3:54 PM] Rs.  35000.00 | investment                | FD in HDFC @6.45%
+  [May 01, 2026 4:05 PM] Rs.   5000.00 | investment                | NPS
+  [May 01, 2026 4:11 PM] Rs.  10000.00 | investment                | FD SBI
+  [Jun 01, 2026 1:41 PM] Rs.   5000.00 | investment                | NPS
+  [Jun 01, 2026 1:48 PM] Rs.   7400.00 | investment                | Ind Money SIP
+  [Jun 01, 2026 1:49 PM] Rs.   6600.00 | investment                | Grow SIP
+
+================================================================================
+MISCLASSIFIED LEND ENTRIES
+(Originally recorded as '(-) Expense' -- corrected to type='lend')
+================================================================================
+  [May 01, 2026 4:03 PM] Rs.  20000.00 | Lend                      | to Jiasha
+
+Output written to: D:\Android projec\importable_v2.csv
+Total amount mis-categorized as expense but actually savings: Rs.307014.00
+Total amount mis-categorized as expense but actually lend: Rs.20000.00

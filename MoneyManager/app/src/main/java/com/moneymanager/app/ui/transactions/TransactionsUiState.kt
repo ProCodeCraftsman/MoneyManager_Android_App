@@ -26,6 +26,9 @@ data class TransactionsUiState(
     val allGoals: List<GoalEntity> = emptyList(),
     val allPeers: List<PeerContact> = emptyList(),
     val currency: String = "INR",
+    val totalIncome: Double = 0.0,
+    val totalExpense: Double = 0.0,
+    val totalCount: Int = 0,
     val categoryUsageCounts: Map<Long, Int> = emptyMap(),
     val imageAttachmentsEnabled: Boolean = true,
 )

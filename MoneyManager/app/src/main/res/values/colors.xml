@@ -24,7 +24,7 @@
     
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>
-    <color name="ic_launcher_background">#0F172A</color>
+    <color name="ic_launcher_background">#FFFFFF</color>
     <color name="logo_gold">#D4AF37</color>
     <color name="logo_navy">#0F172A</color>
 </resources>

@@ -1,0 +1,7 @@
+name,type,initial_balance,balance,currency,color,emoji,icon_type
+"Cash",cash,0.0,-1687.0,INR,#2a6049,account_balance,emoji
+"Flipkart Axis ",credit,0.0,0.0,INR,#2a6049,account_balance,emoji
+"ICICI Saphiro",credit,0.0,0.0,INR,#2a6049,account_balance,emoji
+"Savings",savings,0.0,0.0,INR,#2a6049,account_balance,emoji
+"Scapia FB",credit,0.0,-12.0,INR,#2a6049,account_balance,emoji
+"Super Money Rupay",credit,0.0,0.0,INR,#2a6049,account_balance,emoji
