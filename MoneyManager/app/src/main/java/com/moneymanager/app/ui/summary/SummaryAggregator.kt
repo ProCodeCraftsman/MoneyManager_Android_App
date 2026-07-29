@@ -6,6 +6,10 @@ import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.BudgetEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.TransactionEntity
+import java.util.Calendar
+import java.util.Locale
+import java.text.SimpleDateFormat
+import kotlin.math.abs
 
 object SummaryAggregator {
 
@@ -540,5 +544,164 @@ object SummaryAggregator {
                 )
             )
         }
+    }
+
+    fun calculateTrend(
+        allTxs: List<TransactionEntity>,
+        type: TrendType,
+        timeFilter: TrendTimeFilter
+    ): Pair<List<TrendDataPoint>, TrendStats> {
+        val txType = when (type) {
+            TrendType.INCOME -> "income"
+            TrendType.EXPENSE -> "expense"
+            TrendType.LENDING -> "lend" // Simplified: only lending activity
+            TrendType.SAVINGS -> "savings"
+        }
+
+        val now = Calendar.getInstance()
+        val limit = if (timeFilter == TrendTimeFilter.YEAR_1) {
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.MONTH, Calendar.JANUARY)
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            cal.timeInMillis
+        } else 0L
+
+        val filteredTxs = allTxs.filter {
+            (if (type == TrendType.LENDING) it.type == "lend" || it.type == "borrow" else it.type == txType) &&
+            it.date >= limit
+        }
+
+        val monthFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+        val shortMonthFormat = SimpleDateFormat("MMM", Locale.getDefault())
+
+        val groupedByMonth = filteredTxs.groupBy {
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = it.date
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            cal.timeInMillis
+        }
+
+        val monthsToInclude = mutableListOf<Long>()
+        if (timeFilter == TrendTimeFilter.YEAR_1) {
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = limit
+            for (i in 0..11) {
+                monthsToInclude.add(cal.timeInMillis)
+                cal.add(Calendar.MONTH, 1)
+            }
+        } else {
+            if (groupedByMonth.isNotEmpty()) {
+                val minMonth = groupedByMonth.keys.minOrNull() ?: 0L
+                val cal = Calendar.getInstance()
+                cal.timeInMillis = minMonth
+                while (cal.timeInMillis <= now.timeInMillis) {
+                    monthsToInclude.add(cal.timeInMillis)
+                    cal.add(Calendar.MONTH, 1)
+                }
+            } else {
+                // If no data, show last 12 months anyway but empty
+                return calculateTrend(allTxs, type, TrendTimeFilter.YEAR_1)
+            }
+        }
+
+        val dataPoints = monthsToInclude.map { timestamp ->
+            val monthTxs = groupedByMonth[timestamp] ?: emptyList()
+            val amount = if (type == TrendType.LENDING) {
+                // For lending trend, we show Net Lend (Lend - Borrow)
+                monthTxs.filter { it.type == "lend" }.sumOf { it.amount } -
+                monthTxs.filter { it.type == "borrow" }.sumOf { it.amount }
+            } else {
+                monthTxs.sumOf { it.amount }
+            }
+
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = timestamp
+            val label = if (timeFilter == TrendTimeFilter.YEAR_1) shortMonthFormat.format(cal.time) else monthFormat.format(cal.time)
+
+            TrendDataPoint(label, timestamp, amount)
+        }
+
+        // Stats calculation
+        if (dataPoints.isEmpty()) return Pair(emptyList(), TrendStats())
+
+        val currentMonthStart = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        val currentPoint = dataPoints.find { it.timestamp == currentMonthStart }
+        val currentAmount = currentPoint?.amount ?: 0.0
+        val currentLabel = currentPoint?.date ?: ""
+
+        val nonZeroPoints = dataPoints.filter { it.amount != 0.0 }
+        val highestPoint = dataPoints.maxByOrNull { it.amount }
+        val lowestPoint = if (nonZeroPoints.isNotEmpty()) nonZeroPoints.minByOrNull { it.amount } else dataPoints.minByOrNull { it.amount }
+
+        val total = dataPoints.sumOf { it.amount }
+        val average = if (dataPoints.isNotEmpty()) total / dataPoints.size else 0.0
+
+        val sortedAmounts = dataPoints.map { it.amount }.sorted()
+        val median = if (sortedAmounts.isNotEmpty()) {
+            if (sortedAmounts.size % 2 == 0) {
+                (sortedAmounts[sortedAmounts.size / 2 - 1] + sortedAmounts[sortedAmounts.size / 2]) / 2.0
+            } else {
+                sortedAmounts[sortedAmounts.size / 2]
+            }
+        } else 0.0
+
+        // Growth vs last year
+        val prev12MonthsStart = Calendar.getInstance().apply {
+            timeInMillis = if (limit > 0) limit else {
+                val minTs = monthsToInclude.minOrNull() ?: 0L
+                if (minTs > 0) minTs else now.timeInMillis
+            }
+            add(Calendar.YEAR, -1)
+        }.timeInMillis
+        
+        val limitForPrev = if (limit > 0) limit else {
+             monthsToInclude.minOrNull() ?: 0L
+        }
+
+        val prev12MonthsTxs = allTxs.filter {
+            (if (type == TrendType.LENDING) it.type == "lend" || it.type == "borrow" else it.type == txType) &&
+            it.date >= prev12MonthsStart && it.date < limitForPrev
+        }
+        val prev12MonthsTotal = if (type == TrendType.LENDING) {
+            prev12MonthsTxs.filter { it.type == "lend" }.sumOf { it.amount } -
+            prev12MonthsTxs.filter { it.type == "borrow" }.sumOf { it.amount }
+        } else {
+            prev12MonthsTxs.sumOf { it.amount }
+        }
+
+        val growthPercent = if (prev12MonthsTotal != 0.0) {
+            ((total - prev12MonthsTotal) / abs(prev12MonthsTotal)) * 100.0
+        } else if (total != 0.0) 100.0 else 0.0
+
+        val stats = TrendStats(
+            current = currentAmount,
+            currentLabel = currentLabel,
+            highest = highestPoint?.amount ?: 0.0,
+            highestMonth = highestPoint?.let { monthFormat.format(java.util.Date(it.timestamp)) } ?: "",
+            average = average,
+            growthPercent = growthPercent,
+            lowest = lowestPoint?.amount ?: 0.0,
+            lowestMonth = lowestPoint?.let { monthFormat.format(java.util.Date(it.timestamp)) } ?: "",
+            total = total,
+            median = median,
+            lastYearTotal = prev12MonthsTotal
+        )
+
+        return Pair(dataPoints, stats)
     }
 }

@@ -3,7 +3,34 @@ package com.moneymanager.app.ui.summary
 import com.moneymanager.app.ui.components.PieChartEntry
 import com.moneymanager.app.ui.constants.TimeFilter
 
-enum class SummaryTab { EXPENSE, INCOME, LENDING, TRANSFERS, SAVINGS }
+enum class SummaryTab { EXPENSE, INCOME, LENDING, TRANSFERS, SAVINGS, TRENDS }
+
+enum class TrendType { INCOME, EXPENSE, LENDING, SAVINGS }
+
+enum class TrendTimeFilter(val label: String) {
+    YEAR_1("1 Year"),
+    ALL_TIME("All Time")
+}
+
+data class TrendDataPoint(
+    val date: String, // e.g., "Jan", "Feb" or "Jan 2024"
+    val timestamp: Long,
+    val amount: Double
+)
+
+data class TrendStats(
+    val current: Double = 0.0,
+    val currentLabel: String = "",
+    val highest: Double = 0.0,
+    val highestMonth: String = "",
+    val average: Double = 0.0,
+    val growthPercent: Double = 0.0,
+    val lowest: Double = 0.0,
+    val lowestMonth: String = "",
+    val total: Double = 0.0,
+    val median: Double = 0.0,
+    val lastYearTotal: Double = 0.0
+)
 
 data class CategorySpend(
     val categoryId: Long?,
@@ -136,6 +163,12 @@ data class SummaryUiState(
     val savingsByCategory: List<PieChartEntry> = emptyList(),
     val savingsByAccount: List<PieChartEntry> = emptyList(),
     val savingsByCategorySpend: List<CategorySpend> = emptyList(),
+
+    // Trends data
+    val selectedTrendType: TrendType = TrendType.INCOME,
+    val trendTimeFilter: TrendTimeFilter = TrendTimeFilter.YEAR_1,
+    val trendDataPoints: List<TrendDataPoint> = emptyList(),
+    val trendStats: TrendStats = TrendStats(),
 
     val currency: String = "INR"
 )

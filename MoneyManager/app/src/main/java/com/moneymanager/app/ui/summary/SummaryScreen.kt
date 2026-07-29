@@ -210,6 +210,17 @@ fun SummaryScreen(
                                         currency = uiState.currency
                                     )
                                 }
+                                SummaryTab.TRENDS -> {
+                                    TrendsView(
+                                        selectedType = uiState.selectedTrendType,
+                                        timeFilter = uiState.trendTimeFilter,
+                                        dataPoints = uiState.trendDataPoints,
+                                        stats = uiState.trendStats,
+                                        currency = uiState.currency,
+                                        onTypeChange = viewModel::setTrendType,
+                                        onTimeFilterChange = viewModel::setTrendTimeFilter
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                         }
@@ -270,7 +281,8 @@ fun SummaryTabRow(
         TabItem("Income", Icons.Default.AccountBalanceWallet, SummaryTab.INCOME),
         TabItem("Lending", Icons.Default.People, SummaryTab.LENDING),
         TabItem("Transfers", Icons.Default.SwapHoriz, SummaryTab.TRANSFERS),
-        TabItem("Savings", Icons.Default.Savings, SummaryTab.SAVINGS)
+        TabItem("Savings", Icons.Default.Savings, SummaryTab.SAVINGS),
+        TabItem("Trends", Icons.Default.TrendingUp, SummaryTab.TRENDS)
     )
 
     val colorScheme = MaterialTheme.colorScheme
@@ -281,6 +293,7 @@ fun SummaryTabRow(
         SummaryTab.LENDING -> colorScheme.secondary
         SummaryTab.TRANSFERS -> colorScheme.secondary
         SummaryTab.SAVINGS -> colorScheme.tertiary
+        SummaryTab.TRENDS -> colorScheme.primary
     }
 
     TabRow(
@@ -304,6 +317,7 @@ fun SummaryTabRow(
                 SummaryTab.LENDING -> colorScheme.secondary
                 SummaryTab.TRANSFERS -> colorScheme.secondary
                 SummaryTab.SAVINGS -> colorScheme.tertiary
+                SummaryTab.TRENDS -> colorScheme.primary
             }
             Tab(
                 selected = isSelected,
