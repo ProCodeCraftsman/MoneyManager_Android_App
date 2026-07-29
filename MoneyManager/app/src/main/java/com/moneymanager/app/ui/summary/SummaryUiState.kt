@@ -132,6 +132,9 @@ data class SummaryUiState(
     val savingsGrowthPeriod: String = "",
     val savingsGoals: List<SavingsGoalRow> = emptyList(),
     val savingsAccounts: List<SavingsAccountRow> = emptyList(),
+    val savingsByCategory: List<PieChartEntry> = emptyList(),
+    val savingsByAccount: List<PieChartEntry> = emptyList(),
+    val savingsByCategorySpend: List<CategorySpend> = emptyList(),
 
     val currency: String = "INR"
 )
