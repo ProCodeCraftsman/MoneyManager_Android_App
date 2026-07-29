@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -53,12 +54,23 @@ fun RecurringFormScreen(
     
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     val isEditing = recurringId != null
+
+    var isDataLoaded by rememberSaveable(recurringId) { mutableStateOf(false) }
     
-    LaunchedEffect(recurringId) {
-        if (recurringId != null) {
+    // Filter accounts based on type
+    val filteredAccounts = remember(selectedType, uiState.accounts) {
+        when (selectedType) {
+            "expense" -> uiState.accounts.filter { it.type != "savings" }
+            "savings" -> uiState.accounts.filter { it.type == "savings" }
+            else -> uiState.accounts
+        }
+    }
+
+    LaunchedEffect(recurringId, uiState.accounts, uiState.categories) {
+        if (recurringId != null && !isDataLoaded && uiState.accounts.isNotEmpty() && uiState.categories.isNotEmpty()) {
             viewModel.getRecurringById(recurringId)?.let { recurring ->
                 existingRecurring = recurring
-                amount = recurring.amount.toString()
+                amount = if (recurring.amount % 1.0 == 0.0) recurring.amount.toLong().toString() else recurring.amount.toString()
                 selectedType = recurring.type
                 selectedAccount = uiState.accounts.find { it.id == recurring.accountId }
                 selectedCategory = uiState.categories.find { it.id == recurring.categoryId }
@@ -68,6 +80,7 @@ fun RecurringFormScreen(
                 startDate = recurring.nextDate
                 endDate = recurring.endDate
                 reminderEnabled = recurring.reminderEnabled
+                isDataLoaded = true
             }
         }
     }
@@ -146,7 +159,7 @@ fun RecurringFormScreen(
                     expanded = accountExpanded,
                     onDismissRequest = { accountExpanded = false }
                 ) {
-                    uiState.accounts.forEach { account ->
+                    filteredAccounts.forEach { account ->
                         DropdownMenuItem(
                             text = { Text(account.name) },
                             onClick = {
