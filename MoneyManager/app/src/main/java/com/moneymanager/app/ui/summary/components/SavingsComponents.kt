@@ -18,6 +18,8 @@ import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.summary.SavingsAccountRow
 import com.moneymanager.app.ui.summary.SavingsGoalRow
 import com.moneymanager.app.ui.util.CurrencyUtils
+import com.moneymanager.app.ui.util.accountTypeIcon
+import com.moneymanager.app.ui.util.parseColor
 
 @Composable
 fun SavingsOverviewCard(
@@ -310,11 +312,16 @@ private fun AccountItem(account: SavingsAccountRow, currencyFormat: java.text.Nu
     Row(verticalAlignment = Alignment.CenterVertically) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+            color = parseColor(account.color).copy(alpha = 0.1f),
             modifier = Modifier.size(40.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                CategoryIcon(emoji = account.emoji, iconType = account.iconType, colorIndex = account.colorIndex, fontSize = 20.sp)
+                Icon(
+                    imageVector = accountTypeIcon(account.type),
+                    contentDescription = null,
+                    tint = parseColor(account.color),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
         

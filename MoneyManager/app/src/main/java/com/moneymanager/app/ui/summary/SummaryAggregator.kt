@@ -32,15 +32,26 @@ object SummaryAggregator {
         val total = expenseTxs.sumOf { it.amount }
         if (total <= 0.0) return emptyList()
 
+        val categoryMap = categories.associateBy { it.id }
+
         val grouped = expenseTxs
-            .groupBy { it.categoryId }
-            .map { (categoryId, group) ->
-                val category = categories.find { it.id == categoryId }
+            .groupBy { tx ->
+                // Map to root category ID for main-category level summary
+                var currentId = tx.categoryId
+                while (currentId != null) {
+                    val cat = categoryMap[currentId] ?: break
+                    if (cat.parentId == null) break
+                    currentId = cat.parentId
+                }
+                currentId
+            }
+            .map { (rootCategoryId, group) ->
+                val category = categoryMap[rootCategoryId]
                 val amount = group.sumOf { it.amount }
                 PieChartEntry(
                     label = category?.name ?: "Uncategorized",
                     value = amount,
-                    color = parseColor(category?.color, categoryId ?: 0L),
+                    color = parseColor(category?.color, rootCategoryId ?: 0L),
                     percentage = amount / total * 100.0
                 )
             }
@@ -197,15 +208,26 @@ object SummaryAggregator {
         val total = incomeTxs.sumOf { it.amount }
         if (total <= 0.0) return emptyList()
 
+        val categoryMap = categories.associateBy { it.id }
+
         val grouped = incomeTxs
-            .groupBy { it.categoryId }
-            .map { (categoryId, group) ->
-                val category = categories.find { it.id == categoryId }
+            .groupBy { tx ->
+                // Map to root category ID for main-category level summary
+                var currentId = tx.categoryId
+                while (currentId != null) {
+                    val cat = categoryMap[currentId] ?: break
+                    if (cat.parentId == null) break
+                    currentId = cat.parentId
+                }
+                currentId
+            }
+            .map { (rootCategoryId, group) ->
+                val category = categoryMap[rootCategoryId]
                 val amount = group.sumOf { it.amount }
                 PieChartEntry(
                     label = category?.name ?: "Uncategorized",
                     value = amount,
-                    color = parseColor(category?.color, categoryId ?: 0L),
+                    color = parseColor(category?.color, rootCategoryId ?: 0L),
                     percentage = amount / total * 100.0
                 )
             }
@@ -329,6 +351,7 @@ object SummaryAggregator {
                 accountName = account.name,
                 accountNumber = "**** " + account.id.toString().takeLast(4).padStart(4, '0'),
                 accountType = account.type.replaceFirstChar { it.uppercase() } + " Account",
+                rawType = account.type,
                 balance = account.balance,
                 transferCount = count,
                 inAmount = inAmount,
@@ -351,6 +374,7 @@ object SummaryAggregator {
                     name = account.name,
                     accountNumber = "XXXX " + account.id.toString().takeLast(4).padStart(4, '0'),
                     balance = account.balance,
+                    type = account.type,
                     emoji = account.emoji,
                     iconType = account.iconType,
                     color = account.color,
