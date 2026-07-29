@@ -44,6 +44,8 @@ class SummaryViewModel @Inject constructor(
     private val customStartDate = MutableStateFlow<Long?>(null)
     private val customEndDate = MutableStateFlow<Long?>(null)
     private val activeTab = MutableStateFlow(SummaryTab.EXPENSE)
+    private val selectedTrendType = MutableStateFlow(TrendType.INCOME)
+    private val trendTimeFilter = MutableStateFlow(TrendTimeFilter.YEAR_1)
 
     // --- Filter params bundle ---
     data class FilterParams(
@@ -206,6 +208,8 @@ class SummaryViewModel @Inject constructor(
         allPeers,
         preferencesManager.currency,
         activeTab,
+        selectedTrendType,
+        trendTimeFilter,
         filterState
     ) { values ->
         @Suppress("UNCHECKED_CAST")
@@ -226,7 +230,9 @@ class SummaryViewModel @Inject constructor(
         val allPeers = values[7] as List<PeerContact>
         val currency = values[8] as String
         val tab = values[9] as SummaryTab
-        val params = values[10] as FilterParams
+        val trendType = values[10] as TrendType
+        val trendFilter = values[11] as TrendTimeFilter
+        val params = values[12] as FilterParams
 
         // Determine active period budget month string (for MONTH filter)
         val budgetMonthStr = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(params.baseDate.time)
@@ -373,6 +379,9 @@ class SummaryViewModel @Inject constructor(
             }
         }
 
+        // Trend calculations
+        val (trendDataPoints, trendStats) = SummaryAggregator.calculateTrend(allTxs, trendType, trendFilter)
+
         val isEmpty = txs.isEmpty() && allGoals.isEmpty() && savingsAccounts.isEmpty()
 
         SummaryUiState(
@@ -419,6 +428,10 @@ class SummaryViewModel @Inject constructor(
             savingsByCategory = savingsByCategory,
             savingsByAccount = savingsByAccount,
             savingsByCategorySpend = savingsByCategorySpend,
+            selectedTrendType = trendType,
+            trendTimeFilter = trendFilter,
+            trendDataPoints = trendDataPoints,
+            trendStats = trendStats,
             currency = currency
         )
     }.stateIn(
@@ -462,5 +475,13 @@ class SummaryViewModel @Inject constructor(
             else -> {}
         }
         currentPeriodDate.value = newDate
+    }
+
+    fun setTrendType(type: TrendType) {
+        selectedTrendType.value = type
+    }
+
+    fun setTrendTimeFilter(filter: TrendTimeFilter) {
+        trendTimeFilter.value = filter
     }
 }
