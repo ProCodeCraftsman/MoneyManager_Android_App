@@ -198,13 +198,6 @@ fun SummaryScreen(
                                     )
                                 }
                                 SummaryTab.SAVINGS -> {
-                                    SavingsOverviewCard(
-                                        totalSavings = uiState.totalSavings,
-                                        growthPercent = uiState.savingsGrowthPercent,
-                                        growthPeriod = uiState.savingsGrowthPeriod,
-                                        currency = uiState.currency
-                                    )
-
                                     TopSavingsCategoriesCard(
                                         rows = uiState.savingsByCategorySpend,
                                         currency = uiState.currency
@@ -213,25 +206,9 @@ fun SummaryScreen(
                                     SavingsBreakdownCard(
                                         categoryEntries = uiState.savingsByCategory,
                                         accountEntries = uiState.savingsByAccount,
-                                        totalSavings = uiState.totalSavings,
+                                        totalSavings = uiState.totalSavingsPeriod,
                                         currency = uiState.currency
                                     )
-
-                                    if (uiState.savingsGoals.isNotEmpty()) {
-                                        SavingsGoalsList(
-                                            goals = uiState.savingsGoals,
-                                            currency = uiState.currency,
-                                            onViewAllClick = onNavigateToGoals
-                                        )
-                                    }
-
-                                    if (uiState.savingsAccounts.isNotEmpty()) {
-                                        SavingsAccountsList(
-                                            accounts = uiState.savingsAccounts,
-                                            currency = uiState.currency,
-                                            onViewAllClick = onNavigateToAccounts
-                                        )
-                                    }
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))

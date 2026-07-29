@@ -128,6 +128,7 @@ data class SummaryUiState(
 
     // Savings tab data
     val totalSavings: Double = 0.0,
+    val totalSavingsPeriod: Double = 0.0,
     val savingsGrowthPercent: Double = 0.0,
     val savingsGrowthPeriod: String = "",
     val savingsGoals: List<SavingsGoalRow> = emptyList(),

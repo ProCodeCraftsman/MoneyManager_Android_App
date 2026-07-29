@@ -318,6 +318,7 @@ class SummaryViewModel @Inject constructor(
         // Savings calculations
         val savingsAccounts = SummaryAggregator.savingsSummary(accounts)
         val savingsAccountIds = savingsAccounts.map { it.id }.toSet()
+        val totalSavingsPeriod = SummaryAggregator.sumByType(txs, "savings")
 
         // All-time linked amounts for totalSavings (cumulative snapshot)
         val allTimeGoalLinked = mutableMapOf<Long, Double>()
@@ -410,6 +411,7 @@ class SummaryViewModel @Inject constructor(
             totalTransferAmount = totalTransferAmount,
             accountTransfers = accountTransfers,
             totalSavings = totalSavings,
+            totalSavingsPeriod = totalSavingsPeriod,
             savingsGrowthPercent = savingsGrowthPercent,
             savingsGrowthPeriod = savingsGrowthPeriod,
             savingsGoals = savingsGoals,
