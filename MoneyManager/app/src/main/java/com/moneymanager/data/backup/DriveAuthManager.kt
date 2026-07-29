@@ -15,9 +15,8 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.moneymanager.app.R
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -45,8 +44,11 @@ sealed class DriveAuthState {
  */
 @Singleton
 class DriveAuthManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val backupPreferences: BackupPreferences
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     private val _authState = MutableStateFlow<DriveAuthState>(DriveAuthState.Idle)
     val authState: StateFlow<DriveAuthState> = _authState.asStateFlow()
 
@@ -58,6 +60,20 @@ class DriveAuthManager @Inject constructor(
     private var pendingPhotoUrl: String? = null
 
     val isSignedIn: Boolean get() = _authState.value is DriveAuthState.SignedIn
+
+    init {
+        scope.launch {
+            val email = backupPreferences.driveUserEmail.first()
+            if (email != null) {
+                val name = backupPreferences.driveUserName.first()
+                val photo = backupPreferences.driveUserPhoto.first()
+                _authState.value = DriveAuthState.SignedIn(email, name, photo)
+                
+                // Attempt to silently refresh token on start
+                getSilentAccessToken()
+            }
+        }
+    }
 
     /**
      * Launches the Google Sign-In UI and, if successful, requests Drive scope.
@@ -112,6 +128,7 @@ class DriveAuthManager @Inject constructor(
                 result.accessToken != null -> {
                     _accessToken = result.accessToken
                     _authState.value = DriveAuthState.SignedIn(email, displayName, photoUrl)
+                    backupPreferences.setDriveUserInfo(email, displayName, photoUrl)
                 }
                 else -> _authState.value = DriveAuthState.Error("No access token received from Drive")
             }
@@ -131,11 +148,13 @@ class DriveAuthManager @Inject constructor(
 
             _accessToken = result.accessToken
             if (_accessToken != null) {
+                val email = pendingEmail ?: ""
                 _authState.value = DriveAuthState.SignedIn(
-                    email = pendingEmail ?: "",
+                    email = email,
                     displayName = pendingDisplayName,
                     photoUrl = pendingPhotoUrl
                 )
+                backupPreferences.setDriveUserInfo(email, pendingDisplayName, pendingPhotoUrl)
             } else {
                 _authState.value = DriveAuthState.Error("Authorization was denied")
             }
@@ -154,8 +173,8 @@ class DriveAuthManager @Inject constructor(
      * Safe to call from a WorkManager worker (no UI).
      */
     suspend fun getSilentAccessToken(): String? {
-        val accessToken = _accessToken
-        if (accessToken != null) return accessToken
+        val currentToken = _accessToken
+        if (currentToken != null) return currentToken
 
         val authRequest = AuthorizationRequest.builder()
             .setRequestedScopes(listOf(Scope(DRIVE_APPDATA_SCOPE)))
@@ -163,10 +182,26 @@ class DriveAuthManager @Inject constructor(
 
         return try {
             val result = Identity.getAuthorizationClient(context).authorize(authRequest).await()
-            if (!result.hasResolution()) {
+            if (!result.hasResolution() && result.accessToken != null) {
                 _accessToken = result.accessToken
+                
+                // Update state if we were not signed in or info was missing
+                if (_authState.value !is DriveAuthState.SignedIn) {
+                    val email = backupPreferences.driveUserEmail.first()
+                    if (email != null) {
+                        val name = backupPreferences.driveUserName.first()
+                        val photo = backupPreferences.driveUserPhoto.first()
+                        _authState.value = DriveAuthState.SignedIn(email, name, photo)
+                    }
+                }
+                
                 result.accessToken
-            } else null
+            } else {
+                // If we thought we were signed in but silent refresh fails with resolution needed,
+                // we might want to stay in SignedIn state but clear the token,
+                // or move to a "SessionExpired" state. For now, we'll keep the profile info.
+                null
+            }
         } catch (e: Exception) {
             null
         }
@@ -178,6 +213,9 @@ class DriveAuthManager @Inject constructor(
         pendingEmail = null
         pendingDisplayName = null
         pendingPhotoUrl = null
+        scope.launch {
+            backupPreferences.setDriveUserInfo(null, null, null)
+        }
     }
 
     fun clearError() {

@@ -36,4 +36,6 @@ interface CategoryDao {
     @Delete
     suspend fun deleteCategory(category: CategoryEntity)
 
+    @Query("SELECT MAX(createdAt) FROM categories")
+    suspend fun getLatestTimestamp(): Long?
 }

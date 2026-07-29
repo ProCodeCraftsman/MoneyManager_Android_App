@@ -6,8 +6,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,12 +17,12 @@ class LocalBackupManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val exportRepository: ExportRepository
 ) {
-    private val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+    private val fileNameFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)
 
     /**
      * Performs a local JSON backup.
      * Saves the file to the app's external files directory under 'backups'.
-     * Keeps only the last 30 days of backups.
+     * Keeps at least 10 recent backups, and deletes others older than 30 days.
      */
     suspend fun performLocalBackup(): Result<File> = withContext(Dispatchers.IO) {
         try {
@@ -32,12 +33,13 @@ class LocalBackupManager @Inject constructor(
 
             // 1. Export data to JSON
             val jsonBytes = exportRepository.exportToJsonBytes()
-            val fileName = "backup_${dateFormat.format(Date())}.json"
+            val timestamp = LocalDateTime.now().format(fileNameFormatter)
+            val fileName = "backup_${timestamp}.json"
             val backupFile = File(backupDir, fileName)
             
             backupFile.writeBytes(jsonBytes)
 
-            // 2. Cleanup old backups (older than 30 days)
+            // 2. Cleanup old backups
             cleanupOldBackups(backupDir)
 
             Result.success(backupFile)
@@ -46,16 +48,45 @@ class LocalBackupManager @Inject constructor(
         }
     }
 
-    private fun cleanupOldBackups(directory: File) {
-        val now = System.currentTimeMillis()
-        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
-        
-        directory.listFiles { file -> file.isFile && file.name.startsWith("backup_") && file.name.endsWith(".json") }
-            ?.forEach { file ->
-                if (now - file.lastModified() > thirtyDaysInMillis) {
-                    file.delete()
-                }
+    @androidx.annotation.VisibleForTesting(otherwise = androidx.annotation.VisibleForTesting.PRIVATE)
+    internal fun cleanupOldBackups(directory: File) {
+        val minKeepCount = 10
+        val retentionDays = 30L
+        val now = LocalDateTime.now()
+
+        val files = directory.listFiles { file -> 
+            file.isFile && file.name.startsWith("backup_") && file.name.endsWith(".json") 
+        } ?: return
+
+        // Parse date from filename and sort by date descending (newest first)
+        val backupsWithDates = files.mapNotNull { file ->
+            parseDateFromFileName(file.name)?.let { date -> file to date }
+        }.sortedByDescending { it.second }
+
+        // Always keep the N most recent backups
+        if (backupsWithDates.size <= minKeepCount) return
+
+        // For the rest, delete if older than retention period
+        val olderBackups = backupsWithDates.drop(minKeepCount)
+        val cutoffDate = now.minusDays(retentionDays)
+
+        olderBackups.forEach { (file, date) ->
+            if (date.isBefore(cutoffDate)) {
+                file.delete()
             }
+        }
+    }
+
+    @androidx.annotation.VisibleForTesting(otherwise = androidx.annotation.VisibleForTesting.PRIVATE)
+    internal fun parseDateFromFileName(fileName: String): LocalDateTime? {
+        return try {
+            // Expected format: backup_yyyyMMdd_HHmmss.json
+            val dateString = fileName.substringAfter("backup_").substringBefore(".json")
+            LocalDateTime.parse(dateString, fileNameFormatter)
+        } catch (e: Exception) {
+            // Malformed filenames are skipped from deletion
+            null
+        }
     }
     
     fun getBackupDirectory(): File {

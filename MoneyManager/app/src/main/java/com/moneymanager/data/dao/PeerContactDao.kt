@@ -36,4 +36,6 @@ interface PeerContactDao {
     @Delete
     suspend fun deletePeer(peer: PeerContact)
 
+    @Query("SELECT MAX(MAX(IFNULL(createdAt, 0)), MAX(IFNULL(updatedAt, 0))) FROM peer_contacts")
+    suspend fun getLatestTimestamp(): Long?
 }

@@ -27,4 +27,6 @@ interface GoalDao {
     @Delete
     suspend fun deleteGoal(goal: GoalEntity)
 
+    @Query("SELECT MAX(createdAt) FROM goals")
+    suspend fun getLatestTimestamp(): Long?
 }

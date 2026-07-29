@@ -14,17 +14,17 @@ import kotlin.random.Random
  *
  * Output format: [salt(16 bytes)] + [IV(12 bytes)] + [ciphertext + GCM tag]
  *
- * Cross-device safe: the key is derived from the user-supplied passphrase + random
- * salt, never from a device-bound Android Keystore key. Any device with the same
- * passphrase can decrypt.
+ * Cross-device safe: the key is derived from a stable passphrase (bound to Google ID
+ * if signed in) + random salt. Any device with the same account can decrypt.
  */
 @Singleton
 class EncryptionHelper @Inject constructor() {
 
-    fun encrypt(data: ByteArray, passphrase: String): ByteArray {
+    fun encrypt(data: ByteArray, passphrase: String? = null): ByteArray {
+        val actualPassphrase = passphrase ?: DEFAULT_INTERNAL_PASSPHRASE
         val salt = Random.nextBytes(SALT_LENGTH)
         val iv = Random.nextBytes(IV_LENGTH)
-        val key = deriveKey(passphrase, salt)
+        val key = deriveKey(actualPassphrase, salt)
 
         val cipher = Cipher.getInstance(CIPHER_ALGO)
         cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(GCM_TAG_BITS, iv))
@@ -33,14 +33,15 @@ class EncryptionHelper @Inject constructor() {
         return salt + iv + ciphertext
     }
 
-    fun decrypt(data: ByteArray, passphrase: String): ByteArray {
+    fun decrypt(data: ByteArray, passphrase: String? = null): ByteArray {
         require(data.size > SALT_LENGTH + IV_LENGTH) { "Payload too short to be valid ciphertext" }
+        val actualPassphrase = passphrase ?: DEFAULT_INTERNAL_PASSPHRASE
 
         val salt = data.copyOfRange(0, SALT_LENGTH)
         val iv = data.copyOfRange(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
         val ciphertext = data.copyOfRange(SALT_LENGTH + IV_LENGTH, data.size)
 
-        val key = deriveKey(passphrase, salt)
+        val key = deriveKey(actualPassphrase, salt)
         val cipher = Cipher.getInstance(CIPHER_ALGO)
         cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_BITS, iv))
         return cipher.doFinal(ciphertext)
@@ -60,5 +61,13 @@ class EncryptionHelper @Inject constructor() {
         private const val SALT_LENGTH = 16
         private const val IV_LENGTH = 12
         private const val GCM_TAG_BITS = 128
+        private const val DEFAULT_INTERNAL_PASSPHRASE = "moneymanager_default_v1_secure_fallback"
+    }
+
+    /** Generates a stable passphrase bound to the user's Google ID if available, 
+     * otherwise falls back to the internal default. */
+    fun getEffectivePassphrase(googleId: String?): String {
+        if (!googleId.isNullOrBlank()) return "mm_u_${googleId}_v1"
+        return DEFAULT_INTERNAL_PASSPHRASE
     }
 }

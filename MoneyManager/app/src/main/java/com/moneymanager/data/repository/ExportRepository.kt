@@ -1220,7 +1220,42 @@ class ExportRepository @Inject constructor(
         result.add(current.toString())
         return result
     }
+
+    suspend fun getLatestTimestampFromDb(): Long = withContext(Dispatchers.IO) {
+        listOfNotNull(
+            accountDao.getLatestTimestamp(),
+            transactionDao.getLatestTimestamp(),
+            categoryDao.getLatestTimestamp(),
+            budgetDao.getLatestTimestamp(),
+            goalDao.getLatestTimestamp(),
+            peerContactDao.getLatestTimestamp(),
+            recurringDao.getLatestTimestamp()
+        ).maxOrNull() ?: 0L
+    }
+
+    fun getLatestTimestampFromBackup(data: ByteArray): Long {
+        return try {
+            val json = data.toString(Charsets.UTF_8)
+            val jsonObject = JSONObject(json)
+            var maxTimestamp = 0L
+            val keys = listOf("accounts", "transactions", "categories", "budgets", "goals", "peers", "recurring")
+            for (key in keys) {
+                if (jsonObject.has(key)) {
+                    val array = jsonObject.getJSONArray(key)
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        maxTimestamp = maxOf(maxTimestamp, obj.optLong("updatedAt", 0L))
+                        maxTimestamp = maxOf(maxTimestamp, obj.optLong("createdAt", 0L))
+                    }
+                }
+            }
+            maxTimestamp
+        } catch (e: Exception) {
+            0L
+        }
+    }
 }
+
 
 enum class ExportType {
     TRANSACTIONS, ACCOUNTS, CATEGORIES, BUDGETS, GOALS, ALL, TAGS, PEERS, RECURRING

@@ -13,6 +13,8 @@ import javax.inject.Singleton
 
 data class DriveFile(val id: String, val name: String, val createdTime: String)
 
+class DriveApiException(val code: Int, message: String) : Exception(message)
+
 /**
  * Communicates with Google Drive REST API v3 using the appDataFolder space.
  * All calls require a valid OAuth access token.
@@ -46,9 +48,9 @@ class DriveBackupManager @Inject constructor() {
                     }
                 }
 
-                check(conn.responseCode in 200..299) {
+                if (conn.responseCode !in 200..299) {
                     val body = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                    "Upload failed (${conn.responseCode}): $body"
+                    throw DriveApiException(conn.responseCode, "Upload failed (${conn.responseCode}): $body")
                 }
                 JSONObject(conn.inputStream.bufferedReader().readText()).getString("id")
             }
@@ -65,7 +67,10 @@ class DriveBackupManager @Inject constructor() {
                     "&fields=files(id,name,createdTime)&orderBy=createdTime+desc&pageSize=1"
 
                 val conn = openConnection(url, "GET", accessToken)
-                check(conn.responseCode in 200..299) { "Search failed (${conn.responseCode})" }
+                if (conn.responseCode !in 200..299) {
+                    val body = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                    throw DriveApiException(conn.responseCode, "Search failed (${conn.responseCode}): $body")
+                }
 
                 val json = JSONObject(conn.inputStream.bufferedReader().readText())
                 val files = json.getJSONArray("files")
@@ -82,7 +87,10 @@ class DriveBackupManager @Inject constructor() {
         withContext(Dispatchers.IO) {
             runCatching {
                 val conn = openConnection("$FILES_URL/$fileId?alt=media", "GET", accessToken)
-                check(conn.responseCode in 200..299) { "Download failed (${conn.responseCode})" }
+                if (conn.responseCode !in 200..299) {
+                    val body = conn.errorStream?.bufferedReader()?.readText() ?: ""
+                    throw DriveApiException(conn.responseCode, "Download failed (${conn.responseCode}): $body")
+                }
                 conn.inputStream.readBytes()
             }
         }

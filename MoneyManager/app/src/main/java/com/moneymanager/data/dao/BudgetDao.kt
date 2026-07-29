@@ -24,4 +24,6 @@ interface BudgetDao {
     @Delete
     suspend fun deleteBudget(budget: BudgetEntity)
 
+    @Query("SELECT MAX(createdAt) FROM budgets")
+    suspend fun getLatestTimestamp(): Long?
 }

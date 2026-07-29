@@ -214,4 +214,7 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET receiptPath = NULL")
     suspend fun clearAllReceiptPaths()
+
+    @Query("SELECT MAX(createdAt) FROM transactions")
+    suspend fun getLatestTimestamp(): Long?
 }

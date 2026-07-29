@@ -272,7 +272,12 @@ fun MoneyManagerNavHost(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
-                composable(Screen.Settings.route) {
+                composable(
+                    Screen.Settings.route,
+                    deepLinks = listOf(
+                        navDeepLink { uriPattern = "moneymanager://settings" }
+                    )
+                ) {
                     SettingsScreen(
                         viewModel = hiltViewModel(),
                         onNavigateToAccounts = { navController.navigate(Screen.Accounts.route) },

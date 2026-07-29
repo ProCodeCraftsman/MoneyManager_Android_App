@@ -1,7 +1,6 @@
 package com.moneymanager.app.ui.settings.backup
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -10,9 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.moneymanager.app.ui.settings.DriveBackupUiState
 import com.moneymanager.app.ui.settings.DriveOpStatus
@@ -22,19 +18,29 @@ import java.util.*
 @Composable
 fun DriveBackupSection(
     uiState: DriveBackupUiState,
-    onBackup: (passphrase: String) -> Unit,
+    onBackup: () -> Unit,
     onCheckRestore: () -> Unit,
-    onRestore: (passphrase: String) -> Unit,
+    onRestore: () -> Unit,
     onClearFoundBackup: () -> Unit,
     onAutoBackupToggle: (Boolean) -> Unit,
+    onLocalBackupToggle: (Boolean) -> Unit,
     onFrequencyChange: (Boolean) -> Unit,
     onClearDriveError: () -> Unit,
     onClearDriveOp: () -> Unit,
 ) {
-    var showBackupPassphraseDialog by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()) }
 
     DriveSettingsSectionHeader()
+
+    DriveToggleRow(
+        icon = Icons.Default.FolderZip,
+        title = "Local JSON Backup",
+        subtitle = uiState.lastLocalBackupTime?.let { "Last: ${dateFormat.format(Date(it))} (Stored for 30 days)" }
+            ?: "Individual JSON backups in app folder",
+        checked = uiState.localBackupEnabled,
+        enabled = true,
+        onCheckedChange = onLocalBackupToggle
+    )
 
     if (!uiState.isSignedIn) {
         Row(
@@ -67,7 +73,7 @@ fun DriveBackupSection(
             ?: "No backup yet",
         enabled = rowsEnabled,
         isLoading = uiState.backupOpStatus is DriveOpStatus.InProgress,
-        onClick = { showBackupPassphraseDialog = true }
+        onClick = onBackup
     )
 
     DriveActionRow(
@@ -95,26 +101,14 @@ fun DriveBackupSection(
         )
     }
 
-    if (showBackupPassphraseDialog) {
-        PassphraseDialog(
-            title = "Set Backup Passphrase",
-            subtitle = "This passphrase encrypts your backup. You will need it to restore on any device.",
-            confirmLabel = "Backup",
-            onConfirm = { passphrase ->
-                showBackupPassphraseDialog = false
-                onBackup(passphrase)
-            },
-            onDismiss = { showBackupPassphraseDialog = false }
-        )
-    }
-
     if (uiState.foundBackupFile != null && uiState.restoreOpStatus == DriveOpStatus.Idle) {
         RestoreConfirmDialog(
             backupDate = runCatching {
                 val iso = uiState.foundBackupFile.createdTime
                 dateFormat.format(SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).parse(iso)!!)
             }.getOrNull() ?: uiState.foundBackupFile.createdTime,
-            onConfirm = { passphrase -> onRestore(passphrase) },
+            hasConflict = uiState.hasConflict,
+            onConfirm = onRestore,
             onDismiss = onClearFoundBackup
         )
     }
@@ -299,76 +293,51 @@ private fun DriveFrequencyRow(isWeekly: Boolean, onFrequencyChange: (Boolean) ->
 }
 
 @Composable
-private fun PassphraseDialog(
-    title: String,
-    subtitle: String,
-    confirmLabel: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var passphrase by remember { mutableStateOf("") }
-    var visible by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(subtitle, style = MaterialTheme.typography.bodySmall)
-                OutlinedTextField(
-                    value = passphrase,
-                    onValueChange = { passphrase = it; error = null },
-                    label = { Text("Passphrase") },
-                    singleLine = true,
-                    isError = error != null,
-                    supportingText = error?.let { { Text(it) } },
-                    visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    trailingIcon = {
-                        IconButton(onClick = { visible = !visible }) {
-                            Icon(
-                                if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = null
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                when {
-                    passphrase.isBlank() -> error = "Passphrase cannot be empty"
-                    passphrase.length < 6 -> error = "Passphrase must be at least 6 characters"
-                    else -> onConfirm(passphrase)
-                }
-            }) { Text(confirmLabel) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
 private fun RestoreConfirmDialog(
     backupDate: String,
-    onConfirm: (String) -> Unit,
+    hasConflict: Boolean,
+    onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var passphrase by remember { mutableStateOf("") }
-    var visible by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
-            Icon(Icons.Default.CloudDownload, contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary)
+            Icon(
+                if (hasConflict) Icons.Default.Warning else Icons.Default.CloudDownload,
+                contentDescription = null,
+                tint = if (hasConflict) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+            )
         },
-        title = { Text("Restore Backup") },
+        title = { Text(if (hasConflict) "Overwrite Newer Data?" else "Restore Backup") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (hasConflict) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                "Warning: Local data is newer than this backup. Restoring will result in data loss.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
@@ -379,48 +348,32 @@ private fun RestoreConfirmDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.CloudDone, contentDescription = null,
+                        Icon(
+                            Icons.Default.CloudDone, contentDescription = null,
                             tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(20.dp))
+                            modifier = Modifier.size(20.dp)
+                        )
                         Column {
-                            Text("Backup found", style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Backup found", style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
                             Text(backupDate, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
                 Text(
-                    "This will replace your current data. Enter your backup passphrase to decrypt.",
+                    "This will replace your current data with the backup from Drive.",
                     style = MaterialTheme.typography.bodySmall
-                )
-                OutlinedTextField(
-                    value = passphrase,
-                    onValueChange = { passphrase = it; error = null },
-                    label = { Text("Passphrase") },
-                    singleLine = true,
-                    isError = error != null,
-                    supportingText = error?.let { { Text(it) } },
-                    visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    trailingIcon = {
-                        IconButton(onClick = { visible = !visible }) {
-                            Icon(
-                                if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = null
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             Button(
-                onClick = {
-                    if (passphrase.isBlank()) error = "Passphrase cannot be empty"
-                    else onConfirm(passphrase)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (hasConflict) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
             ) { Text("Restore") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }

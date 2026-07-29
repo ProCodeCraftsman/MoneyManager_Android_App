@@ -35,11 +35,14 @@ data class DriveBackupUiState(
     val error: String? = null,
     val pendingAuthIntent: android.app.PendingIntent? = null,
     val autoBackupEnabled: Boolean = false,
+    val localBackupEnabled: Boolean = true,
     val backupWeekly: Boolean = true,
     val lastBackupTime: Long? = null,
+    val lastLocalBackupTime: Long? = null,
     val backupOpStatus: DriveOpStatus = DriveOpStatus.Idle,
     val restoreOpStatus: DriveOpStatus = DriveOpStatus.Idle,
     val foundBackupFile: DriveFile? = null,
+    val hasConflict: Boolean = false,
 )
 
 sealed class DriveOpStatus {

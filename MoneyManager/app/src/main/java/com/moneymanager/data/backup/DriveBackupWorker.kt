@@ -6,6 +6,7 @@ import androidx.work.*
 import com.moneymanager.data.repository.ExportRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
 /**
@@ -13,7 +14,7 @@ import java.util.concurrent.TimeUnit
  *
  * Prerequisites before it will succeed:
  *  1. User has signed in to Drive at least once this session, OR silent token refresh succeeds.
- *  2. A backup passphrase was saved via [BackupPassphraseStore] (happens on first manual backup).
+ *  2. No custom passphrase is used; keys are derived from the Google account ID.
  *
  * The worker retries with exponential back-off on transient failures (network, token expiry).
  */
@@ -26,33 +27,59 @@ class DriveBackupWorker @AssistedInject constructor(
     private val encryptionHelper: EncryptionHelper,
     private val exportRepository: ExportRepository,
     private val backupPreferences: BackupPreferences,
-    private val passphraseStore: BackupPassphraseStore,
+    private val notificationManager: BackupNotificationManager,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        val passphrase = passphraseStore.getPassphrase()
-            ?: return Result.failure(workDataOf(KEY_ERROR to "No backup passphrase configured. Run a manual backup first."))
+        var driveSuccess = false
+        var driveError: String? = null
+        var errorCode: Int? = null
 
-        val accessToken = driveAuthManager.getSilentAccessToken()
-            ?: return Result.retry()
+        val driveEnabled = backupPreferences.autoBackupEnabled.first()
 
-        return try {
-            val jsonBytes = exportRepository.exportToJsonBytes()
-            val encrypted = encryptionHelper.encrypt(jsonBytes, passphrase)
+        // Drive Backup
+        if (driveEnabled) {
+            val googleId = driveAuthManager.authState.value.let { 
+                if (it is DriveAuthState.SignedIn) it.email else null
+            }
 
-            driveBackupManager.uploadBackup(encrypted, accessToken).fold(
-                onSuccess = { fileId ->
-                    driveBackupManager.deleteOldBackups(fileId, accessToken)
-                    backupPreferences.setLastBackupTime(System.currentTimeMillis())
-                    Result.success()
-                },
-                onFailure = { e ->
-                    if (runAttemptCount < MAX_RETRIES) Result.retry()
-                    else Result.failure(workDataOf(KEY_ERROR to e.message))
+            val accessToken = driveAuthManager.getSilentAccessToken()
+            if (accessToken != null) {
+                try {
+                    val jsonBytes = exportRepository.exportToJsonBytes()
+                    val effectivePassphrase = encryptionHelper.getEffectivePassphrase(googleId)
+                    val encrypted = encryptionHelper.encrypt(jsonBytes, effectivePassphrase)
+
+                    driveBackupManager.uploadBackup(encrypted, accessToken).fold(
+                        onSuccess = { fileId ->
+                            driveBackupManager.deleteOldBackups(fileId, accessToken)
+                            backupPreferences.setLastBackupTime(System.currentTimeMillis())
+                            driveSuccess = true
+                        },
+                        onFailure = { e ->
+                            driveError = e.message
+                            if (e is DriveApiException) {
+                                errorCode = e.code
+                            }
+                        }
+                    )
+                } catch (e: Exception) {
+                    driveError = e.message
                 }
-            )
-        } catch (e: Exception) {
-            Result.failure(workDataOf(KEY_ERROR to e.message))
+            } else {
+                driveError = "No Drive access token"
+                errorCode = 403
+            }
+        }
+
+        return when {
+            !driveEnabled -> Result.success()
+            driveSuccess -> Result.success()
+            driveError != null && runAttemptCount < MAX_RETRIES -> Result.retry()
+            else -> {
+                notificationManager.showBackupFailedNotification(errorCode)
+                Result.failure(workDataOf(KEY_ERROR to (driveError ?: "Backup failed")))
+            }
         }
     }
 

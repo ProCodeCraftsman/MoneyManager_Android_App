@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.app.ui.theme.AppTheme
 import com.moneymanager.data.backup.BackupPreferences
-import com.moneymanager.data.backup.BackupPassphraseStore
 import com.moneymanager.data.backup.BackupScheduler
 import com.moneymanager.data.backup.DriveAuthManager
 import com.moneymanager.data.backup.DriveAuthState
@@ -32,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -48,7 +48,6 @@ class SettingsViewModel @Inject constructor(
     private val driveAuthManager: DriveAuthManager,
     private val driveBackupManager: DriveBackupManager,
     private val encryptionHelper: EncryptionHelper,
-    private val passphraseStore: BackupPassphraseStore,
     private val backupPreferences: BackupPreferences,
     private val backupScheduler: BackupScheduler,
 ) : ViewModel() {
@@ -58,22 +57,29 @@ class SettingsViewModel @Inject constructor(
 
     private val driveBackupOpStatus = MutableStateFlow<DriveOpStatus>(DriveOpStatus.Idle)
     private val driveRestoreOpStatus = MutableStateFlow<DriveOpStatus>(DriveOpStatus.Idle)
+    private val hasRestoreConflict = MutableStateFlow(false)
     private val foundDriveBackupFile = MutableStateFlow<com.moneymanager.data.backup.DriveFile?>(null)
 
     private val driveBackupUiState: StateFlow<DriveBackupUiState> = combine(
         driveAuthManager.authState,
         backupPreferences.autoBackupEnabled,
+        backupPreferences.localBackupEnabled,
         backupPreferences.backupWeekly,
         backupPreferences.lastBackupTime,
+        backupPreferences.lastLocalBackupTime,
         driveBackupOpStatus,
         driveRestoreOpStatus,
+        hasRestoreConflict,
     ) { values ->
         val authState = values[0] as DriveAuthState
         val autoBackup = values[1] as Boolean
-        val weekly = values[2] as Boolean
-        val lastTime = values[3] as Long?
-        val backupOp = values[4] as DriveOpStatus
-        val restoreOp = values[5] as DriveOpStatus
+        val localBackup = values[2] as Boolean
+        val weekly = values[3] as Boolean
+        val lastTime = values[4] as Long?
+        val lastLocalTime = values[5] as Long?
+        val backupOp = values[6] as DriveOpStatus
+        val restoreOp = values[7] as DriveOpStatus
+        val hasConflict = values[8] as Boolean
 
         DriveBackupUiState(
             isSignedIn = authState is DriveAuthState.SignedIn,
@@ -84,11 +90,14 @@ class SettingsViewModel @Inject constructor(
             error = (authState as? DriveAuthState.Error)?.message,
             pendingAuthIntent = (authState as? DriveAuthState.NeedsAuthorization)?.pendingIntent,
             autoBackupEnabled = autoBackup,
+            localBackupEnabled = localBackup,
             backupWeekly = weekly,
             lastBackupTime = lastTime,
+            lastLocalBackupTime = lastLocalTime,
             backupOpStatus = backupOp,
             restoreOpStatus = restoreOp,
             foundBackupFile = foundDriveBackupFile.value,
+            hasConflict = hasConflict
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DriveBackupUiState())
 
@@ -270,7 +279,7 @@ class SettingsViewModel @Inject constructor(
 
     fun driveSignOut() {
         driveAuthManager.signOut()
-        backupScheduler.cancelBackup()
+        backupScheduler.cancelDriveBackup()
     }
 
     fun clearDriveError() {
@@ -284,18 +293,19 @@ class SettingsViewModel @Inject constructor(
         driveRestoreOpStatus.value = DriveOpStatus.Idle
     }
 
-    fun backupToDrive(passphrase: String) {
+    fun backupToDrive() {
         val accessToken = driveAuthManager.accessToken ?: return
+        val googleId = (driveAuthManager.authState.value as? DriveAuthState.SignedIn)?.email
         viewModelScope.launch {
             driveBackupOpStatus.value = DriveOpStatus.InProgress
             try {
                 val jsonBytes = exportRepository.exportToJsonBytes()
-                val encrypted = encryptionHelper.encrypt(jsonBytes, passphrase)
+                val effectivePassphrase = encryptionHelper.getEffectivePassphrase(googleId)
+                val encrypted = encryptionHelper.encrypt(jsonBytes, effectivePassphrase)
                 driveBackupManager.uploadBackup(encrypted, accessToken).fold(
                     onSuccess = { fileId ->
                         driveBackupManager.deleteOldBackups(fileId, accessToken)
                         backupPreferences.setLastBackupTime(System.currentTimeMillis())
-                        passphraseStore.savePassphrase(passphrase)
                         driveBackupOpStatus.value = DriveOpStatus.Success("Backup uploaded successfully")
                     },
                     onFailure = { e ->
@@ -310,35 +320,57 @@ class SettingsViewModel @Inject constructor(
 
     fun checkForDriveBackup() {
         val accessToken = driveAuthManager.accessToken ?: return
+        val googleId = (driveAuthManager.authState.value as? DriveAuthState.SignedIn)?.email
         viewModelScope.launch {
             driveRestoreOpStatus.value = DriveOpStatus.InProgress
             foundDriveBackupFile.value = null
-            driveBackupManager.findBackup(accessToken).fold(
-                onSuccess = { file ->
+            hasRestoreConflict.value = false
+            driveBackupManager.findBackup(accessToken)
+                .onSuccess { file ->
                     foundDriveBackupFile.value = file
-                    driveRestoreOpStatus.value = if (file == null)
-                        DriveOpStatus.NoBackupFound
-                    else
-                        DriveOpStatus.Idle
-                },
-                onFailure = { e ->
+                    if (file != null) {
+                        // Download to check for conflicts
+                        driveBackupManager.downloadBackup(file.id, accessToken)
+                            .onSuccess { bytes ->
+                                try {
+                                    val effectivePassphrase = encryptionHelper.getEffectivePassphrase(googleId)
+                                    val jsonBytes = encryptionHelper.decrypt(bytes, effectivePassphrase)
+                                    val backupTimestamp = exportRepository.getLatestTimestampFromBackup(jsonBytes)
+                                    val dbTimestamp = exportRepository.getLatestTimestampFromDb()
+                                    hasRestoreConflict.value = dbTimestamp > backupTimestamp
+                                    driveRestoreOpStatus.value = DriveOpStatus.Idle
+                                } catch (e: Exception) {
+                                    driveRestoreOpStatus.value = DriveOpStatus.Error("Failed to decrypt backup: ${e.message}")
+                                }
+                            }
+                            .onFailure { e ->
+                                driveRestoreOpStatus.value = DriveOpStatus.Error(e.message ?: "Failed to check backup content")
+                            }
+                    } else {
+                        driveRestoreOpStatus.value = DriveOpStatus.NoBackupFound
+                    }
+                }
+                .onFailure { e ->
                     driveRestoreOpStatus.value = DriveOpStatus.Error(e.message ?: "Failed to check for backup")
                 }
-            )
         }
     }
 
-    fun restoreFromDrive(passphrase: String) {
+    fun restoreFromDrive() {
         val accessToken = driveAuthManager.accessToken ?: return
         val fileId = foundDriveBackupFile.value?.id ?: return
+        val googleId = (driveAuthManager.authState.value as? DriveAuthState.SignedIn)?.email
+        
         viewModelScope.launch {
             driveRestoreOpStatus.value = DriveOpStatus.InProgress
             try {
                 driveBackupManager.downloadBackup(fileId, accessToken).fold(
                     onSuccess = { encryptedData ->
-                        val jsonBytes = encryptionHelper.decrypt(encryptedData, passphrase)
+                        val effectivePassphrase = encryptionHelper.getEffectivePassphrase(googleId)
+                        val jsonBytes = encryptionHelper.decrypt(encryptedData, effectivePassphrase)
                         val result = exportRepository.importFromJsonBytes(jsonBytes)
                         foundDriveBackupFile.value = null
+                        hasRestoreConflict.value = false
                         driveRestoreOpStatus.value = DriveOpStatus.Success(
                             "Restored: ${result.accountsImported} accounts, " +
                                 "${result.transactionsImported} transactions, " +
@@ -349,8 +381,6 @@ class SettingsViewModel @Inject constructor(
                         driveRestoreOpStatus.value = DriveOpStatus.Error(e.message ?: "Download failed")
                     }
                 )
-            } catch (e: javax.crypto.BadPaddingException) {
-                driveRestoreOpStatus.value = DriveOpStatus.Error("Wrong passphrase — decryption failed")
             } catch (e: Exception) {
                 driveRestoreOpStatus.value = DriveOpStatus.Error(e.message ?: "Restore failed")
             }
@@ -360,19 +390,29 @@ class SettingsViewModel @Inject constructor(
     fun clearFoundDriveBackup() {
         foundDriveBackupFile.value = null
         driveRestoreOpStatus.value = DriveOpStatus.Idle
+        hasRestoreConflict.value = false
     }
 
     fun setDriveAutoBackup(enabled: Boolean) {
         viewModelScope.launch {
             backupPreferences.setAutoBackupEnabled(enabled)
             if (enabled) {
-                backupScheduler.scheduleBackup(
-                    isWeekly = backupPreferences.backupWeekly.stateIn(
-                        viewModelScope, SharingStarted.Eagerly, true
-                    ).value
+                backupScheduler.scheduleDriveBackup(
+                    isWeekly = backupPreferences.backupWeekly.first()
                 )
             } else {
-                backupScheduler.cancelBackup()
+                backupScheduler.cancelDriveBackup()
+            }
+        }
+    }
+
+    fun setLocalBackupEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            backupPreferences.setLocalBackupEnabled(enabled)
+            if (enabled) {
+                backupScheduler.scheduleLocalBackup()
+            } else {
+                backupScheduler.cancelLocalBackup()
             }
         }
     }
@@ -380,8 +420,8 @@ class SettingsViewModel @Inject constructor(
     fun setDriveBackupFrequency(isWeekly: Boolean) {
         viewModelScope.launch {
             backupPreferences.setBackupWeekly(isWeekly)
-            if (uiState.value.driveBackup.autoBackupEnabled) {
-                backupScheduler.scheduleBackup(isWeekly)
+            if (backupPreferences.autoBackupEnabled.first()) {
+                backupScheduler.scheduleDriveBackup(isWeekly)
             }
         }
     }
