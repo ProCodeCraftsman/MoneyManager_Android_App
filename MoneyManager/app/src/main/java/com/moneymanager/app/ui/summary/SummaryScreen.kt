@@ -205,6 +205,18 @@ fun SummaryScreen(
                                         currency = uiState.currency
                                     )
 
+                                    TopSavingsCategoriesCard(
+                                        rows = uiState.savingsByCategorySpend,
+                                        currency = uiState.currency
+                                    )
+
+                                    SavingsBreakdownCard(
+                                        categoryEntries = uiState.savingsByCategory,
+                                        accountEntries = uiState.savingsByAccount,
+                                        totalSavings = uiState.totalSavings,
+                                        currency = uiState.currency
+                                    )
+
                                     if (uiState.savingsGoals.isNotEmpty()) {
                                         SavingsGoalsList(
                                             goals = uiState.savingsGoals,

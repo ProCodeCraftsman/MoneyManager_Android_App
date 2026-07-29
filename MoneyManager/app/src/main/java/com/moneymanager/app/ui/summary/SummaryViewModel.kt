@@ -348,6 +348,30 @@ class SummaryViewModel @Inject constructor(
         } else if (currentSavingsInflow != 0.0) 100.0 else 0.0
         val savingsGrowthPeriod = "vs previous ${params.filter.name.lowercase()}"
 
+        val savingsByCategory = SummaryAggregator.savingsByCategory(txs, categories) { hex, id ->
+            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") {
+                parseColor(hex)
+            } else {
+                generateDistinctColor(id.toInt())
+            }
+        }
+
+        val savingsByAccount = SummaryAggregator.savingsByAccount(txs, accounts) { hex, id ->
+            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") {
+                parseColor(hex)
+            } else {
+                generateDistinctColor(id.toInt())
+            }
+        }
+
+        val savingsByCategorySpend = SummaryAggregator.savingsByCategorySpend(txs, categories) { hex, id ->
+            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") {
+                parseColor(hex)
+            } else {
+                generateDistinctColor(id.toInt())
+            }
+        }
+
         val isEmpty = txs.isEmpty() && allGoals.isEmpty() && savingsAccounts.isEmpty()
 
         SummaryUiState(
@@ -390,6 +414,9 @@ class SummaryViewModel @Inject constructor(
             savingsGrowthPeriod = savingsGrowthPeriod,
             savingsGoals = savingsGoals,
             savingsAccounts = savingsAccounts,
+            savingsByCategory = savingsByCategory,
+            savingsByAccount = savingsByAccount,
+            savingsByCategorySpend = savingsByCategorySpend,
             currency = currency
         )
     }.stateIn(

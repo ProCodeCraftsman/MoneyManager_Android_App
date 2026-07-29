@@ -197,6 +197,36 @@ object SummaryAggregator {
             .take(topN)
     }
 
+    fun savingsByCategorySpend(
+        txs: List<TransactionEntity>,
+        categories: List<CategoryEntity>,
+        topN: Int = 10,
+        parseColor: (String?, Long) -> Color
+    ): List<CategorySpend> {
+        val savingsTxs = txs.filter { it.type == "savings" }
+        val total = savingsTxs.sumOf { it.amount }
+        if (total <= 0.0) return emptyList()
+
+        return savingsTxs
+            .groupBy { it.categoryId }
+            .map { (categoryId, group) ->
+                val category = categories.find { it.id == categoryId }
+                val amount = group.sumOf { it.amount }
+                CategorySpend(
+                    categoryId = categoryId,
+                    name = category?.name ?: "Uncategorized",
+                    amount = amount,
+                    percentOfTotal = (amount / total * 100.0).toFloat(),
+                    color = parseColor(category?.color, categoryId ?: 0L),
+                    emoji = category?.emoji ?: "💰",
+                    iconType = category?.iconType ?: "emoji",
+                    colorIndex = category?.colorIndex ?: 0
+                )
+            }
+            .sortedByDescending { it.amount }
+            .take(topN)
+    }
+
     fun incomeByCategoryPie(
         txs: List<TransactionEntity>,
         categories: List<CategoryEntity>,
@@ -416,5 +446,99 @@ object SummaryAggregator {
                 colorIndex = (goal.id % 40).toInt()
             )
         }.sortedByDescending { it.progressPercent }
+    }
+
+    fun savingsByCategory(
+        txs: List<TransactionEntity>,
+        categories: List<CategoryEntity>,
+        topN: Int = 6,
+        othersColor: Color = Color(0xFF90A4AE),
+        parseColor: (String?, Long) -> Color
+    ): List<PieChartEntry> {
+        val savingsTxs = txs.filter { it.type == "savings" }
+        val total = savingsTxs.sumOf { it.amount }
+        if (total <= 0.0) return emptyList()
+
+        val categoryMap = categories.associateBy { it.id }
+
+        val grouped = savingsTxs
+            .groupBy { tx ->
+                var currentId = tx.categoryId
+                while (currentId != null) {
+                    val cat = categoryMap[currentId] ?: break
+                    if (cat.parentId == null) break
+                    currentId = cat.parentId
+                }
+                currentId
+            }
+            .map { (rootCategoryId, group) ->
+                val category = categoryMap[rootCategoryId]
+                val amount = group.sumOf { it.amount }
+                PieChartEntry(
+                    label = category?.name ?: "Uncategorized",
+                    value = amount,
+                    color = parseColor(category?.color, rootCategoryId ?: 0L),
+                    percentage = amount / total * 100.0
+                )
+            }
+            .sortedByDescending { it.value }
+
+        return if (grouped.size <= topN) {
+            grouped
+        } else {
+            val top = grouped.take(topN - 1)
+            val othersAmount = grouped.drop(topN - 1).sumOf { it.value }
+            val othersPercent = othersAmount / total * 100.0
+            top + listOf(
+                PieChartEntry(
+                    label = "Others",
+                    value = othersAmount,
+                    color = othersColor,
+                    percentage = othersPercent
+                )
+            )
+        }
+    }
+
+    fun savingsByAccount(
+        txs: List<TransactionEntity>,
+        accounts: List<AccountEntity>,
+        topN: Int = 6,
+        othersColor: Color = Color(0xFF90A4AE),
+        parseColor: (String?, Long) -> Color
+    ): List<PieChartEntry> {
+        val savingsTxs = txs.filter { it.type == "savings" }
+        val total = savingsTxs.sumOf { it.amount }
+        if (total <= 0.0) return emptyList()
+
+        val grouped = savingsTxs
+            .groupBy { it.accountId }
+            .map { (accountId, group) ->
+                val account = accounts.find { it.id == accountId }
+                val amount = group.sumOf { it.amount }
+                PieChartEntry(
+                    label = account?.name ?: "Unknown Account",
+                    value = amount,
+                    color = parseColor(account?.color, accountId),
+                    percentage = amount / total * 100.0
+                )
+            }
+            .sortedByDescending { it.value }
+
+        return if (grouped.size <= topN) {
+            grouped
+        } else {
+            val top = grouped.take(topN - 1)
+            val othersAmount = grouped.drop(topN - 1).sumOf { it.value }
+            val othersPercent = othersAmount / total * 100.0
+            top + listOf(
+                PieChartEntry(
+                    label = "Others",
+                    value = othersAmount,
+                    color = othersColor,
+                    percentage = othersPercent
+                )
+            )
+        }
     }
 }
