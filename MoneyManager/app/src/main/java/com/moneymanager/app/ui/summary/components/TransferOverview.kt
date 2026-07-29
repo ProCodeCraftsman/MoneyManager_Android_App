@@ -13,9 +13,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.summary.AccountTransferInfo
 import com.moneymanager.app.ui.util.CurrencyUtils
+import com.moneymanager.app.ui.util.accountTypeIcon
 import com.moneymanager.app.ui.util.parseColor
 
 @Composable
@@ -181,18 +181,18 @@ private fun AccountTransferRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Account icon (matching category icon style)
+        // Account icon (fixed based on account type)
         Surface(
             shape = CircleShape,
             color = parseColor(account.color).copy(alpha = 0.1f),
             modifier = Modifier.size(35.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                CategoryIcon(
-                    emoji = account.emoji,
-                    iconType = account.iconType,
-                    colorIndex = account.colorIndex,
-                    fontSize = 14.sp
+                Icon(
+                    imageVector = accountTypeIcon(account.rawType),
+                    contentDescription = null,
+                    tint = parseColor(account.color),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
