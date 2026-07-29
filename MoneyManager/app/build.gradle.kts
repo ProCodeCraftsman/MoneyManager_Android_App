@@ -157,11 +157,10 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.3.0")
     // .await() extension for Google Task<T> in coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
-    // Encrypted SharedPreferences for secure passphrase storage
-    implementation("androidx.security:security-crypto:1.0.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     testImplementation("org.mockito:mockito-core:5.15.2")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")

@@ -24,4 +24,6 @@ interface RecurringDao {
     @Delete
     suspend fun deleteRecurring(recurring: RecurringEntity)
 
+    @Query("SELECT MAX(createdAt) FROM recurring")
+    suspend fun getLatestTimestamp(): Long?
 }

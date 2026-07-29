@@ -12,6 +12,12 @@ object Permissions {
     val READ_SMS = Manifest.permission.READ_SMS
     val READ_CONTACTS = Manifest.permission.READ_CONTACTS
 
+    val POST_NOTIFICATIONS: String?
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            Manifest.permission.POST_NOTIFICATIONS
+        else
+            null
+
     val STORAGE: String
         get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
             Manifest.permission.READ_MEDIA_IMAGES

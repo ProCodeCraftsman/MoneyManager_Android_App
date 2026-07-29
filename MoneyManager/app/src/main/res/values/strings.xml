@@ -71,4 +71,12 @@
     <string name="select_peer">Select Partner</string>
     <!-- Placeholder: replaced by google-services plugin once Firebase web OAuth client is configured -->
     <string name="default_web_client_id">PLACEHOLDER_REPLACE_WITH_FIREBASE_WEB_CLIENT_ID</string>
+
+    <!-- Backup Failure Notifications -->
+    <string name="backup_failed_title">Backup Failed</string>
+    <string name="backup_failed_auth">Google Drive authentication failed. Please reconnect your account.</string>
+    <string name="backup_failed_quota">Google Drive storage is full. Please free up space.</string>
+    <string name="backup_failed_generic">An error occurred during backup. Tap to try again.</string>
+    <string name="backup_notification_channel_name">Backup status</string>
+    <string name="backup_notification_channel_description">Notifications about backup success or failure</string>
 </resources>

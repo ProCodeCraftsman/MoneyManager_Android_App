@@ -20,5 +20,4 @@ interface TagDao {
 
     @Delete
     suspend fun deleteTag(tag: TagEntity)
-
 }

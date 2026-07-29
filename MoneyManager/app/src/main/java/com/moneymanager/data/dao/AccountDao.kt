@@ -24,4 +24,7 @@ interface AccountDao {
     @Delete
     suspend fun deleteAccount(account: AccountEntity)
 
+    @Query("SELECT MAX(MAX(IFNULL(createdAt, 0)), MAX(IFNULL(updatedAt, 0))) FROM accounts")
+    suspend fun getLatestTimestamp(): Long?
+
 }

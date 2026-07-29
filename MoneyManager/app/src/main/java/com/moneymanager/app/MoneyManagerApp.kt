@@ -5,6 +5,7 @@ import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import com.moneymanager.app.ui.util.AppLockManager
 import com.moneymanager.data.ai.DeviceCapabilityManager
+import com.moneymanager.data.backup.BackupScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ class MoneyManagerApp : Application(), Configuration.Provider {
     @Inject lateinit var appLockManager: AppLockManager
     @Inject lateinit var deviceCapabilityManager: DeviceCapabilityManager
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var backupScheduler: BackupScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -28,6 +30,7 @@ class MoneyManagerApp : Application(), Configuration.Provider {
         registerActivityLifecycleCallbacks(appLockManager)
         CoroutineScope(Dispatchers.IO).launch {
             deviceCapabilityManager.checkAndCacheAvailability()
+            backupScheduler.initialize()
         }
     }
 }

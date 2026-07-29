@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.components.ScrollToTopBox
 import com.moneymanager.app.ui.settings.backup.DriveBackupSection
 import com.moneymanager.app.ui.theme.AppTheme
+import com.moneymanager.app.ui.util.Permissions
 import com.moneymanager.data.repository.ExportType
 import java.text.SimpleDateFormat
 import java.util.*
@@ -105,6 +106,12 @@ fun SettingsScreen(
 
     val createJsonLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
         uri?.let { viewModel.exportToJson(it) }
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        // We don't necessarily need to do anything here, the user can still enable backup
     }
 
     LaunchedEffect(uiState.importResult, uiState.exportResult) {
@@ -430,11 +437,21 @@ fun SettingsScreen(
                 item {
                     DriveBackupSection(
                         uiState = uiState.driveBackup,
-                        onBackup = { passphrase -> viewModel.backupToDrive(passphrase) },
+                        onBackup = { viewModel.backupToDrive() },
                         onCheckRestore = { viewModel.checkForDriveBackup() },
-                        onRestore = { passphrase -> viewModel.restoreFromDrive(passphrase) },
+                        onRestore = { viewModel.restoreFromDrive() },
                         onClearFoundBackup = { viewModel.clearFoundDriveBackup() },
-                        onAutoBackupToggle = { enabled -> viewModel.setDriveAutoBackup(enabled) },
+                        onAutoBackupToggle = { enabled ->
+                            if (enabled) {
+                                Permissions.POST_NOTIFICATIONS?.let { permission ->
+                                    if (!Permissions.isGranted(context, permission)) {
+                                        notificationPermissionLauncher.launch(permission)
+                                    }
+                                }
+                            }
+                            viewModel.setDriveAutoBackup(enabled)
+                        },
+                        onLocalBackupToggle = { enabled -> viewModel.setLocalBackupEnabled(enabled) },
                         onFrequencyChange = { weekly -> viewModel.setDriveBackupFrequency(weekly) },
                         onClearDriveError = { viewModel.clearDriveError() },
                         onClearDriveOp = { viewModel.clearDriveOp() },
