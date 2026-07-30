@@ -5,7 +5,7 @@ import com.moneymanager.app.ui.constants.TimeFilter
 
 enum class SummaryTab { EXPENSE, INCOME, LENDING, TRANSFERS, SAVINGS, TRENDS }
 
-enum class TrendType { INCOME, EXPENSE, LENDING, SAVINGS }
+enum class TrendType { INCOME, EXPENSE, LENDING, SAVINGS, OVERALL }
 
 enum class TrendTimeFilter(val label: String) {
     YEAR_1("1 Year"),
@@ -169,6 +169,7 @@ data class SummaryUiState(
     val trendTimeFilter: TrendTimeFilter = TrendTimeFilter.YEAR_1,
     val trendDataPoints: List<TrendDataPoint> = emptyList(),
     val trendStats: TrendStats = TrendStats(),
+    val allTrendDataPoints: Map<TrendType, List<TrendDataPoint>> = emptyMap(),
 
     val currency: String = "INR"
 )

@@ -382,6 +382,10 @@ class SummaryViewModel @Inject constructor(
         // Trend calculations
         val (trendDataPoints, trendStats) = SummaryAggregator.calculateTrend(allTxs, trendType, trendFilter)
 
+        val allTrendDataPoints = TrendType.entries.filter { it != TrendType.OVERALL }.associateWith { type ->
+            SummaryAggregator.calculateTrend(allTxs, type, trendFilter).first
+        }
+
         val isEmpty = txs.isEmpty() && allGoals.isEmpty() && savingsAccounts.isEmpty()
 
         SummaryUiState(
@@ -432,6 +436,7 @@ class SummaryViewModel @Inject constructor(
             trendTimeFilter = trendFilter,
             trendDataPoints = trendDataPoints,
             trendStats = trendStats,
+            allTrendDataPoints = allTrendDataPoints,
             currency = currency
         )
     }.stateIn(

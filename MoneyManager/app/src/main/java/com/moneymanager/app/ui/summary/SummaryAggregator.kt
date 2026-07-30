@@ -554,8 +554,9 @@ object SummaryAggregator {
         val txType = when (type) {
             TrendType.INCOME -> "income"
             TrendType.EXPENSE -> "expense"
-            TrendType.LENDING -> "lend" // Simplified: only lending activity
+            TrendType.LENDING -> "lend"
             TrendType.SAVINGS -> "savings"
+            TrendType.OVERALL -> "overall"
         }
 
         val now = Calendar.getInstance()
@@ -570,10 +571,7 @@ object SummaryAggregator {
             cal.timeInMillis
         } else 0L
 
-        val filteredTxs = allTxs.filter {
-            (if (type == TrendType.LENDING) it.type == "lend" || it.type == "borrow" else it.type == txType) &&
-            it.date >= limit
-        }
+        val filteredTxs = allTxs.filter { it.date >= limit }
 
         val monthFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
         val shortMonthFormat = SimpleDateFormat("MMM", Locale.getDefault())
@@ -607,19 +605,24 @@ object SummaryAggregator {
                     cal.add(Calendar.MONTH, 1)
                 }
             } else {
-                // If no data, show last 12 months anyway but empty
                 return calculateTrend(allTxs, type, TrendTimeFilter.YEAR_1)
             }
         }
 
         val dataPoints = monthsToInclude.map { timestamp ->
             val monthTxs = groupedByMonth[timestamp] ?: emptyList()
-            val amount = if (type == TrendType.LENDING) {
-                // For lending trend, we show Net Lend (Lend - Borrow)
-                monthTxs.filter { it.type == "lend" }.sumOf { it.amount } -
-                monthTxs.filter { it.type == "borrow" }.sumOf { it.amount }
-            } else {
-                monthTxs.sumOf { it.amount }
+            val amount = when (type) {
+                TrendType.INCOME -> monthTxs.filter { it.type == "income" }.sumOf { it.amount }
+                TrendType.EXPENSE -> monthTxs.filter { it.type == "expense" }.sumOf { it.amount }
+                TrendType.LENDING -> monthTxs.filter { it.type == "lend" }.sumOf { it.amount } - monthTxs.filter { it.type == "borrow" }.sumOf { it.amount }
+                TrendType.SAVINGS -> monthTxs.filter { it.type == "savings" }.sumOf { it.amount }
+                TrendType.OVERALL -> {
+                    val inc = monthTxs.filter { it.type == "income" }.sumOf { it.amount }
+                    val exp = monthTxs.filter { it.type == "expense" }.sumOf { it.amount }
+                    val lendNet = monthTxs.filter { it.type == "lend" }.sumOf { it.amount } - monthTxs.filter { it.type == "borrow" }.sumOf { it.amount }
+                    val sav = monthTxs.filter { it.type == "savings" }.sumOf { it.amount }
+                    inc - (exp + sav + lendNet)
+                }
             }
 
             val cal = Calendar.getInstance()
@@ -673,15 +676,19 @@ object SummaryAggregator {
              monthsToInclude.minOrNull() ?: 0L
         }
 
-        val prev12MonthsTxs = allTxs.filter {
-            (if (type == TrendType.LENDING) it.type == "lend" || it.type == "borrow" else it.type == txType) &&
-            it.date >= prev12MonthsStart && it.date < limitForPrev
-        }
-        val prev12MonthsTotal = if (type == TrendType.LENDING) {
-            prev12MonthsTxs.filter { it.type == "lend" }.sumOf { it.amount } -
-            prev12MonthsTxs.filter { it.type == "borrow" }.sumOf { it.amount }
-        } else {
-            prev12MonthsTxs.sumOf { it.amount }
+        val prev12MonthsTxs = allTxs.filter { it.date >= prev12MonthsStart && it.date < limitForPrev }
+        val prev12MonthsTotal = when (type) {
+            TrendType.INCOME -> prev12MonthsTxs.filter { it.type == "income" }.sumOf { it.amount }
+            TrendType.EXPENSE -> prev12MonthsTxs.filter { it.type == "expense" }.sumOf { it.amount }
+            TrendType.LENDING -> prev12MonthsTxs.filter { it.type == "lend" }.sumOf { it.amount } - prev12MonthsTxs.filter { it.type == "borrow" }.sumOf { it.amount }
+            TrendType.SAVINGS -> prev12MonthsTxs.filter { it.type == "savings" }.sumOf { it.amount }
+            TrendType.OVERALL -> {
+                val inc = prev12MonthsTxs.filter { it.type == "income" }.sumOf { it.amount }
+                val exp = prev12MonthsTxs.filter { it.type == "expense" }.sumOf { it.amount }
+                val lendNet = prev12MonthsTxs.filter { it.type == "lend" }.sumOf { it.amount } - prev12MonthsTxs.filter { it.type == "borrow" }.sumOf { it.amount }
+                val sav = prev12MonthsTxs.filter { it.type == "savings" }.sumOf { it.amount }
+                inc - (exp + sav + lendNet)
+            }
         }
 
         val growthPercent = if (prev12MonthsTotal != 0.0) {
