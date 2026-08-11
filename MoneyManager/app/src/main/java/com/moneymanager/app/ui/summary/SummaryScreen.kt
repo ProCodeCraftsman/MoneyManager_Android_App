@@ -215,7 +215,6 @@ fun SummaryScreen(
                                         selectedType = uiState.selectedTrendType,
                                         timeFilter = uiState.trendTimeFilter,
                                         dataPoints = uiState.trendDataPoints,
-                                        stats = uiState.trendStats,
                                         currency = uiState.currency,
                                         onTypeChange = viewModel::setTrendType,
                                         onTimeFilterChange = viewModel::setTrendTimeFilter,
