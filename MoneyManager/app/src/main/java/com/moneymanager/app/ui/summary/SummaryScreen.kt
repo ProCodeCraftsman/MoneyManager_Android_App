@@ -47,20 +47,16 @@ fun SummaryScreen(
         pageCount = { SummaryTab.entries.size }
     )
 
-    // Sync pager with activeTab from ViewModel (One-way sync from VM to Pager for external changes)
+    // Sync pager with activeTab from ViewModel
     LaunchedEffect(uiState.activeTab) {
         if (pagerState.currentPage != uiState.activeTab.ordinal) {
             pagerState.animateScrollToPage(uiState.activeTab.ordinal)
         }
     }
 
-    // Sync activeTab in ViewModel with pager (ONLY when settled to avoid jank during swipe)
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { page ->
-            if (SummaryTab.entries[page] != uiState.activeTab) {
-                viewModel.setActiveTab(SummaryTab.entries[page])
-            }
-        }
+    // Sync activeTab in ViewModel with pager
+    LaunchedEffect(pagerState.currentPage) {
+        viewModel.setActiveTab(SummaryTab.entries[pagerState.currentPage])
     }
 
     Scaffold(
@@ -121,7 +117,8 @@ fun SummaryScreen(
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.Top
+                        verticalAlignment = Alignment.Top,
+                        beyondViewportPageCount = 1
                     ) { pageIndex ->
                         val currentTab = SummaryTab.entries[pageIndex]
                         Column(
