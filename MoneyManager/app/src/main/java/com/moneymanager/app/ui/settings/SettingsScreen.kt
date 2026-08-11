@@ -391,13 +391,28 @@ fun SettingsScreen(
 
                 item {
                     SettingsRow(
+                        icon = Icons.Default.Brightness6,
+                        title = "Follow System Theme",
+                        subtitle = "Use system light/dark settings",
+                        trailing = {
+                            Switch(
+                                checked = !uiState.hasUserSetTheme,
+                                onCheckedChange = { viewModel.setFollowSystem(it) }
+                            )
+                        }
+                    )
+                }
+
+                item {
+                    SettingsRow(
                         icon = Icons.Default.DarkMode,
                         title = "Dark Mode",
-                        subtitle = "Switch to dark color scheme",
+                        subtitle = if (uiState.hasUserSetTheme) "Manually toggle dark mode" else "Controlled by system theme",
                         trailing = {
                             Switch(
                                 checked = uiState.darkMode,
-                                onCheckedChange = { viewModel.setDarkMode(it) }
+                                onCheckedChange = { viewModel.setDarkMode(it) },
+                                enabled = uiState.hasUserSetTheme
                             )
                         }
                     )

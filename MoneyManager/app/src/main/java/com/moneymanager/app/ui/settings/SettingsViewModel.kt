@@ -24,7 +24,10 @@ import com.moneymanager.data.sync.SyncStatus
 import com.moneymanager.domain.repository.TransactionRepository
 import com.moneymanager.app.ui.util.FileHelper
 import android.net.Uri
+import android.content.Context
+import android.content.res.Configuration
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,6 +40,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val preferencesManager: PreferencesManager,
     private val authManager: AuthManager,
     private val syncManager: FirebaseSyncManager,
@@ -103,6 +107,7 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = combine(
         preferencesManager.selectedTheme,
         preferencesManager.darkMode,
+        preferencesManager.hasUserSetTheme,
         preferencesManager.currency,
         preferencesManager.pinEnabled,
         preferencesManager.pinHash,
@@ -117,25 +122,30 @@ class SettingsViewModel @Inject constructor(
         driveBackupUiState,
     ) { values ->
         val selectedTheme = values[0] as AppTheme
-        val darkMode = values[1] as Boolean
-        val currency = values[2] as String
-        val pinEnabled = values[3] as Boolean
-        val pinHash = values[4] as String?
-        val biometricEnabled = values[5] as Boolean
-        val autoLockMinutes = values[6] as Int
-        val lastSyncTime = values[7] as Long?
-        val attachmentsEnabled = values[8] as Boolean
-        val authState = values[9] as AuthState
-        val syncState = values[10] as com.moneymanager.data.sync.SyncState
-        val impResult = values[11] as ImportResult?
-        val expResult = values[12] as ExportResult?
-        val driveBackup = values[13] as DriveBackupUiState
+        val storedDarkMode = values[1] as Boolean
+        val hasUserSetTheme = values[2] as Boolean
+        val currency = values[3] as String
+        val pinEnabled = values[4] as Boolean
+        val pinHash = values[5] as String?
+        val biometricEnabled = values[6] as Boolean
+        val autoLockMinutes = values[7] as Int
+        val lastSyncTime = values[8] as Long?
+        val attachmentsEnabled = values[9] as Boolean
+        val authState = values[10] as AuthState
+        val syncState = values[11] as com.moneymanager.data.sync.SyncState
+        val impResult = values[12] as ImportResult?
+        val expResult = values[13] as ExportResult?
+        val driveBackup = values[14] as DriveBackupUiState
+
+        val systemDarkMode = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        val effectiveDarkMode = if (hasUserSetTheme) storedDarkMode else systemDarkMode
 
         val isSignedIn = authState is AuthState.SignedIn
         val user = (authState as? AuthState.SignedIn)?.user
         SettingsUiState(
             selectedTheme = selectedTheme,
-            darkMode = darkMode,
+            darkMode = effectiveDarkMode,
+            hasUserSetTheme = hasUserSetTheme,
             currency = currency,
             pinEnabled = pinEnabled,
             pinHash = pinHash,
@@ -163,7 +173,13 @@ class SettingsViewModel @Inject constructor(
     fun setDarkMode(enabled: Boolean) {
         viewModelScope.launch {
             preferencesManager.setDarkMode(enabled)
-            preferencesManager.setUserHasSetTheme()
+            preferencesManager.setUserHasSetTheme(true)
+        }
+    }
+
+    fun setFollowSystem(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setUserHasSetTheme(!enabled)
         }
     }
 
