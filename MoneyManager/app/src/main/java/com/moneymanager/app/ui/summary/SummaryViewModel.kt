@@ -44,7 +44,7 @@ class SummaryViewModel @Inject constructor(
     private val customStartDate = MutableStateFlow<Long?>(null)
     private val customEndDate = MutableStateFlow<Long?>(null)
     private val activeTab = MutableStateFlow(SummaryTab.EXPENSE)
-    private val selectedTrendType = MutableStateFlow(TrendType.INCOME)
+    private val selectedTrendType = MutableStateFlow(TrendType.OVERALL)
     private val trendTimeFilter = MutableStateFlow(TrendTimeFilter.YEAR_1)
 
     // --- Filter params bundle ---
