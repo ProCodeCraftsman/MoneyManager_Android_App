@@ -20,6 +20,7 @@ import com.moneymanager.domain.repository.PeerContactRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import com.moneymanager.data.preferences.PreferencesManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import java.text.SimpleDateFormat
@@ -234,15 +235,7 @@ class SummaryViewModel @Inject constructor(
         val trendFilter = values[11] as TrendTimeFilter
         val params = values[12] as FilterParams
 
-        // Determine active period budget month string (for MONTH filter)
-        val budgetMonthStr = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(params.baseDate.time)
-        // PRD: budget rows shown for current MONTH bucket only when filter != MONTH
-        val activeBudgets = if (params.filter == TimeFilter.MONTH) {
-            allBudgets.filter { it.month == budgetMonthStr }
-        } else {
-            allBudgets.filter { it.month == budgetMonthStr }
-        }
-
+        // --- Common Calculations (Always needed for Header) ---
         val totalIncome = SummaryAggregator.sumByType(txs, "income")
         val totalExpense = SummaryAggregator.sumByType(txs, "expense")
         val netBalance = totalIncome - totalExpense
@@ -257,133 +250,128 @@ class SummaryViewModel @Inject constructor(
             ((netBalance - prevNetBalance) / kotlin.math.abs(prevNetBalance)) * 100.0
         } else if (netBalance != 0.0) 100.0 else 0.0
 
-        val expenseByCategory = SummaryAggregator.expenseByCategory(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") {
-                parseColor(hex)
-            } else {
-                generateDistinctColor(id.toInt())
-            }
-        }
+        // --- Lazy Tab Calculations ---
+        var expenseByCategory = emptyList<com.moneymanager.app.ui.components.PieChartEntry>()
+        var expenseByAccount = emptyList<com.moneymanager.app.ui.components.PieChartEntry>()
+        var topBudgetUtilization = emptyList<BudgetUtilizationRow>()
+        var totalBudget = 0.0
+        var budgetRemaining = 0.0
+        var budgetUtilizationPercent = 0f
 
-        val expenseByAccount = SummaryAggregator.expenseByAccount(txs, accounts) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") {
-                parseColor(hex)
-            } else {
-                generateDistinctColor(id.toInt())
-            }
-        }
+        var incomeByCategory = emptyList<CategorySpend>()
+        var incomeByCategoryPie = emptyList<com.moneymanager.app.ui.components.PieChartEntry>()
+        var incomeByAccount = emptyList<com.moneymanager.app.ui.components.PieChartEntry>()
 
-        val topBudgetUtilization = SummaryAggregator.topBudgetUtilization(txs, activeBudgets, categories, 100) { hex ->
-            parseColor(hex ?: "#FF5252")
-        }
+        var lendingPeople = emptyList<LendingPerson>()
+        var totalLent = 0.0
+        var totalBorrowed = 0.0
+        var lentPeopleCount = 0
+        var borrowedPeopleCount = 0
+        var lendingNetBalance = 0.0
         
-        val incomeByCategory = SummaryAggregator.incomeByCategory(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") {
-                parseColor(hex)
-            } else {
-                generateDistinctColor(id.toInt())
+        var totalTransfersCount = 0
+        var totalTransferAmount = 0.0
+        var accountTransfers = emptyList<AccountTransferInfo>()
+
+        var totalSavings = 0.0
+        var totalSavingsPeriod = 0.0
+        var savingsGrowthPercent = 0.0
+        var savingsGrowthPeriod = ""
+        var savingsGoals = emptyList<SavingsGoalRow>()
+        var savingsAccounts = emptyList<SavingsAccountRow>()
+        var savingsByCategory = emptyList<com.moneymanager.app.ui.components.PieChartEntry>()
+        var savingsByAccount = emptyList<com.moneymanager.app.ui.components.PieChartEntry>()
+        var savingsByCategorySpend = emptyList<CategorySpend>()
+
+        var trendDataPoints = emptyList<TrendDataPoint>()
+        var trendStats = TrendStats()
+        var allTrendDataPoints = emptyMap<TrendType, List<TrendDataPoint>>()
+
+        when (tab) {
+            SummaryTab.EXPENSE -> {
+                val budgetMonthStr = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(params.baseDate.time)
+                val activeBudgets = allBudgets.filter { it.month == budgetMonthStr }
+                
+                expenseByCategory = SummaryAggregator.expenseByCategory(txs, categories) { hex, id ->
+                    if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
+                }
+                expenseByAccount = SummaryAggregator.expenseByAccount(txs, accounts) { hex, id ->
+                    if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") parseColor(hex) else generateDistinctColor(id.toInt())
+                }
+                topBudgetUtilization = SummaryAggregator.topBudgetUtilization(txs, activeBudgets, categories, 100) { hex ->
+                    parseColor(hex ?: "#FF5252")
+                }
+                totalBudget = activeBudgets.sumOf { it.amount }
+                budgetRemaining = (totalBudget - totalExpense).coerceAtLeast(0.0)
+                budgetUtilizationPercent = if (totalBudget > 0) (totalExpense / totalBudget * 100.0).toFloat() else 0f
             }
-        }
-
-        val incomeByCategoryPie = SummaryAggregator.incomeByCategoryPie(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") {
-                parseColor(hex)
-            } else {
-                generateDistinctColor(id.toInt())
+            SummaryTab.INCOME -> {
+                incomeByCategory = SummaryAggregator.incomeByCategory(txs, categories) { hex, id ->
+                    if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
+                }
+                incomeByCategoryPie = SummaryAggregator.incomeByCategoryPie(txs, categories) { hex, id ->
+                    if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
+                }
+                incomeByAccount = SummaryAggregator.incomeByAccount(txs, accounts) { hex, id ->
+                    if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") parseColor(hex) else generateDistinctColor(id.toInt())
+                }
             }
-        }
-
-        val incomeByAccount = SummaryAggregator.incomeByAccount(txs, accounts) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") {
-                parseColor(hex)
-            } else {
-                generateDistinctColor(id.toInt())
+            SummaryTab.LENDING -> {
+                lendingPeople = SummaryAggregator.lendingPeople(allTxs, allPeers)
+                totalLent = lendingPeople.filter { it.isOwed }.sumOf { it.amount }
+                totalBorrowed = lendingPeople.filter { !it.isOwed }.sumOf { it.amount }
+                lentPeopleCount = lendingPeople.count { it.isOwed }
+                borrowedPeopleCount = lendingPeople.count { !it.isOwed }
+                lendingNetBalance = totalLent - totalBorrowed
             }
-        }
-
-        val totalBudget = activeBudgets.sumOf { it.amount }
-        val budgetRemaining = (totalBudget - totalExpense).coerceAtLeast(0.0)
-        val budgetUtilizationPercent = if (totalBudget > 0) (totalExpense / totalBudget * 100.0).toFloat() else 0f
-
-        // Lending calculations
-        val lendingPeople = SummaryAggregator.lendingPeople(allTxs, allPeers)
-        val totalLent = lendingPeople.filter { it.isOwed }.sumOf { it.amount }
-        val totalBorrowed = lendingPeople.filter { !it.isOwed }.sumOf { it.amount }
-        val lentPeopleCount = lendingPeople.count { it.isOwed }
-        val borrowedPeopleCount = lendingPeople.count { !it.isOwed }
-        val lendingNetBalance = totalLent - totalBorrowed
-        
-        val settledAmount = 0.0
-        val settledCount = 0
-
-        // Transfer calculations
-        val totalTransfersCount = txs.count { it.type == "transfer" }
-        val totalTransferAmount = txs.filter { it.type == "transfer" }.sumOf { it.amount }
-        val accountTransfers = SummaryAggregator.accountTransferSummary(txs, accounts)
-
-        // Savings calculations
-        val savingsAccounts = SummaryAggregator.savingsSummary(accounts)
-        val savingsAccountIds = savingsAccounts.map { it.id }.toSet()
-        val totalSavingsPeriod = SummaryAggregator.sumByType(txs, "savings")
-
-        // All-time linked amounts for totalSavings (cumulative snapshot)
-        val allTimeGoalLinked = mutableMapOf<Long, Double>()
-        allTxs.forEach { tx ->
-            tx.goalId?.let { gid ->
-                allTimeGoalLinked[gid] = (allTimeGoalLinked[gid] ?: 0.0) + tx.amount
+            SummaryTab.TRANSFERS -> {
+                totalTransfersCount = txs.count { it.type == "transfer" }
+                totalTransferAmount = txs.filter { it.type == "transfer" }.sumOf { it.amount }
+                accountTransfers = SummaryAggregator.accountTransferSummary(txs, accounts)
             }
-        }
-        val totalSavings = savingsAccounts.sumOf { it.balance } +
-            allGoals.sumOf { goal -> goal.currentAmount + (allTimeGoalLinked[goal.id] ?: 0.0) }
+            SummaryTab.SAVINGS -> {
+                savingsAccounts = SummaryAggregator.savingsSummary(accounts)
+                val savingsAccountIds = savingsAccounts.map { it.id }.toSet()
+                totalSavingsPeriod = SummaryAggregator.sumByType(txs, "savings")
 
-        // Period-scoped linked amounts for savings goals list (time-filter-aware)
-        val goalLinkedAmounts = mutableMapOf<Long, Double>()
-        txs.forEach { tx ->
-            tx.goalId?.let { gid ->
-                goalLinkedAmounts[gid] = (goalLinkedAmounts[gid] ?: 0.0) + tx.amount
+                val allTimeGoalLinked = mutableMapOf<Long, Double>()
+                allTxs.forEach { tx -> tx.goalId?.let { gid -> allTimeGoalLinked[gid] = (allTimeGoalLinked[gid] ?: 0.0) + tx.amount } }
+                totalSavings = savingsAccounts.sumOf { it.balance } + allGoals.sumOf { goal -> goal.currentAmount + (allTimeGoalLinked[goal.id] ?: 0.0) }
+
+                val goalLinkedAmounts = mutableMapOf<Long, Double>()
+                txs.forEach { tx -> tx.goalId?.let { gid -> goalLinkedAmounts[gid] = (goalLinkedAmounts[gid] ?: 0.0) + tx.amount } }
+                savingsGoals = SummaryAggregator.savingsGoals(allGoals, goalLinkedAmounts) { _, id ->
+                    val goalPalette = listOf("#673AB7", "#5E35B1", "#512DA8", "#4527A0", "#311B92")
+                    parseColor(goalPalette[(id % goalPalette.size).toInt()])
+                }
+                
+                val currentSavingsInflow = SummaryAggregator.savingsInflow(txs, savingsAccountIds)
+                val prevSavingsInflow = SummaryAggregator.savingsInflow(prevTxs, savingsAccountIds)
+                savingsGrowthPercent = if (prevSavingsInflow != 0.0) ((currentSavingsInflow - prevSavingsInflow) / kotlin.math.abs(prevSavingsInflow)) * 100.0 else if (currentSavingsInflow != 0.0) 100.0 else 0.0
+                savingsGrowthPeriod = "vs previous ${params.filter.name.lowercase()}"
+
+                savingsByCategory = SummaryAggregator.savingsByCategory(txs, categories) { hex, id ->
+                    if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
+                }
+                savingsByAccount = SummaryAggregator.savingsByAccount(txs, accounts) { hex, id ->
+                    if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") parseColor(hex) else generateDistinctColor(id.toInt())
+                }
+                savingsByCategorySpend = SummaryAggregator.savingsByCategorySpend(txs, categories) { hex, id ->
+                    if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
+                }
             }
-        }
-        val savingsGoals = SummaryAggregator.savingsGoals(allGoals, goalLinkedAmounts) { _, id ->
-            val goalPalette = listOf("#673AB7", "#5E35B1", "#512DA8", "#4527A0", "#311B92")
-            parseColor(goalPalette[(id % goalPalette.size).toInt()])
-        }
-        
-        val currentSavingsInflow = SummaryAggregator.savingsInflow(txs, savingsAccountIds)
-        val prevSavingsInflow = SummaryAggregator.savingsInflow(prevTxs, savingsAccountIds)
-        val savingsGrowthPercent = if (prevSavingsInflow != 0.0) {
-            ((currentSavingsInflow - prevSavingsInflow) / kotlin.math.abs(prevSavingsInflow)) * 100.0
-        } else if (currentSavingsInflow != 0.0) 100.0 else 0.0
-        val savingsGrowthPeriod = "vs previous ${params.filter.name.lowercase()}"
-
-        val savingsByCategory = SummaryAggregator.savingsByCategory(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") {
-                parseColor(hex)
-            } else {
-                generateDistinctColor(id.toInt())
+            SummaryTab.TRENDS -> {
+                val trendResult = SummaryAggregator.calculateTrend(allTxs, trendType, trendFilter)
+                trendDataPoints = trendResult.first
+                trendStats = trendResult.second
+                
+                // Only calculate all trends if we are in OVERALL mode to show multi-line chart
+                if (trendType == TrendType.OVERALL) {
+                    allTrendDataPoints = TrendType.entries.filter { it != TrendType.OVERALL }.associateWith { type ->
+                        SummaryAggregator.calculateTrend(allTxs, type, trendFilter).first
+                    }
+                }
             }
-        }
-
-        val savingsByAccount = SummaryAggregator.savingsByAccount(txs, accounts) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") {
-                parseColor(hex)
-            } else {
-                generateDistinctColor(id.toInt())
-            }
-        }
-
-        val savingsByCategorySpend = SummaryAggregator.savingsByCategorySpend(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") {
-                parseColor(hex)
-            } else {
-                generateDistinctColor(id.toInt())
-            }
-        }
-
-        // Trend calculations
-        val (trendDataPoints, trendStats) = SummaryAggregator.calculateTrend(allTxs, trendType, trendFilter)
-
-        val allTrendDataPoints = TrendType.entries.filter { it != TrendType.OVERALL }.associateWith { type ->
-            SummaryAggregator.calculateTrend(allTxs, type, trendFilter).first
         }
 
         val isEmpty = txs.isEmpty() && allGoals.isEmpty() && savingsAccounts.isEmpty()
@@ -417,8 +405,8 @@ class SummaryViewModel @Inject constructor(
             lentPeopleCount = lentPeopleCount,
             borrowedPeopleCount = borrowedPeopleCount,
             lendingNetBalance = lendingNetBalance,
-            settledAmount = settledAmount,
-            settledCount = settledCount,
+            settledAmount = 0.0,
+            settledCount = 0,
             lendingPeople = lendingPeople,
             totalTransfersCount = totalTransfersCount,
             totalTransferAmount = totalTransferAmount,
@@ -439,7 +427,8 @@ class SummaryViewModel @Inject constructor(
             allTrendDataPoints = allTrendDataPoints,
             currency = currency
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = SummaryUiState()
