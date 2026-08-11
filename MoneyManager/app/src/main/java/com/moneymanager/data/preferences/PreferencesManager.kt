@@ -346,45 +346,4 @@ class PreferencesManager(private val context: Context) {
             preferences[IMAGE_ATTACHMENTS_ENABLED] = enabled
         }
     }
-
-    /**
-     * DEBUG ONLY: Clears all preferences except those related to AI models.
-     * This avoids re-downloading large AI models during testing.
-     */
-    suspend fun resetExceptAi() {
-        context.dataStore.edit { preferences ->
-            val aiStatus = preferences[AI_AVAILABILITY_STATUS]
-            val aiProgress = preferences[AI_DOWNLOAD_PROGRESS]
-            val backendTier = preferences[AI_BACKEND_TIER]
-            val modelDownloaded = preferences[LOCAL_MODEL_DOWNLOADED]
-            val modelProgress = preferences[LOCAL_MODEL_DOWNLOAD_PROGRESS]
-            val modelReceived = preferences[LOCAL_MODEL_DOWNLOAD_RECEIVED]
-            val modelTotal = preferences[LOCAL_MODEL_DOWNLOAD_TOTAL]
-            val modelSpeed = preferences[LOCAL_MODEL_DOWNLOAD_SPEED]
-            val selectedModel = preferences[SELECTED_LOCAL_MODEL]
-            val wifiOnly = preferences[WIFI_ONLY_DOWNLOAD]
-            val hfToken = preferences[HF_ACCESS_TOKEN]
-            val hfExpires = preferences[HF_TOKEN_EXPIRES_AT]
-            val optIn = preferences[USER_OPTED_IN_AI]
-            val allowlist = preferences[USER_ALLOWLIST_JSON]
-
-            preferences.clear()
-
-            // Restore AI-related settings
-            if (aiStatus != null) preferences[AI_AVAILABILITY_STATUS] = aiStatus
-            if (aiProgress != null) preferences[AI_DOWNLOAD_PROGRESS] = aiProgress
-            if (backendTier != null) preferences[AI_BACKEND_TIER] = backendTier
-            if (modelDownloaded != null) preferences[LOCAL_MODEL_DOWNLOADED] = modelDownloaded
-            if (modelProgress != null) preferences[LOCAL_MODEL_DOWNLOAD_PROGRESS] = modelProgress
-            if (modelReceived != null) preferences[LOCAL_MODEL_DOWNLOAD_RECEIVED] = modelReceived
-            if (modelTotal != null) preferences[LOCAL_MODEL_DOWNLOAD_TOTAL] = modelTotal
-            if (modelSpeed != null) preferences[LOCAL_MODEL_DOWNLOAD_SPEED] = modelSpeed
-            if (selectedModel != null) preferences[SELECTED_LOCAL_MODEL] = selectedModel
-            if (wifiOnly != null) preferences[WIFI_ONLY_DOWNLOAD] = wifiOnly
-            if (hfToken != null) preferences[HF_ACCESS_TOKEN] = hfToken
-            if (hfExpires != null) preferences[HF_TOKEN_EXPIRES_AT] = hfExpires
-            if (optIn != null) preferences[USER_OPTED_IN_AI] = optIn
-            if (allowlist != null) preferences[USER_ALLOWLIST_JSON] = allowlist
-        }
-    }
 }

@@ -61,7 +61,6 @@ fun SettingsScreen(
     var showAutoLockDialog by remember { mutableStateOf(false) }
     var showPinSetupDialog by remember { mutableStateOf(false) }
     var showDeleteAttachmentsConfirm by remember { mutableStateOf(false) }
-    var showHardResetConfirm by remember { mutableStateOf(false) }
     var pendingCsvAction by remember { mutableStateOf<String?>(null) }
     var selectedCsvType by remember { mutableStateOf<ExportType?>(null) }
     val lazyListState = rememberLazyListState()
@@ -552,58 +551,10 @@ fun SettingsScreen(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(7.dp))
-                }
-
-                item {
-                    SettingsSectionHeader(title = "Debug Tools (Temp)")
-                }
-
-                item {
-                    SettingsRow(
-                        icon = Icons.Default.DeleteForever,
-                        title = "Hard Reset App",
-                        subtitle = "Clear all data & settings (Keeps AI Models)",
-                        onClick = { showHardResetConfirm = true },
-                        showDivider = false
-                    )
-                }
-
-                item {
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
-    }
-
-    if (showHardResetConfirm) {
-        AlertDialog(
-            onDismissRequest = { showHardResetConfirm = false },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Hard Reset App?") },
-            text = { Text("This will PERMANENTLY delete all transactions, accounts, categories, and settings. Your downloaded AI models will be preserved to save data. The app will restart into a fresh state.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showHardResetConfirm = false
-                        viewModel.hardResetApp {
-                            // In a real app we might want to kill the process to ensure 
-                            // all in-memory states are reset, but for testing 
-                            // re-navigating or showing a success message might suffice.
-                            // For now, we'll just let it be.
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Reset Everything")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showHardResetConfirm = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 
     if (showDeleteAttachmentsConfirm) {

@@ -23,7 +23,6 @@ import com.moneymanager.data.sync.FirebaseSyncManager
 import com.moneymanager.data.sync.SyncStatus
 import com.moneymanager.domain.repository.TransactionRepository
 import com.moneymanager.app.ui.util.FileHelper
-import com.moneymanager.data.debug.AppResetManager
 import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +43,6 @@ class SettingsViewModel @Inject constructor(
     private val exportRepository: ExportRepository,
     private val securityManager: SecurityManager,
     private val transactionRepository: TransactionRepository,
-    private val appResetManager: AppResetManager,
     private val driveAuthManager: DriveAuthManager,
     private val driveBackupManager: DriveBackupManager,
     private val encryptionHelper: EncryptionHelper,
@@ -253,13 +251,6 @@ class SettingsViewModel @Inject constructor(
     fun clearResults() {
         importResult.value = null
         exportResult.value = null
-    }
-
-    fun hardResetApp(onComplete: () -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            appResetManager.hardReset()
-            launch(Dispatchers.Main) { onComplete() }
-        }
     }
 
     // ---- Google Drive Backup ----
