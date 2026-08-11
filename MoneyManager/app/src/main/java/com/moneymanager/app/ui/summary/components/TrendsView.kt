@@ -23,7 +23,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.summary.TrendDataPoint
-import com.moneymanager.app.ui.summary.TrendStats
 import com.moneymanager.app.ui.summary.TrendTimeFilter
 import com.moneymanager.app.ui.summary.TrendType
 import com.moneymanager.app.ui.util.CurrencyUtils
@@ -36,7 +35,6 @@ fun TrendsView(
     selectedType: TrendType,
     timeFilter: TrendTimeFilter,
     dataPoints: List<TrendDataPoint>,
-    stats: TrendStats,
     currency: String,
     onTypeChange: (TrendType) -> Unit,
     onTimeFilterChange: (TrendTimeFilter) -> Unit,
@@ -58,11 +56,6 @@ fun TrendsView(
             onTimeFilterChange = onTimeFilterChange,
             onMetricClick = { showMetricSelector = true },
             allDataPoints = allDataPoints
-        )
-
-        StatisticsSection(
-            stats = stats,
-            currency = currency
         )
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -534,81 +527,6 @@ private fun formatShortValue(value: Double): String {
         value >= 1000000 -> String.format(Locale.getDefault(), "%.1fM", value / 1000000)
         value >= 1000 -> String.format(Locale.getDefault(), "%dK", (value / 1000).toInt())
         else -> value.toInt().toString()
-    }
-}
-
-@Composable
-fun StatisticsSection(
-    stats: TrendStats,
-    currency: String
-) {
-    val currencyFormat = CurrencyUtils.getCurrencyFormat(currency)
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.BarChart,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Statistics (2026)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatGridItem("Total", currencyFormat.format(stats.total), Modifier.weight(1f))
-                StatGridItem("Highest Month", currencyFormat.format(stats.highest), Modifier.weight(1f), stats.highestMonth)
-                StatGridItem("Lowest Month", currencyFormat.format(stats.lowest), Modifier.weight(1f), stats.lowestMonth)
-                StatGridItem("Average / Month", currencyFormat.format(stats.average), Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-fun StatGridItem(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    subValue: String? = null
-) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
-        if (subValue != null) {
-            Text(
-                text = subValue,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center
-            )
-        }
     }
 }
 
