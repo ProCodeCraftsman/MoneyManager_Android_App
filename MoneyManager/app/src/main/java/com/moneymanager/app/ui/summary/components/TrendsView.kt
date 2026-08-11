@@ -17,6 +17,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -281,6 +282,12 @@ fun TrendGraph(
     val pointWidth = 70.dp
     val pointWidthPx = with(density) { pointWidth.toPx() }
     
+    val textMeasurer = rememberTextMeasurer()
+    val textStyle = MaterialTheme.typography.labelSmall.copy(
+        fontSize = 8.sp, 
+        fontWeight = FontWeight.Bold
+    )
+
     val currentIndex = dataPoints.indexOfFirst { it.timestamp == currentMonthStart }.coerceAtLeast(0)
     
     LaunchedEffect(Unit) {
@@ -295,7 +302,12 @@ fun TrendGraph(
     }
 
     val scrollOffset = scrollState.value.toFloat()
-    val highlightedIndex = (scrollOffset / pointWidthPx + 2).toInt().coerceIn(0, dataPoints.size - 1)
+    // Adjusted highlight logic to be more responsive at the start of the scroll
+    val highlightedIndex = if (scrollOffset < pointWidthPx) {
+        0
+    } else {
+        (scrollOffset / pointWidthPx + 1.5f).toInt()
+    }.coerceIn(0, dataPoints.size - 1)
     val highlightedPoint = dataPoints[highlightedIndex]
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -383,12 +395,32 @@ fun TrendGraph(
                                 }
                                 val points = allDataPoints[t] ?: emptyList()
                                 if (points.size > 1) {
-                                    drawTrendLine(points, tColor, maxAmount, stepX, height)
+                                    drawTrendLine(
+                                        points = points, 
+                                        color = tColor, 
+                                        maxAmount = maxAmount, 
+                                        stepX = stepX, 
+                                        height = height,
+                                        textMeasurer = textMeasurer,
+                                        textStyle = textStyle.copy(color = tColor),
+                                        formatValue = { formatShortValue(it) },
+                                        drawValues = true
+                                    )
                                 }
                             }
                         }
                     } else {
-                        drawTrendLine(dataPoints, color, maxAmount, stepX, height)
+                        drawTrendLine(
+                            points = dataPoints, 
+                            color = color, 
+                            maxAmount = maxAmount, 
+                            stepX = stepX, 
+                            height = height,
+                            textMeasurer = textMeasurer,
+                            textStyle = textStyle.copy(color = color),
+                            formatValue = { formatShortValue(it) },
+                            drawValues = true
+                        )
                     }
                 }
                 
@@ -417,7 +449,11 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrendLine(
     color: Color,
     maxAmount: Double,
     stepX: Float,
-    height: Float
+    height: Float,
+    textMeasurer: TextMeasurer,
+    textStyle: TextStyle,
+    formatValue: (Double) -> String,
+    drawValues: Boolean = false
 ) {
     val path = Path()
     val fillPath = Path()
@@ -479,6 +515,17 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrendLine(
             center = Offset(x, y),
             style = Stroke(width = 1.5.dp.toPx())
         )
+
+        if (drawValues && abs(point.amount) > 0) {
+            val textLayoutResult = textMeasurer.measure(
+                text = formatValue(abs(point.amount)),
+                style = textStyle
+            )
+            drawText(
+                textLayoutResult = textLayoutResult,
+                topLeft = Offset(x - textLayoutResult.size.width / 2, y - textLayoutResult.size.height - 4.dp.toPx())
+            )
+        }
     }
 }
 
