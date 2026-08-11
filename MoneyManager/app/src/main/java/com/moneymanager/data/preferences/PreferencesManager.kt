@@ -212,9 +212,9 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun setUserHasSetTheme() {
+    suspend fun setUserHasSetTheme(hasSet: Boolean) {
         context.dataStore.edit { preferences ->
-            preferences[HAS_USER_SET_THEME] = true
+            preferences[HAS_USER_SET_THEME] = hasSet
         }
     }
 

@@ -9,6 +9,7 @@ import com.moneymanager.data.sync.SyncStatus
 data class SettingsUiState(
     val selectedTheme: AppTheme = AppTheme.CALM_GREEN,
     val darkMode: Boolean = false,
+    val hasUserSetTheme: Boolean = false,
     val currency: String = "INR",
     val pinEnabled: Boolean = false,
     val pinHash: String? = null,
