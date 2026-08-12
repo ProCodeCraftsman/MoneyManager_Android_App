@@ -42,9 +42,15 @@ fun RecurringFormScreen(
     var amount by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("expense") }
     var selectedAccount by remember { mutableStateOf<AccountEntity?>(null) }
+    var selectedToAccount by remember { mutableStateOf<AccountEntity?>(null) }
     var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var selectedSubCategory by remember { mutableStateOf<CategoryEntity?>(null) }
+    var description by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var selectedPeerId by remember { mutableStateOf<Long?>(null) }
+    var selectedTagIds by remember { mutableStateOf(emptySet<Long>()) }
+    var selectedPlatform by remember { mutableStateOf("") }
+    var selectedGoalId by remember { mutableStateOf<Long?>(null) }
     var selectedFrequency by remember { mutableStateOf("monthly") }
     var startDate by remember { mutableStateOf(System.currentTimeMillis()) }
     var endDate by remember { mutableStateOf<Long?>(null) }
@@ -66,16 +72,24 @@ fun RecurringFormScreen(
         }
     }
 
-    LaunchedEffect(recurringId, uiState.accounts, uiState.categories) {
+    LaunchedEffect(recurringId, uiState.accounts, uiState.categories, uiState.tags, uiState.peers) {
         if (recurringId != null && !isDataLoaded && uiState.accounts.isNotEmpty() && uiState.categories.isNotEmpty()) {
             viewModel.getRecurringById(recurringId)?.let { recurring ->
                 existingRecurring = recurring
                 amount = if (recurring.amount % 1.0 == 0.0) recurring.amount.toLong().toString() else recurring.amount.toString()
                 selectedType = recurring.type
                 selectedAccount = uiState.accounts.find { it.id == recurring.accountId }
+                selectedToAccount = uiState.accounts.find { it.id == recurring.toAccountId }
                 selectedCategory = uiState.categories.find { it.id == recurring.categoryId }
                 selectedSubCategory = uiState.categories.find { it.id == recurring.subCategoryId }
+                selectedGoalId = recurring.goalId
+                description = recurring.description
                 note = recurring.note
+                selectedPeerId = recurring.peerContactId
+                selectedTagIds = if (recurring.tagIds.isNotEmpty()) 
+                    recurring.tagIds.split(",").mapNotNull { it.trim().toLongOrNull() }.toSet()
+                    else emptySet()
+                selectedPlatform = recurring.investmentPlatform ?: ""
                 selectedFrequency = recurring.frequency
                 startDate = recurring.nextDate
                 endDate = recurring.endDate
@@ -121,21 +135,57 @@ fun RecurringFormScreen(
             
             // Type selection
             Text("Type", style = MaterialTheme.typography.titleSmall)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf("income", "expense", "savings").forEach { type ->
+                listOf("income", "expense", "savings", "transfer", "lend", "borrow").forEach { type ->
                     FilterChip(
                         selected = selectedType == type,
                         onClick = { 
                             selectedType = type
                             selectedCategory = null
                             selectedSubCategory = null
+                            if (type != "transfer") selectedToAccount = null
+                            if (type != "lend" && type != "borrow") selectedPeerId = null
                         },
-                        label = { Text(type.replaceFirstChar { it.uppercase() }) },
-                        modifier = Modifier.weight(1f)
+                        label = { Text(type.replaceFirstChar { it.uppercase() }) }
                     )
+                }
+            }
+            
+            // Transfer To Account
+            if (selectedType == "transfer") {
+                var toAccountExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = toAccountExpanded,
+                    onExpandedChange = { toAccountExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = toAccountExpanded,
+                        onDismissRequest = { toAccountExpanded = false }
+                    ) {
+                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedToAccount = account
+                                    toAccountExpanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
             
@@ -167,6 +217,40 @@ fun RecurringFormScreen(
                                 accountExpanded = false
                             }
                         )
+                    }
+                }
+            }
+            
+            // Transfer To Account
+            if (selectedType == "transfer") {
+                var toAccountExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = toAccountExpanded,
+                    onExpandedChange = { toAccountExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = toAccountExpanded,
+                        onDismissRequest = { toAccountExpanded = false }
+                    ) {
+                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedToAccount = account
+                                    toAccountExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -245,6 +329,48 @@ fun RecurringFormScreen(
                 }
             }
             
+            // Transfer To Account
+            if (selectedType == "transfer") {
+                var toAccountExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = toAccountExpanded,
+                    onExpandedChange = { toAccountExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = toAccountExpanded,
+                        onDismissRequest = { toAccountExpanded = false }
+                    ) {
+                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedToAccount = account
+                                    toAccountExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Description
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Description") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             // Note
             OutlinedTextField(
                 value = note,
@@ -252,6 +378,112 @@ fun RecurringFormScreen(
                 label = { Text("Note") },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Peer (Lend/Borrow)
+            if (selectedType == "lend" || selectedType == "borrow") {
+                var peerExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = peerExpanded,
+                    onExpandedChange = { peerExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = uiState.peers.find { it.id == selectedPeerId }?.effectiveDisplayName ?: "Select Person",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Person") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = peerExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = peerExpanded,
+                        onDismissRequest = { peerExpanded = false }
+                    ) {
+                        uiState.peers.forEach { peer ->
+                            DropdownMenuItem(
+                                text = { Text(peer.effectiveDisplayName) },
+                                onClick = {
+                                    selectedPeerId = peer.id
+                                    peerExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Investment Platform (Savings)
+            if (selectedType == "savings") {
+                OutlinedTextField(
+                    value = selectedPlatform,
+                    onValueChange = { selectedPlatform = it },
+                    label = { Text("Investment Platform") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // Goal
+            if (uiState.goals.isNotEmpty()) {
+                var goalExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = goalExpanded,
+                    onExpandedChange = { goalExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = uiState.goals.find { it.id == selectedGoalId }?.name ?: "Select Goal (Optional)",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Goal") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = goalExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = goalExpanded,
+                        onDismissRequest = { goalExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("None") },
+                            onClick = {
+                                selectedGoalId = null
+                                goalExpanded = false
+                            }
+                        )
+                        uiState.goals.forEach { goal ->
+                            DropdownMenuItem(
+                                text = { Text(goal.name) },
+                                onClick = {
+                                    selectedGoalId = goal.id
+                                    goalExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Tags
+            if (uiState.tags.isNotEmpty()) {
+                Text("Tags", style = MaterialTheme.typography.titleSmall)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    uiState.tags.forEach { tag ->
+                        val isSelected = tag.id in selectedTagIds
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                selectedTagIds = if (isSelected) selectedTagIds - tag.id else selectedTagIds + tag.id
+                            },
+                            label = { Text(tag.name) }
+                        )
+                    }
+                }
+            }
             
             // Frequency dropdown
             var frequencyExpanded by remember { mutableStateOf(false) }
@@ -282,6 +514,40 @@ fun RecurringFormScreen(
                                 frequencyExpanded = false
                             }
                         )
+                    }
+                }
+            }
+            
+            // Transfer To Account
+            if (selectedType == "transfer") {
+                var toAccountExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = toAccountExpanded,
+                    onExpandedChange = { toAccountExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = toAccountExpanded,
+                        onDismissRequest = { toAccountExpanded = false }
+                    ) {
+                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedToAccount = account
+                                    toAccountExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -320,6 +586,40 @@ fun RecurringFormScreen(
                 }
             }
             
+            // Transfer To Account
+            if (selectedType == "transfer") {
+                var toAccountExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = toAccountExpanded,
+                    onExpandedChange = { toAccountExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = toAccountExpanded,
+                        onDismissRequest = { toAccountExpanded = false }
+                    ) {
+                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedToAccount = account
+                                    toAccountExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            
             // End date selection
             var showEndDatePicker by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -342,6 +642,40 @@ fun RecurringFormScreen(
                     }
                 }
             }
+            
+            // Transfer To Account
+            if (selectedType == "transfer") {
+                var toAccountExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = toAccountExpanded,
+                    onExpandedChange = { toAccountExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = toAccountExpanded,
+                        onDismissRequest = { toAccountExpanded = false }
+                    ) {
+                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedToAccount = account
+                                    toAccountExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             if (showEndDatePicker) {
                 val datePickerState = rememberDatePickerState(initialSelectedDateMillis = endDate ?: (startDate + 86400000))
@@ -358,6 +692,40 @@ fun RecurringFormScreen(
                     }
                 ) {
                     DatePicker(state = datePickerState)
+                }
+            }
+            
+            // Transfer To Account
+            if (selectedType == "transfer") {
+                var toAccountExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = toAccountExpanded,
+                    onExpandedChange = { toAccountExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = toAccountExpanded,
+                        onDismissRequest = { toAccountExpanded = false }
+                    ) {
+                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedToAccount = account
+                                    toAccountExpanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
             
@@ -388,11 +756,17 @@ fun RecurringFormScreen(
                         val recurring = RecurringEntity(
                             id = existingRecurring?.id ?: 0,
                             accountId = selectedAccount!!.id,
+                            toAccountId = selectedToAccount?.id,
                             type = selectedType,
                             amount = amountValue,
                             categoryId = selectedCategory?.id,
                             subCategoryId = selectedSubCategory?.id,
+                            peerContactId = selectedPeerId,
+                            tagIds = selectedTagIds.joinToString(","),
+                            description = description,
                             note = note,
+                            goalId = selectedGoalId,
+                            investmentPlatform = selectedPlatform.ifEmpty { null },
                             frequency = selectedFrequency,
                             nextDate = startDate,
                             endDate = endDate,
@@ -426,6 +800,40 @@ fun RecurringFormScreen(
                     )
                 ) {
                     Text("Delete")
+                }
+            }
+            
+            // Transfer To Account
+            if (selectedType == "transfer") {
+                var toAccountExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = toAccountExpanded,
+                    onExpandedChange = { toAccountExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = toAccountExpanded,
+                        onDismissRequest = { toAccountExpanded = false }
+                    ) {
+                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedToAccount = account
+                                    toAccountExpanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

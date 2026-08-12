@@ -4,10 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
+import com.moneymanager.data.entity.GoalEntity
+import com.moneymanager.data.entity.PeerContact
 import com.moneymanager.data.entity.RecurringEntity
+import com.moneymanager.data.entity.TagEntity
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.CategoryRepository
+import com.moneymanager.domain.repository.GoalRepository
+import com.moneymanager.domain.repository.PeerContactRepository
 import com.moneymanager.domain.repository.RecurringRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -20,6 +25,8 @@ class RecurringViewModel @Inject constructor(
     private val recurringRepository: RecurringRepository,
     private val accountRepository: AccountRepository,
     private val categoryRepository: CategoryRepository,
+    private val goalRepository: GoalRepository,
+    private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
@@ -27,12 +34,26 @@ class RecurringViewModel @Inject constructor(
         recurringRepository.getAllRecurring(),
         accountRepository.getAllAccounts(),
         categoryRepository.getAllCategories(),
+        categoryRepository.getAllTags(),
+        peerContactRepository.getAllPeers(),
+        goalRepository.getAllGoals(),
         preferencesManager.currency,
-    ) { recurringList, accounts, categories, currencyCode ->
+    ) { flows ->
+        val recurringList = flows[0] as List<RecurringEntity>
+        val accounts = flows[1] as List<AccountEntity>
+        val categories = flows[2] as List<CategoryEntity>
+        val tags = flows[3] as List<TagEntity>
+        val peers = flows[4] as List<PeerContact>
+        val goals = flows[5] as List<GoalEntity>
+        val currencyCode = flows[6] as String
+        
         RecurringUiState(
             recurringList = recurringList,
             accounts = accounts,
             categories = categories,
+            tags = tags,
+            peers = peers,
+            goals = goals,
             currencyCode = currencyCode,
             isLoading = false,
         )
