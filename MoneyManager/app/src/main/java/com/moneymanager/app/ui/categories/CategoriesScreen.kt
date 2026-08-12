@@ -161,6 +161,12 @@ class CategoriesViewModel @Inject constructor(
             categoryRepository.updateCategory(category.copy(isArchived = false))
         }
     }
+
+    fun rotateColors() {
+        viewModelScope.launch {
+            categoryRepository.reassignCategoryColors(shuffle = true)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -203,6 +209,9 @@ fun CategoriesScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.rotateColors() }) {
+                        Icon(Icons.Default.Palette, contentDescription = "Rotate Colors")
+                    }
                     IconButton(onClick = { viewModel.toggleShowArchived() }) {
                         Icon(
                             if (uiState.showArchived) Icons.Default.VisibilityOff else Icons.Default.Visibility,

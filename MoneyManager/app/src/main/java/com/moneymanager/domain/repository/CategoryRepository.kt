@@ -20,4 +20,5 @@ interface CategoryRepository {
     suspend fun updateTag(tag: TagEntity)
     suspend fun deleteCategory(category: CategoryEntity)
     suspend fun deleteTag(tag: TagEntity)
+    suspend fun reassignCategoryColors(shuffle: Boolean = false)
 }

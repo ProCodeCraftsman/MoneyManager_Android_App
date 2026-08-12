@@ -5,7 +5,10 @@ import com.moneymanager.data.dao.TagDao
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.TagEntity
 import com.moneymanager.domain.repository.CategoryRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -53,6 +56,24 @@ class CategoryRepositoryImpl @Inject constructor(
 
     override suspend fun deleteTag(tag: TagEntity) =
         tagDao.deleteTag(tag)
+
+    override suspend fun reassignCategoryColors(shuffle: Boolean) = withContext(Dispatchers.IO) {
+        val allCategories = categoryDao.getAllCategoriesWithArchived().first()
+        val parents = allCategories.filter { it.parentId == null }.let {
+            if (shuffle) it.shuffled() else it
+        }
+
+        parents.forEachIndexed { index, parent ->
+            val colorIndex = index % 40
+            // Update parent
+            categoryDao.updateCategory(parent.copy(colorIndex = colorIndex))
+            
+            // Update children
+            allCategories.filter { it.parentId == parent.id }.forEach { child ->
+                categoryDao.updateCategory(child.copy(colorIndex = colorIndex))
+            }
+        }
+    }
 
     // Sub-category methods
     override fun getParentCategories(): Flow<List<CategoryEntity>> =
