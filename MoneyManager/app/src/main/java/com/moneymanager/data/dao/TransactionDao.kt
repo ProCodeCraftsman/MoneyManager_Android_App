@@ -43,7 +43,7 @@ interface TransactionDao {
         SELECT * FROM transactions
         WHERE (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
-        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:categoryId IS NULL OR categoryId = :categoryId OR categoryId IN (SELECT id FROM categories WHERE parentId = :categoryId))
         AND (:goalId IS NULL OR goalId = :goalId)
         AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
         AND (:startDate IS NULL OR date >= :startDate)
@@ -72,7 +72,7 @@ interface TransactionDao {
         SELECT * FROM transactions
         WHERE (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
-        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:categoryId IS NULL OR categoryId = :categoryId OR categoryId IN (SELECT id FROM categories WHERE parentId = :categoryId))
         AND (:goalId IS NULL OR goalId = :goalId)
         AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
         AND (:startDate IS NULL OR date >= :startDate)
@@ -101,7 +101,7 @@ interface TransactionDao {
         SELECT * FROM transactions
         WHERE (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
-        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:categoryId IS NULL OR categoryId = :categoryId OR categoryId IN (SELECT id FROM categories WHERE parentId = :categoryId))
         AND (:goalId IS NULL OR goalId = :goalId)
         AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
         AND (:startDate IS NULL OR date >= :startDate)
@@ -130,7 +130,7 @@ interface TransactionDao {
         SELECT * FROM transactions
         WHERE (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
-        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:categoryId IS NULL OR categoryId = :categoryId OR categoryId IN (SELECT id FROM categories WHERE parentId = :categoryId))
         AND (:goalId IS NULL OR goalId = :goalId)
         AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
         AND (:startDate IS NULL OR date >= :startDate)
@@ -164,7 +164,7 @@ interface TransactionDao {
         WHERE isSplitChild = 0
         AND (:accountId IS NULL OR accountId = :accountId OR toAccountId = :accountId)
         AND (:type IS NULL OR type = :type)
-        AND (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:categoryId IS NULL OR categoryId = :categoryId OR categoryId IN (SELECT id FROM categories WHERE parentId = :categoryId))
         AND (:goalId IS NULL OR goalId = :goalId)
         AND (:tagId IS NULL OR tagIds LIKE '%' || :tagId || '%')
         AND (:startDate IS NULL OR date >= :startDate)
