@@ -84,12 +84,7 @@ class AddTransactionViewModel @Inject constructor(
         viewModelScope.launch {
             if (transaction.type == "transfer") {
                 val toId = transaction.toAccountId ?: return@launch
-                val outNote = transaction.note.ifEmpty { "Transfer to Account" }
-                val inNote = transaction.note.ifEmpty { "Transfer from Account" }
-                transactionRepository.insertTransaction(transaction.copy(note = outNote))
-                transactionRepository.insertTransaction(transaction.copy(
-                    id = 0, accountId = toId, toAccountId = transaction.accountId, note = inNote
-                ))
+                transactionRepository.insertTransaction(transaction)
                 accountRepository.updateAccountBalance(transaction.accountId, -transaction.amount)
                 accountRepository.updateAccountBalance(toId, transaction.amount)
             } else {
