@@ -58,62 +58,62 @@ object CategoryPalettes {
     // dark:  warm glowing tones for dark backgrounds
     val cocoBrownPalette = listOf(
         // --- High-Contrast Premium Neutrals  ---
-        ThemeColorSet(Color(0xFF231F1A), Color(0xFFFFFFFF)),  //  0
-        ThemeColorSet(Color(0xFFe6af2e), Color(0xFFE6B237)),  //  1
-        ThemeColorSet(Color(0xFF79B473), Color(0xFF00B2CA)),  //  2
-        ThemeColorSet(Color(0xFFA2A3BB), Color(0xFFDEE2E6)),  //  3
-        ThemeColorSet(Color(0xFFD81E5B), Color(0xFFCED4DA)),  //  4
+        ThemeColorSet(Color(0xFF231F1A), Color(0xFFF5EFEB)),  //  0 Crisp champagne (bright & elegant)
+        ThemeColorSet(Color(0xFFe6af2e), Color(0xFFFFCA28)),  //  1 Luminous gold
+        ThemeColorSet(Color(0xFF79B473), Color(0xFF69F0AE)),  //  2 Glowing spring green
+        ThemeColorSet(Color(0xFFA2A3BB), Color(0xFFD1D2EE)),  //  3 Luminous periwinkle/silver
+        ThemeColorSet(Color(0xFFD81E5B), Color(0xFFFF6090)),  //  4 Vibrant watermelon pink
 
         // --- High-Visibility Pops (Oranges & Golds) ---
-        ThemeColorSet(Color(0xFFD84315), Color(0xFFFF9E80)),  //  5 burnt sienna (Glows on brown)
-        ThemeColorSet(Color(0xFFE64A19), Color(0xFFFFB300)),  //  6 terracotta / amber pop
-        ThemeColorSet(Color(0xFFE65100), Color(0xFFFFE082)),  //  7 pumpkin gold
-        ThemeColorSet(Color(0xFFF57C00), Color(0xFFFFF176)),  //  8 tangerine / lemon accent
-        ThemeColorSet(Color(0xFFFF6D00), Color(0xFFFFEA00)),  //  9 marigold (Maximum visibility)
+        ThemeColorSet(Color(0xFFD84315), Color(0xFFFF7043)),  //  5 Glowing coral
+        ThemeColorSet(Color(0xFFE64A19), Color(0xFFFF8A65)),  //  6 Vibrant peach
+        ThemeColorSet(Color(0xFFE65100), Color(0xFFFF9800)),  //  7 Electric orange
+        ThemeColorSet(Color(0xFFF57C00), Color(0xFFFFB74D)),  //  8 Bright mango
+        ThemeColorSet(Color(0xFFFF6D00), Color(0xFFFFD180)),  //  9 Neon peach/yellow
 
         // --- Nature Greens (Crisp & Fresh against Brown) ---
-        ThemeColorSet(Color(0xFFBF360C), Color(0xFFCCFF90)),  // 10 hay / lime flash
-        ThemeColorSet(Color(0xFF827717), Color(0xFFEEFF41)),  // 11 golden leaf (High neon contrast)
-        ThemeColorSet(Color(0xFF558B2F), Color(0xFFB9F6CA)),  // 12 olive mint
-        ThemeColorSet(Color(0xFF33691E), Color(0xFF69F0AE)),  // 13 fern green
-        ThemeColorSet(Color(0xFF2E7D32), Color(0xFFB2FF59)),  // 14 sage green / vibrant neon
-        ThemeColorSet(Color(0xFF1B5E20), Color(0xFFA7FFEB)),  // 15 forest / seafoam mist
+        ThemeColorSet(Color(0xFFBF360C), Color(0xFFFF6E40)),  // 10 Glowing fiery orange
+        ThemeColorSet(Color(0xFF827717), Color(0xFFEEFF41)),  // 11 Electric chartreuse
+        ThemeColorSet(Color(0xFF558B2F), Color(0xFFB2FF59)),  // 12 Vibrant yellow-green
+        ThemeColorSet(Color(0xFF33691E), Color(0xFF76FF03)),  // 13 Electric lime
+        ThemeColorSet(Color(0xFF2E7D32), Color(0xFF69F0AE)),  // 14 Glowing mint
+        ThemeColorSet(Color(0xFF1B5E20), Color(0xFF1DE9B6)),  // 15 Vibrant teal-mint
 
         // --- The Best Contrast Group: Teals & Blues ---
-        ThemeColorSet(Color(0xFF004D40), Color(0xFF64FFDA)),  // 16 patina / bright teal (Beautiful on brown)
-        ThemeColorSet(Color(0xFF006064), Color(0xFF80DEEA)),  // 17 cyan ice
-        ThemeColorSet(Color(0xFF00838F), Color(0xFF00E5FF)),  // 18 electric teal
+        ThemeColorSet(Color(0xFF004D40), Color(0xFF1DE9B6)),  // 16 Bright turquoise
+        ThemeColorSet(Color(0xFF006064), Color(0xFF00E5FF)),  // 17 Electric cyan
+        ThemeColorSet(Color(0xFF00838F), Color(0xFF18FFFF)),  // 18 Neon aqua
 
         // --- High Contrast Reds & Pinks ---
-        ThemeColorSet(Color(0xFFC62828), Color(0xFFFF8A80)),  // 19 deep red
-        ThemeColorSet(Color(0xFFB71C1C), Color(0xFFFF5252)),  // 20 crimson pop
-        ThemeColorSet(Color(0xFFD50000), Color(0xFFFF80AB)),  // 21 cinnamon pink
-        ThemeColorSet(Color(0xFFFF1744), Color(0xFFFFB3E6)),  // 22 paprika flamingo
+        ThemeColorSet(Color(0xFFC62828), Color(0xFFFF5252)),  // 19 Vibrant coral red
+        ThemeColorSet(Color(0xFFB71C1C), Color(0xFFFF1744)),  // 20 Electric crimson
+        ThemeColorSet(Color(0xFFD50000), Color(0xFFFF4081)),  // 21 Hot pink
+        ThemeColorSet(Color(0xFFFF1744), Color(0xFFFF80AB)),  // 22 Neon flamingo
 
         // --- Purples & Berries ---
-        ThemeColorSet(Color(0xFF880E4F), Color(0xFFF8BBD0)),  // 23 wine
-        ThemeColorSet(Color(0xFFAD1457), Color(0xFFFF80DF)),  // 24 berry neon
-        ThemeColorSet(Color(0xFF7B1FA2), Color(0xFFE040FB)),  // 25 plum fusion
-        ThemeColorSet(Color(0xFF4A148C), Color(0xD3B2FFFF)),  // 26 mulberry crystal
-        ThemeColorSet(Color(0xFF651FFF), Color(0xFFE1BEE7)),  // 27 grape lavender
+        ThemeColorSet(Color(0xFF880E4F), Color(0xFFFF4081)),  // 23 Vibrant magenta
+        ThemeColorSet(Color(0xFFAD1457), Color(0xFFE040FB)),  // 24 Neon fuchsia
+        ThemeColorSet(Color(0xFF7B1FA2), Color(0xFFEA80FC)),  // 25 Bright orchid
+        ThemeColorSet(Color(0xFF4A148C), Color(0xFFB388FF)),  // 26 Glowing lavender
+        ThemeColorSet(Color(0xFF651FFF), Color(0xFF8C9EFF)),  // 27 Electric periwinkle
 
-        // --- Deep Blues (Stands out sharply if background is light brown) ---
-        ThemeColorSet(Color(0xFF311B92), Color(0xFF8C9EFF)),  // 28 aubergine glow
-        ThemeColorSet(Color(0xFF1A237E), Color(0xFF82B1FF)),  // 29 denim sky
-        ThemeColorSet(Color(0xFF0D47A1), Color(0xFF448AFF)),  // 30 slate blue
-        ThemeColorSet(Color(0xFF2962FF), Color(0xFF80D8FF)),  // 31 cornflower electric
-        ThemeColorSet(Color(0xFF0091EA), Color(0xFFB3E5FC)),  // 32 cyan splash
+        // --- Deep Blues (Stands out sharply against brown) ---
+        ThemeColorSet(Color(0xFF311B92), Color(0xFF7C4DFF)),  // 28 Vibrant deep purple
+        ThemeColorSet(Color(0xFF1A237E), Color(0xFF536DFE)),  // 29 Electric indigo
+        ThemeColorSet(Color(0xFF0D47A1), Color(0xFF448AFF)),  // 30 Bright blue
+        ThemeColorSet(Color(0xFF2962FF), Color(0xFF40C4FF)),  // 31 Vibrant sky blue
+        ThemeColorSet(Color(0xFF0091EA), Color(0xFF00E5FF)),  // 32 Cyan splash
 
         // --- Bright UI Utilitarian Pops ---
-        ThemeColorSet(Color(0xFFD32F2F), Color(0xFFFF8A80)),  // 33 tomato alert
-        ThemeColorSet(Color(0xFFFFC107), Color(0xFFFFF9C4)),  // 34 amber sun
-        ThemeColorSet(Color(0xFF4CAF50), Color(0xFFE8F5E9)),  // 35 meadow clean
-        ThemeColorSet(Color(0xFF9C27B0), Color(0xFFF3E5F5)),  // 36 violet touch
+        ThemeColorSet(Color(0xFFD32F2F), Color(0xFFFF5252)),  // 33 Vibrant error red
+        ThemeColorSet(Color(0xFFFFC107), Color(0xFFFFD740)),  // 34 Glowing warning yellow
+        ThemeColorSet(Color(0xFF4CAF50), Color(0xFF69F0AE)),  // 35 Vibrant success mint
+        ThemeColorSet(Color(0xFF9C27B0), Color(0xFFE040FB)),  // 36 Vibrant info purple
 
         // --- Clean Neutrals (No muddy greys) ---
-        ThemeColorSet(Color(0xFF37474F), Color(0xFFECEFF1)),  // 37 slate grey (Crisp white-grey)
-        ThemeColorSet(Color(0xFF212121), Color(0xFFFFFFFF)),  // 38 midnight stark
-        ThemeColorSet(Color(0xFF1E2628), Color(0xFFE0F2F1))   // 39 pine breeze
+        ThemeColorSet(Color(0xFF37474F), Color(0xFFCFD8DC)),  // 37 Crisp silver
+        ThemeColorSet(Color(0xFF212121), Color(0xFFFAFAFA)),  // 38 Pure stark white
+        ThemeColorSet(Color(0xFF1E2628), Color(0xFF80CBC4))   // 39 Luminous teal mist
     )
 
     // MIDNIGHT BLUE — Jewel Tones, High Contrast, Vibrant
