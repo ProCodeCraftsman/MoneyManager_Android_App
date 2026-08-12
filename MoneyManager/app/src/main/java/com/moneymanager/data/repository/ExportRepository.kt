@@ -411,7 +411,7 @@ class ExportRepository @Inject constructor(
             obj.put("isActive", item.isActive)
             obj.put("reminderEnabled", item.reminderEnabled)
             obj.put("reminderDays", item.reminderDays)
-            obj.put("investmentApp", item.investmentApp)
+            obj.put("investmentPlatform", item.investmentPlatform)
             obj.put("createdAt", item.createdAt)
             array.put(obj)
         }
@@ -551,11 +551,11 @@ class ExportRepository @Inject constructor(
     private suspend fun exportRecurringCsv(): String {
         val recurring = recurringDao.getAllRecurring().first()
         val sb = StringBuilder()
-        sb.appendLine("account_id,type,amount,category_id,sub_category_id,goal_id,note,frequency,start_date,next_date,is_active,reminder_enabled,reminder_days,investment_app")
+        sb.appendLine("account_id,type,amount,category_id,sub_category_id,goal_id,note,frequency,start_date,next_date,is_active,reminder_enabled,reminder_days,investment_platform")
         recurring.forEach { item ->
             val startDateStr = dateFormat.format(Date(item.startDate))
             val nextDateStr = dateFormat.format(Date(item.nextDate))
-            sb.appendLine("${item.accountId},${item.type},${item.amount},${item.categoryId ?: ""},${item.subCategoryId ?: ""},${item.goalId ?: ""},\"${item.note.replace("\"", "\"\"")}\",${item.frequency},$startDateStr,$nextDateStr,${item.isActive},${item.reminderEnabled},${item.reminderDays},${item.investmentApp ?: ""}")
+            sb.appendLine("${item.accountId},${item.type},${item.amount},${item.categoryId ?: ""},${item.subCategoryId ?: ""},${item.goalId ?: ""},\"${item.note.replace("\"", "\"\"")}\",${item.frequency},$startDateStr,$nextDateStr,${item.isActive},${item.reminderEnabled},${item.reminderDays},${item.investmentPlatform ?: ""}")
         }
         return sb.toString()
     }
@@ -822,7 +822,7 @@ class ExportRepository @Inject constructor(
                 isActive = obj.optBoolean("isActive", true),
                 reminderEnabled = obj.optBoolean("reminderEnabled", false),
                 reminderDays = obj.optInt("reminderDays", 0),
-                investmentApp = if (obj.has("investmentApp") && !obj.isNull("investmentApp")) obj.getString("investmentApp") else null,
+                investmentPlatform = if (obj.has("investmentPlatform") && !obj.isNull("investmentPlatform")) obj.getString("investmentPlatform") else null,
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
             )
             recurringDao.insertRecurring(item)
@@ -1145,7 +1145,7 @@ class ExportRepository @Inject constructor(
                     isActive = parts[10].toBooleanStrictOrNull() ?: true,
                     reminderEnabled = parts.getOrNull(11)?.toBooleanStrictOrNull() ?: false,
                     reminderDays = parts.getOrNull(12)?.toIntOrNull() ?: 0,
-                    investmentApp = parts.getOrNull(13)?.ifBlank { null },
+                    investmentPlatform = parts.getOrNull(13)?.ifBlank { null },
                 )
                 recurringDao.insertRecurring(item)
                 count++

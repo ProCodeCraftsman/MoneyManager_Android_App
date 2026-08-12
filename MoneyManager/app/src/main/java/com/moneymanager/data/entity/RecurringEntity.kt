@@ -27,11 +27,14 @@ data class RecurringEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val accountId: Long,
-    val type: String, // income, expense, savings
+    val type: String, // income, expense, savings, transfer, lend, borrow
     val amount: Double,
     val categoryId: Long? = null,
     val subCategoryId: Long? = null,
     val goalId: Long? = null,
+    val peerContactId: Long? = null,
+    val tagIds: String = "",
+    val description: String = "",
     val note: String = "",
     val frequency: String, // daily, weekly, biweekly, monthly, yearly
     val startDate: Long = System.currentTimeMillis(),
@@ -40,6 +43,8 @@ data class RecurringEntity(
     val isActive: Boolean = true,
     val reminderEnabled: Boolean = false,
     val reminderDays: Int = 0,
-    val investmentApp: String? = null,
+    val toAccountId: Long? = null,
+    val investmentPlatform: String? = null,
+    val receiptPath: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

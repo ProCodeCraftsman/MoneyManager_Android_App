@@ -162,7 +162,9 @@ fun AddEditTransactionDialog(
         )
     }
     var showToAccountDropdown by rememberSaveable { mutableStateOf(false) }
-    var selectedCategoryId by rememberSaveable { mutableStateOf<Long?>(transaction?.categoryId) }
+    var selectedCategoryId by rememberSaveable { 
+        mutableStateOf<Long?>(transaction?.subCategoryId ?: transaction?.categoryId) 
+    }
     var selectedPeerId by rememberSaveable { mutableStateOf<Long?>(transaction?.peerContactId) }
     var selectedDate by rememberSaveable { mutableStateOf(transaction?.date ?: System.currentTimeMillis()) }
     var description by rememberSaveable { mutableStateOf(transaction?.note ?: "") }
@@ -217,7 +219,7 @@ fun AddEditTransactionDialog(
     var showExpectedReturnDatePicker by rememberSaveable { mutableStateOf(false) }
     var expandedCategoryId by rememberSaveable {
         mutableStateOf<Long?>(
-            transaction?.categoryId?.let { catId ->
+            (transaction?.subCategoryId ?: transaction?.categoryId)?.let { catId ->
                 categories.firstOrNull { it.id == catId }?.parentId
             }
         )

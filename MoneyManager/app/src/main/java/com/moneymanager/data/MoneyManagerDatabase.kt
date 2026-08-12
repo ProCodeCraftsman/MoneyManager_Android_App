@@ -107,6 +107,65 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
     }
 }
 
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Create new table with updated schema
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `recurring_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                `accountId` INTEGER NOT NULL, 
+                `type` TEXT NOT NULL, 
+                `amount` REAL NOT NULL, 
+                `categoryId` INTEGER, 
+                `subCategoryId` INTEGER, 
+                `goalId` INTEGER, 
+                `peerContactId` INTEGER, 
+                `tagIds` TEXT NOT NULL DEFAULT '', 
+                `description` TEXT NOT NULL DEFAULT '', 
+                `note` TEXT NOT NULL, 
+                `frequency` TEXT NOT NULL, 
+                `startDate` INTEGER NOT NULL, 
+                `nextDate` INTEGER NOT NULL, 
+                `endDate` INTEGER, 
+                `isActive` INTEGER NOT NULL, 
+                `reminderEnabled` INTEGER NOT NULL, 
+                `reminderDays` INTEGER NOT NULL, 
+                `toAccountId` INTEGER, 
+                `investmentPlatform` TEXT, 
+                `receiptPath` TEXT, 
+                `createdAt` INTEGER NOT NULL, 
+                FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE, 
+                FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+        """.trimIndent())
+
+        // Copy data from old table to new table
+        // Note: investmentApp is renamed to investmentPlatform
+        db.execSQL("""
+            INSERT INTO `recurring_new` (
+                id, accountId, type, amount, categoryId, subCategoryId, goalId, 
+                note, frequency, startDate, nextDate, endDate, isActive, 
+                reminderEnabled, reminderDays, investmentPlatform, createdAt
+            )
+            SELECT 
+                id, accountId, type, amount, categoryId, subCategoryId, goalId, 
+                note, frequency, startDate, nextDate, endDate, isActive, 
+                reminderEnabled, reminderDays, investmentApp, createdAt 
+            FROM recurring
+        """.trimIndent())
+
+        // Drop old table
+        db.execSQL("DROP TABLE recurring")
+
+        // Rename new table to original name
+        db.execSQL("ALTER TABLE recurring_new RENAME TO recurring")
+
+        // Re-create indices
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recurring_accountId` ON `recurring` (`accountId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_recurring_categoryId` ON `recurring` (`categoryId`)")
+    }
+}
+
 @Database(
     entities = [
         AccountEntity::class,
@@ -120,7 +179,7 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         AiConversationEntity::class,
         MerchantCategoryMemoryEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

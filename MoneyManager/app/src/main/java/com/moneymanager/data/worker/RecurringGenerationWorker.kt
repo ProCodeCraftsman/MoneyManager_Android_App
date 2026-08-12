@@ -53,10 +53,17 @@ class RecurringGenerationWorker @AssistedInject constructor(
             categoryId = recurring.categoryId,
             subCategoryId = recurring.subCategoryId,
             goalId = recurring.goalId,
+            peerContactId = recurring.peerContactId,
+            tagIds = recurring.tagIds,
             date = recurring.nextDate,
+            description = recurring.description,
             note = recurring.note,
+            receiptPath = recurring.receiptPath,
             isRecurring = true,
             recurringId = recurring.id,
+            isTransfer = recurring.type == "transfer",
+            toAccountId = recurring.toAccountId,
+            investmentPlatform = recurring.investmentPlatform,
             createdAt = System.currentTimeMillis()
         )
         transactionDao.insertTransaction(transaction)
@@ -64,12 +71,29 @@ class RecurringGenerationWorker @AssistedInject constructor(
         // Update account balance
         val account = accountDao.getAccountById(recurring.accountId)
         if (account != null) {
-            val delta = if (recurring.type == "income") recurring.amount else -recurring.amount
+            val delta = when (recurring.type) {
+                "income" -> recurring.amount
+                "transfer", "expense", "savings", "lend" -> -recurring.amount
+                "borrow" -> recurring.amount
+                else -> -recurring.amount
+            }
             val updatedAccount = account.copy(
                 balance = account.balance + delta,
                 updatedAt = System.currentTimeMillis()
             )
             accountDao.updateAccount(updatedAccount)
+
+            // If it's a transfer, update destination account too
+            if (recurring.type == "transfer" && recurring.toAccountId != null) {
+                val toAccount = accountDao.getAccountById(recurring.toAccountId)
+                if (toAccount != null) {
+                    val updatedToAccount = toAccount.copy(
+                        balance = toAccount.balance + recurring.amount,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                    accountDao.updateAccount(updatedToAccount)
+                }
+            }
         }
     }
 
