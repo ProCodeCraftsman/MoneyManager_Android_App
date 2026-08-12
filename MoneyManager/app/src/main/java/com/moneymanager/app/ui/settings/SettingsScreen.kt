@@ -502,6 +502,22 @@ fun SettingsScreen(
 
                 item {
                     SettingsRow(
+                        icon = Icons.Default.Palette,
+                        title = "Redistribute Category Colors",
+                        subtitle = "Fix duplicate colors after data import",
+                        trailing = {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        onClick = { viewModel.reassignCategoryColors() }
+                    )
+                }
+
+                item {
+                    SettingsRow(
                         icon = Icons.Default.Upload,
                         title = "Export JSON Backup",
                         subtitle = "Save your data to a file",
@@ -529,6 +545,22 @@ fun SettingsScreen(
                             )
                         },
                         onClick = { jsonPicker.launch(arrayOf("application/json", "text/plain")) }
+                    )
+                }
+
+                item {
+                    SettingsRow(
+                        icon = Icons.Default.Palette,
+                        title = "Redistribute Category Colors",
+                        subtitle = "Fix duplicate colors after data import",
+                        trailing = {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        onClick = { viewModel.reassignCategoryColors() }
                     )
                 }
 

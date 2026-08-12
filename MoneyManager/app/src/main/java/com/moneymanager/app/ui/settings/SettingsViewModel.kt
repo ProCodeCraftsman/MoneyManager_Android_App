@@ -22,6 +22,7 @@ import com.moneymanager.data.sync.AuthState
 import com.moneymanager.data.sync.FirebaseSyncManager
 import com.moneymanager.data.sync.SyncStatus
 import com.moneymanager.domain.repository.TransactionRepository
+import com.moneymanager.domain.repository.CategoryRepository
 import com.moneymanager.app.ui.util.FileHelper
 import android.net.Uri
 import android.content.Context
@@ -52,6 +53,7 @@ class SettingsViewModel @Inject constructor(
     private val encryptionHelper: EncryptionHelper,
     private val backupPreferences: BackupPreferences,
     private val backupScheduler: BackupScheduler,
+    private val categoryRepository: CategoryRepository,
 ) : ViewModel() {
 
     private val importResult = MutableStateFlow<ImportResult?>(null)
@@ -430,6 +432,12 @@ class SettingsViewModel @Inject constructor(
             if (backupPreferences.autoBackupEnabled.first()) {
                 backupScheduler.scheduleDriveBackup(isWeekly)
             }
+        }
+    }
+
+    fun reassignCategoryColors() {
+        viewModelScope.launch {
+            categoryRepository.reassignCategoryColors(shuffle = false)
         }
     }
 }
