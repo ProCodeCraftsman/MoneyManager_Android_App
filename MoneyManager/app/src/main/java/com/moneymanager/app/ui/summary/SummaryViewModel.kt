@@ -170,7 +170,7 @@ class SummaryViewModel @Inject constructor(
         val (start, end) = getDateRangeForFilter(p.filter, p.baseDate, p.customStart, p.customEnd)
         transactionRepository.getTransactionsByDateRange(start, end)
             .map { list ->
-                SummaryAggregator.excludeSplitChildren(list)
+                SummaryAggregator.deduplicateTransfers(SummaryAggregator.excludeSplitChildren(list))
             }
     }
 
@@ -187,12 +187,12 @@ class SummaryViewModel @Inject constructor(
         val (start, end) = getDateRangeForFilter(p.filter, prevBaseDate, null, null)
         transactionRepository.getTransactionsByDateRange(start, end)
             .map { list ->
-                SummaryAggregator.excludeSplitChildren(list)
+                SummaryAggregator.deduplicateTransfers(SummaryAggregator.excludeSplitChildren(list))
             }
     }
 
     private val allTransactions: Flow<List<TransactionEntity>> = transactionRepository.getAllTransactions()
-        .map { SummaryAggregator.excludeSplitChildren(it) }
+        .map { SummaryAggregator.deduplicateTransfers(SummaryAggregator.excludeSplitChildren(it)) }
 
     private val allPeers: Flow<List<PeerContact>> = peerContactRepository.getAllPeers()
 

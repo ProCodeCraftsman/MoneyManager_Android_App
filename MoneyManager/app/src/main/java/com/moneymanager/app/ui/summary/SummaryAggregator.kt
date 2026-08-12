@@ -17,6 +17,35 @@ object SummaryAggregator {
     fun excludeSplitChildren(txs: List<TransactionEntity>): List<TransactionEntity> =
         txs.filter { !it.isSplitChild }
 
+    /**
+     * Fix for CR-02: Filters out legacy double-entry "reverse" transfers.
+     * Legacy transfers had two entries: A->B and B->A on the same date/amount.
+     * We only keep one for aggregation to avoid double-counting.
+     */
+    fun deduplicateTransfers(txs: List<TransactionEntity>): List<TransactionEntity> {
+        val transfers = txs.filter { it.type == "transfer" }
+        if (transfers.isEmpty()) return txs
+
+        val toRemove = mutableSetOf<Long>()
+        val seen = mutableSetOf<String>()
+
+        transfers.forEach { tx ->
+            if (tx.id in toRemove) return@forEach
+
+            // Key for the inverse transfer
+            val inverseKey = "${tx.toAccountId}_${tx.accountId}_${tx.amount}_${tx.date}"
+
+            if (seen.contains(inverseKey)) {
+                toRemove.add(tx.id)
+            } else {
+                val key = "${tx.accountId}_${tx.toAccountId}_${tx.amount}_${tx.date}"
+                seen.add(key)
+            }
+        }
+
+        return txs.filter { it.id !in toRemove }
+    }
+
     fun sumByType(txs: List<TransactionEntity>, type: String): Double =
         txs.filter { it.type == type }.sumOf { it.amount }
 

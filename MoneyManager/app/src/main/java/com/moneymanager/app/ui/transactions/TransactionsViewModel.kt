@@ -390,6 +390,13 @@ class TransactionsViewModel @Inject constructor(
                 old.toAccountId?.let { accountRepository.updateAccountBalance(it, -old.amount) }
 
                 if (new.type == "transfer") {
+                    // Fix for CR-02 legacy double entries:
+                    // If we find a sibling, it means it's a legacy entry. We should remove it.
+                    val siblings = transactionRepository.getTransferSiblings(
+                        old.accountId, old.toAccountId ?: 0L, old.amount, old.id
+                    ).filter { it.date == old.date }
+                    siblings.forEach { transactionRepository.deleteTransaction(it) }
+
                     transactionRepository.updateTransaction(new)
                     // Apply new transfer balance
                     accountRepository.updateAccountBalance(new.accountId, -new.amount)
@@ -457,8 +464,19 @@ class TransactionsViewModel @Inject constructor(
             FileHelper.deleteReceiptsForTransaction(transaction)
 
             if (transaction.type == "transfer") {
+                // Fix for CR-02: legacy double-entry cleanup.
+                // We find siblings (swapped accounts, same amount/date) and delete them too.
+                // We only reverse the balance impact ONCE for the whole pair.
+                val siblings = transactionRepository.getTransferSiblings(
+                    transaction.accountId, transaction.toAccountId ?: 0L, transaction.amount, transaction.id
+                ).filter { it.date == transaction.date }
+
                 accountRepository.updateAccountBalance(transaction.accountId, transaction.amount)
                 transaction.toAccountId?.let { accountRepository.updateAccountBalance(it, -transaction.amount) }
+
+                siblings.forEach { sibling ->
+                    transactionRepository.deleteTransaction(sibling)
+                }
             } else if (!transaction.isSplitChild) {
                 // Split children do not adjust balance; their parent does.
                 adjustBalance(transaction, reverse = true)
