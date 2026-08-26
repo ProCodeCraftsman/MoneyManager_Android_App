@@ -1039,10 +1039,13 @@ fun AddEditTransactionDialog(
                             onNumberClick = { num ->
                                 aiSuggestedFields = aiSuggestedFields - "amount"
                                 if (num == ".") {
-                                    if (amount.isEmpty()) amount = "0."
-                                    else if (!amount.contains(".")) amount += "."
+                                    val lastNumber = amount.split('+', '-', '*', '/').last()
+                                    if (!lastNumber.contains(".")) {
+                                        if (lastNumber.isEmpty()) amount += "0."
+                                        else amount += "."
+                                    }
                                 } else if (num in listOf("+", "-", "*", "/")) {
-                                    if (amount.isNotEmpty() && !amount.last().isDigit())
+                                    if (amount.isNotEmpty() && !amount.last().isDigit() && amount.last() != '.')
                                         amount = amount.dropLast(1) + num
                                     else if (amount.isNotEmpty()) amount += num
                                 } else {
@@ -1055,8 +1058,11 @@ fun AddEditTransactionDialog(
                                 aiSuggestedFields = aiSuggestedFields - "amount"
                                 try {
                                     val res = evaluateExpression(amount)
-                                    amount = if (res % 1.0 == 0.0) res.toInt().toString()
-                                    else "%.2f".format(Locale.US, res)
+                                    amount = if (res % 1.0 == 0.0) {
+                                        "%.0f".format(Locale.US, res)
+                                    } else {
+                                        "%.2f".format(Locale.US, res)
+                                    }
                                     isCalculatorVisible = false
                                 } catch (_: Exception) {}
                             }

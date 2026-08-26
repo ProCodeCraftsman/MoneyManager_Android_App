@@ -41,7 +41,7 @@ fun NumericKeypad(
         listOf("7", "8", "9", "/"),
         listOf("4", "5", "6", "*"),
         listOf("1", "2", "3", "-"),
-        listOf("C", "0", "DEL", "+")
+        listOf(".", "0", "DEL", "+")
     )
 
     Column(
@@ -103,23 +103,47 @@ fun NumericKeypad(
             }
         }
 
-        Button(
-            onClick = onEvaluate,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(6.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = resolvedAccent,
-                contentColor = MaterialTheme.colorScheme.surface
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                text = "=",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                fontSize = 24.sp
-            )
+            Button(
+                onClick = onClearClick,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Text(
+                    text = "C",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 22.sp
+                )
+            }
+
+            Button(
+                onClick = onEvaluate,
+                modifier = Modifier
+                    .weight(3f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = resolvedAccent,
+                    contentColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Text(
+                    text = "=",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp
+                )
+            }
         }
     }
 }
