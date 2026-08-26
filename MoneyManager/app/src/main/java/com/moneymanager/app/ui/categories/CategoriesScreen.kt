@@ -162,9 +162,9 @@ class CategoriesViewModel @Inject constructor(
         }
     }
 
-    fun rotateColors() {
+    fun reassignColors(shuffle: Boolean = false) {
         viewModelScope.launch {
-            categoryRepository.reassignCategoryColors(shuffle = true)
+            categoryRepository.reassignCategoryColors(shuffle = shuffle)
         }
     }
 }
@@ -177,6 +177,7 @@ fun CategoriesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     var editingCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var deleteConfirmCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var archiveConfirmCategory by remember { mutableStateOf<CategoryEntity?>(null) }
@@ -209,14 +210,45 @@ fun CategoriesScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.rotateColors() }) {
-                        Icon(Icons.Default.Palette, contentDescription = "Rotate Colors")
-                    }
-                    IconButton(onClick = { viewModel.toggleShowArchived() }) {
-                        Icon(
-                            if (uiState.showArchived) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (uiState.showArchived) "Hide Archived" else "Show Archived"
-                        )
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Redistribute Category Colors") },
+                                onClick = {
+                                    viewModel.reassignColors(shuffle = false)
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Palette, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Rotate Colors (Shuffle)") },
+                                onClick = {
+                                    viewModel.reassignColors(shuffle = true)
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.ColorLens, contentDescription = null) }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text(if (uiState.showArchived) "Hide Archived" else "Show Archived") },
+                                onClick = {
+                                    viewModel.toggleShowArchived()
+                                    showMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        if (uiState.showArchived) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             )
