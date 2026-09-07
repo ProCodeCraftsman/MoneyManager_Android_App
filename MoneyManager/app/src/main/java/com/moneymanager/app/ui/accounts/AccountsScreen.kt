@@ -111,20 +111,29 @@ fun AccountsScreen(
                     }
                 }
 
-                item {
-                    AccountsSectionHeader(title = "All Accounts")
+                val liquidAccounts = uiState.accounts.filter { it.type != "credit" && it.type != "savings" && it.type != "peer" }
+                val creditAccounts = uiState.accounts.filter { it.type == "credit" || it.type == "peer" }
+                val investmentAccounts = uiState.accounts.filter { it.type == "savings" }
+
+                if (liquidAccounts.isNotEmpty()) {
+                    item { AccountsSectionHeader(title = "Bank & Cash Accounts") }
+                    items(liquidAccounts) { account ->
+                        AccountCard(account = account, currencyFormat = currencyFormat, onClick = { editingAccount = account })
+                    }
                 }
 
-                item {
-                    Spacer(modifier = Modifier.height(4.dp))
+                if (investmentAccounts.isNotEmpty()) {
+                    item { AccountsSectionHeader(title = "Investment Platforms") }
+                    items(investmentAccounts) { account ->
+                        AccountCard(account = account, currencyFormat = currencyFormat, onClick = { editingAccount = account })
+                    }
                 }
 
-                items(uiState.accounts) { account ->
-                    AccountCard(
-                        account = account,
-                        currencyFormat = currencyFormat,
-                        onClick = { editingAccount = account }
-                    )
+                if (creditAccounts.isNotEmpty()) {
+                    item { AccountsSectionHeader(title = "Credit Cards & Loans") }
+                    items(creditAccounts) { account ->
+                        AccountCard(account = account, currencyFormat = currencyFormat, onClick = { editingAccount = account })
+                    }
                 }
 
                 item {

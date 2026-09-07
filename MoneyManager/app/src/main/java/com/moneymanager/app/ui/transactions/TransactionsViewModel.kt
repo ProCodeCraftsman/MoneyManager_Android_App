@@ -42,6 +42,7 @@ class TransactionsViewModel @Inject constructor(
     private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
     private val aiAvailabilityRepository: AiAvailabilityRepository,
+    private val emiDao: com.moneymanager.data.dao.EmiDao,
 ) : AndroidViewModel(application) {
 
     /** In-memory session flag — set to true on "Maybe Later"; never persisted to DataStore. */
@@ -308,6 +309,85 @@ class TransactionsViewModel @Inject constructor(
         }
     }
 
+    fun addEmiExpense(
+        baseTx: TransactionEntity,
+        tenureMonths: Int,
+        annualInterestRate: Double,
+        isNoCost: Boolean,
+        processingFee: Double
+    ) {
+        viewModelScope.launch {
+            val totalAmount = baseTx.amount
+            val tenure = tenureMonths.coerceAtLeast(1)
+
+            val monthlyAmount = if (annualInterestRate > 0 && !isNoCost) {
+                val r = annualInterestRate / (12.0 * 100.0)
+                val pmt = totalAmount * r * Math.pow(1.0 + r, tenure.toDouble()) / (Math.pow(1.0 + r, tenure.toDouble()) - 1.0)
+                val gst = (pmt * r) * 0.18
+                Math.round((pmt + gst) * 100.0) / 100.0
+            } else {
+                Math.round((totalAmount / tenure) * 100.0) / 100.0
+            }
+
+            val emi = com.moneymanager.data.entity.EmiEntity(
+                title = baseTx.note.ifBlank { "EMI Purchase" },
+                accountId = baseTx.accountId,
+                categoryId = baseTx.categoryId,
+                totalAmount = totalAmount,
+                tenureMonths = tenure,
+                monthlyAmount = monthlyAmount,
+                annualInterestRate = annualInterestRate,
+                isNoCost = isNoCost,
+                processingFee = processingFee,
+                startDate = baseTx.date,
+                status = "ACTIVE"
+            )
+            val emiId = emiDao.insertEmi(emi)
+
+            if (processingFee > 0) {
+                val feeTx = baseTx.copy(
+                    amount = processingFee,
+                    note = if (baseTx.note.isBlank()) "EMI Processing Fee" else "EMI Processing Fee - ${baseTx.note}",
+                    isRecurring = false,
+                    emiId = emiId
+                )
+                transactionRepository.insertTransaction(feeTx)
+                accountRepository.updateAccountBalance(baseTx.accountId, -processingFee)
+            }
+
+            val calendar = java.util.Calendar.getInstance().apply {
+                timeInMillis = baseTx.date
+            }
+
+            var runningTotal = 0.0
+            for (i in 1..tenure) {
+                val installmentDate = calendar.timeInMillis
+                val currentAmount = if (i == tenure) {
+                    Math.round((totalAmount - runningTotal) * 100.0) / 100.0
+                } else {
+                    monthlyAmount
+                }
+                runningTotal += currentAmount
+
+                val installmentTx = baseTx.copy(
+                    amount = currentAmount,
+                    date = installmentDate,
+                    note = if (baseTx.note.isBlank()) "EMI ($i/$tenure)" else "${baseTx.note} (EMI $i/$tenure)",
+                    isRecurring = true,
+                    emiId = emiId,
+                    emiInstallmentNumber = i
+                )
+                transactionRepository.insertTransaction(installmentTx)
+
+                if (i == 1) {
+                    accountRepository.updateAccountBalance(baseTx.accountId, -currentAmount)
+                }
+
+                calendar.add(java.util.Calendar.MONTH, 1)
+            }
+        }
+    }
+
     /** Save a split: inserts parent + children, updates balance once for the total. */
     fun addSplitTransaction(parent: TransactionEntity, children: List<TransactionEntity>) {
         viewModelScope.launch {
@@ -508,7 +588,11 @@ class TransactionsViewModel @Inject constructor(
         val sign = if (reverse) -1.0 else 1.0
         when (tx.type) {
             "income", "borrow" -> accountRepository.updateAccountBalance(tx.accountId, sign * tx.amount)
-            "expense", "savings", "lend" -> accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
+            "expense", "lend" -> accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
+            "savings" -> {
+                accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
+                tx.toAccountId?.let { accountRepository.updateAccountBalance(it, sign * tx.amount) }
+            }
         }
     }
 

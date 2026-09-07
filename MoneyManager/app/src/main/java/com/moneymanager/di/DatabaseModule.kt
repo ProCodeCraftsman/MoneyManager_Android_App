@@ -11,6 +11,7 @@ import com.moneymanager.data.MIGRATION_9_10
 import com.moneymanager.data.MIGRATION_10_11
 import com.moneymanager.data.MIGRATION_11_12
 import com.moneymanager.data.MIGRATION_12_13
+import com.moneymanager.data.MIGRATION_13_14
 import com.moneymanager.data.MoneyManagerDatabase
 import com.moneymanager.data.dao.*
 import dagger.Module
@@ -32,7 +33,7 @@ object DatabaseModule {
             MoneyManagerDatabase::class.java,
             "moneymanager.db"
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+            .addMigrations(MIGRATION_2_3, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -85,5 +86,10 @@ object DatabaseModule {
     @Provides
     fun provideMerchantCategoryMemoryDao(database: MoneyManagerDatabase): MerchantCategoryMemoryDao {
         return database.merchantCategoryMemoryDao()
+    }
+
+    @Provides
+    fun provideEmiDao(database: MoneyManagerDatabase): EmiDao {
+        return database.emiDao()
     }
 }

@@ -808,6 +808,10 @@ fun TransactionsScreen(
                 else viewModel.addTransaction(tx)
                 showAddDialog = false
             },
+            onConfirmEmi = { tx, tenure, rate, isNoCost, fee ->
+                viewModel.addEmiExpense(tx, tenure, rate, isNoCost, fee)
+                showAddDialog = false
+            },
         )
     }
 

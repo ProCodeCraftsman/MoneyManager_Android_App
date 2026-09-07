@@ -33,6 +33,7 @@ class AddTransactionViewModel @Inject constructor(
     private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
     private val merchantMemory: MerchantCategoryMemoryRepository,
+    private val emiDao: com.moneymanager.data.dao.EmiDao,
 ) : AndroidViewModel(application) {
 
     val uiState: StateFlow<AddTransactionUiState> = combine(
@@ -95,6 +96,92 @@ class AddTransactionViewModel @Inject constructor(
         }
     }
 
+    fun addEmiExpense(
+        baseTx: TransactionEntity,
+        tenureMonths: Int,
+        annualInterestRate: Double,
+        isNoCost: Boolean,
+        processingFee: Double
+    ) {
+        viewModelScope.launch {
+            val totalAmount = baseTx.amount
+            val tenure = tenureMonths.coerceAtLeast(1)
+
+            // Calculate monthly installment amount
+            val monthlyAmount = if (annualInterestRate > 0 && !isNoCost) {
+                val r = annualInterestRate / (12.0 * 100.0)
+                val pmt = totalAmount * r * Math.pow(1.0 + r, tenure.toDouble()) / (Math.pow(1.0 + r, tenure.toDouble()) - 1.0)
+                val gst = (pmt * r) * 0.18 // 18% GST on interest portion
+                Math.round((pmt + gst) * 100.0) / 100.0
+            } else {
+                Math.round((totalAmount / tenure) * 100.0) / 100.0
+            }
+
+            // Insert EmiEntity
+            val emi = com.moneymanager.data.entity.EmiEntity(
+                title = baseTx.note.ifBlank { "EMI Purchase" },
+                accountId = baseTx.accountId,
+                categoryId = baseTx.categoryId,
+                totalAmount = totalAmount,
+                tenureMonths = tenure,
+                monthlyAmount = monthlyAmount,
+                annualInterestRate = annualInterestRate,
+                isNoCost = isNoCost,
+                processingFee = processingFee,
+                startDate = baseTx.date,
+                status = "ACTIVE"
+            )
+            val emiId = emiDao.insertEmi(emi)
+
+            // Insert processing fee transaction if applicable
+            if (processingFee > 0) {
+                val feeTx = baseTx.copy(
+                    amount = processingFee,
+                    note = if (baseTx.note.isBlank()) "EMI Processing Fee" else "EMI Processing Fee - ${baseTx.note}",
+                    isRecurring = false,
+                    emiId = emiId
+                )
+                transactionRepository.insertTransaction(feeTx)
+                accountRepository.updateAccountBalance(baseTx.accountId, -processingFee)
+            }
+
+            // Generate N future monthly expense entries
+            val calendar = java.util.Calendar.getInstance().apply {
+                timeInMillis = baseTx.date
+            }
+
+            var runningTotal = 0.0
+            for (i in 1..tenure) {
+                val installmentDate = calendar.timeInMillis
+                val currentAmount = if (i == tenure) {
+                    // Exact remainder handling on final installment
+                    Math.round((totalAmount - runningTotal) * 100.0) / 100.0
+                } else {
+                    monthlyAmount
+                }
+                runningTotal += currentAmount
+
+                val installmentTx = baseTx.copy(
+                    amount = currentAmount,
+                    date = installmentDate,
+                    note = if (baseTx.note.isBlank()) "EMI ($i/$tenure)" else "${baseTx.note} (EMI $i/$tenure)",
+                    isRecurring = true,
+                    emiId = emiId,
+                    emiInstallmentNumber = i
+                )
+                transactionRepository.insertTransaction(installmentTx)
+
+                // Deduct 1st installment from account balance immediately
+                if (i == 1) {
+                    accountRepository.updateAccountBalance(baseTx.accountId, -currentAmount)
+                }
+
+                // Increment calendar by 1 month for next installment date
+                calendar.add(java.util.Calendar.MONTH, 1)
+            }
+        }
+    }
+
     fun addSplitTransaction(parent: TransactionEntity, children: List<TransactionEntity>) {
         viewModelScope.launch {
             val parentId = transactionRepository.insertTransaction(parent.copy(isSplitParent = true))
@@ -110,7 +197,11 @@ class AddTransactionViewModel @Inject constructor(
         val sign = if (reverse) -1.0 else 1.0
         when (tx.type) {
             "income", "borrow" -> accountRepository.updateAccountBalance(tx.accountId, sign * tx.amount)
-            "expense", "savings", "lend" -> accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
+            "expense", "lend" -> accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
+            "savings" -> {
+                accountRepository.updateAccountBalance(tx.accountId, -sign * tx.amount)
+                tx.toAccountId?.let { accountRepository.updateAccountBalance(it, sign * tx.amount) }
+            }
         }
     }
 
