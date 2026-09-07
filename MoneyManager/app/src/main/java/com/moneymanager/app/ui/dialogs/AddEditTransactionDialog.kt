@@ -4,15 +4,11 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
 import java.io.File
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -66,11 +62,6 @@ import kotlin.math.abs
 
 // ── Confidence predicates (used by review banner and field tint logic) ──
 
-/**
- * Canonical keys for the confidence map on [TransactionDraft].
- * Use these constants in both the AI pipeline (when populating the map) and
- * in the UI (when reading it) to prevent silent key-mismatch bugs like CR-01.
- */
 internal object ConfidenceKey {
     const val TYPE          = "type"
     const val AMOUNT        = "amount"
@@ -82,17 +73,8 @@ internal object ConfidenceKey {
     const val NOTE          = "note"
 }
 
-/**
- * Returns true when the draft signals that at least one field had low confidence
- * and should be explicitly reviewed by the user.
- */
 internal fun showReviewBanner(draft: TransactionDraft?): Boolean = draft?.needsReview == true
 
-/**
- * Returns true when the AI confidence for [fieldName] in [draft] is "low".
- * Any other value ("high", "medium", unknown, or null draft) returns false,
- * keeping the safe default behaviour (trust T-41-01).
- */
 internal fun fieldIsLowConfidence(fieldName: String, draft: TransactionDraft?): Boolean =
     draft?.confidence?.get(fieldName) == "low"
 
@@ -101,18 +83,10 @@ data class SplitRowData(
     val categoryId: Long? = null,
     val subCategoryId: Long? = null,
     val description: String = "",
-    val amount: String = ""
+    val amount: String = "",
 )
 
-private data class UtilityActionItemData(
-    val icon: ImageVector,
-    val label: String,
-    val subtext: String,
-    val active: Boolean,
-    val onClick: () -> Unit,
-)
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditTransactionDialog(
     transaction: TransactionEntity?,
@@ -152,19 +126,19 @@ fun AddEditTransactionDialog(
     var amount by rememberSaveable {
         mutableStateOf(transaction?.amount?.let { if (it < 0) (-it).toString() else it.toString() } ?: "")
     }
-    // BUG-02 fix: normalise transfer direction so the form always shows source→destination.
-    val isIncomingTransferLeg = transaction?.type == "transfer" &&
+
+    val isIncomingTransferLeg = (transaction?.type == "transfer") &&
         transaction.note.contains("transfer from", ignoreCase = true)
     var selectedAccountId by rememberSaveable {
         mutableStateOf(
-            if (isIncomingTransferLeg) transaction?.toAccountId ?: filteredAccounts.firstOrNull()?.id
-            else transaction?.accountId ?: filteredAccounts.firstOrNull()?.id
+            if (isIncomingTransferLeg) (transaction.toAccountId ?: filteredAccounts.firstOrNull()?.id)
+            else (transaction?.accountId ?: filteredAccounts.firstOrNull()?.id)
         )
     }
     var selectedToAccountId by rememberSaveable {
         mutableStateOf(
-            if (isIncomingTransferLeg) transaction?.accountId
-            else transaction?.toAccountId ?: if (type == "savings") investmentAccounts.firstOrNull()?.id else null
+            if (isIncomingTransferLeg) transaction.accountId
+            else (transaction?.toAccountId ?: if (type == "savings") investmentAccounts.firstOrNull()?.id else null)
         )
     }
     var showToAccountDropdown by rememberSaveable { mutableStateOf(false) }
@@ -175,15 +149,15 @@ fun AddEditTransactionDialog(
     var emiInterestRate by rememberSaveable { mutableStateOf("0") }
     var isNoCostEmi by rememberSaveable { mutableStateOf(true) }
     var emiProcessingFee by rememberSaveable { mutableStateOf("0") }
-    var showNonCreditCardEmiWarning by rememberSaveable { mutableStateOf(false) }
+
     var selectedCategoryId by rememberSaveable { 
-        mutableStateOf<Long?>(transaction?.subCategoryId ?: transaction?.categoryId) 
+        mutableStateOf(transaction?.subCategoryId ?: transaction?.categoryId) 
     }
-    var selectedPeerId by rememberSaveable { mutableStateOf<Long?>(transaction?.peerContactId) }
-    var selectedDate by rememberSaveable { mutableStateOf(transaction?.date ?: System.currentTimeMillis()) }
+    var selectedPeerId by rememberSaveable { mutableStateOf(transaction?.peerContactId) }
+    var selectedDate by rememberSaveable { mutableLongStateOf(transaction?.date ?: System.currentTimeMillis()) }
     var description by rememberSaveable { mutableStateOf(transaction?.note ?: "") }
-    var selectedGoalId by rememberSaveable { mutableStateOf<Long?>(transaction?.goalId) }
-    var selectedPlatform by rememberSaveable { mutableStateOf<String?>(transaction?.investmentPlatform) }
+    var selectedGoalId by rememberSaveable { mutableStateOf(transaction?.goalId) }
+    var selectedPlatform by rememberSaveable { mutableStateOf(transaction?.investmentPlatform) }
 
     // ── Split State ──
     var splitEnabled by rememberSaveable { mutableStateOf(transaction?.isSplitParent == true) }
@@ -206,12 +180,10 @@ fun AddEditTransactionDialog(
             }
         )
     }
-    var splitIdCounter by rememberSaveable { mutableStateOf(2) }
-    var showSplitCategoryDropdown by rememberSaveable { mutableStateOf<Int?>(null) }
+    var splitIdCounter by rememberSaveable { mutableIntStateOf(2) }
 
     // ── Tags State ──
     var tagQuery by rememberSaveable { mutableStateOf("") }
-    var showTagDropdown by rememberSaveable { mutableStateOf(false) }
     var selectedTagIds by rememberSaveable {
         mutableStateOf(
             if (transaction?.tagIds?.isNotEmpty() == true)
@@ -219,56 +191,42 @@ fun AddEditTransactionDialog(
             else emptySet()
         )
     }
-    var pendingTagName by rememberSaveable { mutableStateOf<String?>(null) }
 
     // ── Receipt State ──
-    var receiptData by rememberSaveable { mutableStateOf<String?>(transaction?.receiptPath) }
+    var receiptData by rememberSaveable { mutableStateOf(transaction?.receiptPath) }
     var showReceiptPreview by rememberSaveable { mutableStateOf(false) }
 
-    // ── UI Visibility Toggles ──
+    // ── UI Modal Toggles ──
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
-    var showTimePicker by rememberSaveable { mutableStateOf(false) }
     var showAccountDropdown by rememberSaveable { mutableStateOf(false) }
-    var expectedReturnDate by rememberSaveable { mutableStateOf<Long?>(transaction?.expectedReturnDate) }
+    var expectedReturnDate by rememberSaveable { mutableStateOf(transaction?.expectedReturnDate) }
     var showExpectedReturnDatePicker by rememberSaveable { mutableStateOf(false) }
     var expandedCategoryId by rememberSaveable {
-        mutableStateOf<Long?>(
+        mutableStateOf(
             (transaction?.subCategoryId ?: transaction?.categoryId)?.let { catId ->
                 categories.firstOrNull { it.id == catId }?.parentId
             }
         )
     }
-    var isCalculatorVisible by rememberSaveable { mutableStateOf(transaction?.amount == null || transaction.amount == 0.0) }
     var categorySearchQuery by rememberSaveable { mutableStateOf("") }
     var showCategorySearch by rememberSaveable { mutableStateOf(false) }
-    // Note is hidden by default; shown if editing an existing note
-    var showNoteInput by rememberSaveable { mutableStateOf(transaction?.note?.isNotEmpty() == true) }
-    var showTagInput by rememberSaveable { mutableStateOf(transaction?.tagIds?.isNotEmpty() == true) }
-    var showReceiptInput by rememberSaveable { mutableStateOf(transaction?.receiptPath != null) }
-    var showGoalDropdown by rememberSaveable { mutableStateOf(false) }
+    var showDiscardConfirmation by rememberSaveable { mutableStateOf(false) }
+
+    // Secondary Option Dialog Toggles
+    var showNoteDialog by rememberSaveable { mutableStateOf(false) }
+    var showTagsDialog by rememberSaveable { mutableStateOf(false) }
+    var showAttachDialog by rememberSaveable { mutableStateOf(false) }
+    var showSplitDialog by rememberSaveable { mutableStateOf(false) }
+    var showEmiDialog by rememberSaveable { mutableStateOf(false) }
+    var showGoalDialog by rememberSaveable { mutableStateOf(false) }
+    var showPlatformDialog by rememberSaveable { mutableStateOf(false) }
+    var showPeerDialog by rememberSaveable { mutableStateOf(false) }
 
     // ── Config & Derived State ──
     val config = remember(type) { TransactionFormConfig.getType(type) }
     val features = config.features
     val categoryFilter = TransactionFormConfig.resolveCategoryType(type)
 
-    val parentCategories = remember(categories, categoryFilter) {
-        categories.filter { it.parentId == null && it.type == categoryFilter }
-    }
-    val selectedParentCategory = remember(selectedCategoryId, categories) {
-        val cat = categories.firstOrNull { it.id == selectedCategoryId }
-        if (cat?.parentId != null) categories.firstOrNull { it.id == cat.parentId } else cat
-    }
-    val selectedSubCategory = remember(selectedCategoryId, categories) {
-        categories.firstOrNull { it.id == selectedCategoryId }?.takeIf { it.parentId != null }
-    }
-    val subCategories = remember(selectedParentCategory, categories) {
-        selectedParentCategory?.let { p -> categories.filter { it.parentId == p.id } } ?: emptyList()
-    }
-    val filteredTags = remember(tagQuery, tags) {
-        if (tagQuery.isEmpty()) tags else tags.filter { it.name.contains(tagQuery, ignoreCase = true) }
-    }
-    val selectedTags = remember(selectedTagIds, tags) { tags.filter { it.id in selectedTagIds } }
     val mainAmount = amount.toDoubleOrNull() ?: 0.0
     val splitTotal = splitRows.sumOf { it.amount.toDoubleOrNull() ?: 0.0 }
     val splitRemaining = mainAmount - splitTotal
@@ -305,7 +263,7 @@ fun AddEditTransactionDialog(
     // ── Type Switch Handler ──
     fun onTypeSelected(newType: String) {
         if (newType == type) return
-        aiSuggestedFields = aiSuggestedFields - "type"
+        aiSuggestedFields -= "type"
         type = newType
         selectedCategoryId = null
         expandedCategoryId = null
@@ -325,15 +283,44 @@ fun AddEditTransactionDialog(
         }
     }
 
+    // ── Back Navigation Handler ──
+    fun handleBackPress() {
+        val initialCat = transaction?.subCategoryId ?: transaction?.categoryId
+        val initialAcc = transaction?.accountId ?: filteredAccounts.firstOrNull()?.id
+        val hasUnsavedData = (amount.isNotEmpty() && amount != "0" && amount != "0.0")
+                || description.isNotEmpty()
+                || selectedTagIds.isNotEmpty()
+                || receiptData != null
+                || splitEnabled
+                || isEmiEnabled
+                || (transaction == null && selectedCategoryId != null)
+                || (transaction != null && selectedCategoryId != initialCat)
+                || (transaction != null && selectedAccountId != initialAcc)
+
+        if (hasUnsavedData) {
+            showDiscardConfirmation = true
+        } else {
+            aiSuggestedFields = emptySet()
+            onDraftDismiss?.invoke()
+            onDismiss()
+        }
+    }
+
+    BackHandler {
+        handleBackPress()
+    }
+
     // ── Transaction Builder ──
     fun buildTransaction(): TransactionEntity? {
         val amt = amount.toDoubleOrNull() ?: return null
         if (amt <= 0 || selectedAccountId == null) return null
+        val selectedCat = categories.firstOrNull { it.id == selectedCategoryId }
         val effectiveCategoryId =
-            if (TransactionFeature.CATEGORY in features) (selectedSubCategory?.id ?: selectedParentCategory?.id)
+            if (TransactionFeature.CATEGORY in features) (selectedCat?.parentId ?: selectedCat?.id)
             else null
         val effectiveSubCategoryId =
-            if (TransactionFeature.CATEGORY in features) selectedSubCategory?.id else null
+            if (TransactionFeature.CATEGORY in features) (if (selectedCat?.parentId != null) selectedCat.id else null)
+            else null
         return TransactionEntity(
             id = transaction?.id ?: 0,
             accountId = selectedAccountId!!,
@@ -379,6 +366,29 @@ fun AddEditTransactionDialog(
         }
     }
 
+    fun handleSave() {
+        try {
+            if (amount.contains("+") || amount.contains("-") || amount.contains("*") || amount.contains("/")) {
+                val res = evaluateExpression(amount)
+                amount = if (res % 1.0 == 0.0) "%.0f".format(Locale.US, res) else "%.2f".format(Locale.US, res)
+            }
+        } catch (_: Exception) {}
+
+        val tx = buildTransaction()
+        if (tx != null) {
+            if (isEmiEnabled && type == "expense" && onConfirmEmi != null) {
+                val tenure = emiTenure.toIntOrNull() ?: 6
+                val rate = emiInterestRate.toDoubleOrNull() ?: 0.0
+                val fee = emiProcessingFee.toDoubleOrNull() ?: 0.0
+                onConfirmEmi(tx, tenure, rate, isNoCostEmi, fee)
+            } else {
+                val children = if (splitEnabled && TransactionFeature.SPLIT in features)
+                    buildSplitChildren(tx.id) else null
+                onConfirm(tx, children)
+            }
+        }
+    }
+
     // ── Effects ──
     LaunchedEffect(splitChildren) {
         if (transaction?.isSplitParent == true && splitChildren.isNotEmpty()) {
@@ -396,22 +406,7 @@ fun AddEditTransactionDialog(
         }
     }
 
-    LaunchedEffect(tags) {
-        pendingTagName?.let { name ->
-            val newTag = tags.firstOrNull { it.name.equals(name, ignoreCase = true) }
-            if (newTag != null) {
-                selectedTagIds = selectedTagIds + newTag.id
-                pendingTagName = null
-                tagQuery = ""
-            }
-        }
-    }
-
     // ── Draft Population ──
-    // WR-04: guard against re-firing when the parent recomposes with a new (but equivalent)
-    // TransactionDraft instance, which would silently reset fields the user has already edited.
-    // LaunchedEffect uses === (referential equality) for its key comparison, so even a
-    // structurally identical draft allocated on each recomposition would trigger a reset.
     var draftApplied by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(initialDraft) {
         if (initialDraft != null && !draftApplied) {
@@ -423,20 +418,13 @@ fun AddEditTransactionDialog(
             initialDraft.peerContactId?.let { selectedPeerId = it }
             if (initialDraft.tagIds.isNotEmpty()) {
                 selectedTagIds = initialDraft.tagIds.toSet()
-                showTagInput = true
             }
-            if (initialDraft.description != null) {
-                description = initialDraft.description
-                showNoteInput = true
-            } else if (initialDraft.note != null) {
-                description = initialDraft.note
-                showNoteInput = true
+            val textNote = initialDraft.description ?: initialDraft.note
+            if (textNote != null) {
+                description = textNote
             }
             initialDraft.date?.let { selectedDate = it }
-            initialDraft.receiptPath?.let {
-                receiptData = it
-                showReceiptInput = true
-            }
+            initialDraft.receiptPath?.let { receiptData = it }
 
             aiSuggestedFields = buildSet {
                 if (initialDraft.typeId != null) add("type")
@@ -456,13 +444,10 @@ fun AddEditTransactionDialog(
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { 
             receiptData = FileHelper.saveReceipt(context, it)
-            if (receiptData != null) showReceiptInput = true
         }
     }
 
-    // ── Overlay Dialogs ──
-    val calendar = Calendar.getInstance().apply { timeInMillis = selectedDate }
-
+    // ── Overlay Picker Dialogs ──
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDate)
         DatePickerDialog(
@@ -470,7 +455,7 @@ fun AddEditTransactionDialog(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        aiSuggestedFields = aiSuggestedFields - "date"
+                        aiSuggestedFields -= "date"
                         val cal = Calendar.getInstance().apply { timeInMillis = millis }
                         val timeCal = Calendar.getInstance().apply { timeInMillis = selectedDate }
                         cal.set(Calendar.HOUR_OF_DAY, timeCal.get(Calendar.HOUR_OF_DAY))
@@ -482,29 +467,6 @@ fun AddEditTransactionDialog(
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
         ) { DatePicker(state = datePickerState) }
-    }
-
-    if (showTimePicker) {
-        val timePickerState = rememberTimePickerState(
-            initialHour = calendar.get(Calendar.HOUR_OF_DAY),
-            initialMinute = calendar.get(Calendar.MINUTE)
-        )
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            title = { Text("Select Time") },
-            text = { TimePicker(state = timePickerState) },
-            confirmButton = {
-                TextButton(onClick = {
-                    aiSuggestedFields = aiSuggestedFields - "date"
-                    val cal = Calendar.getInstance().apply { timeInMillis = selectedDate }
-                    cal.set(Calendar.HOUR_OF_DAY, timePickerState.hour)
-                    cal.set(Calendar.MINUTE, timePickerState.minute)
-                    selectedDate = cal.timeInMillis
-                    showTimePicker = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } }
-        )
     }
 
     if (showExpectedReturnDatePicker) {
@@ -533,57 +495,35 @@ fun AddEditTransactionDialog(
     }
 
     // ── Main Dialog ──
-    Dialog(onDismissRequest = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(
+        onDismissRequest = { handleBackPress() },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxSize()) {
+                // Top Bar with Back Arrow (No Cancel Button)
                 DialogTopBar(
                     title = "${if (isEdit) "Edit" else "Add"} ${config.displayName}",
                     accentColor = accentColor,
-                    onDismiss = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() }
+                    onBackClick = { handleBackPress() }
                 )
 
-                val isTypeAiField = "type" in aiSuggestedFields
-                BadgedBox(
-                    badge = {
-                        if (isTypeAiField) {
-                            Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                Icon(
-                                    Icons.Default.AutoAwesome, contentDescription = "AI suggested",
-                                    modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                        }
-                    }
-                ) {
-                    val typeFieldBg = when {
-                        fieldIsLowConfidence(ConfidenceKey.TYPE, initialDraft) && isTypeAiField ->
-                            MaterialTheme.colorScheme.errorContainer
-                        isTypeAiField ->
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                        else -> null
-                    }
-                    Box(
-                        modifier = if (typeFieldBg != null) Modifier.background(
-                            typeFieldBg,
-                            RoundedCornerShape(4.dp)
-                        ).padding(horizontal = 2.dp) else Modifier
-                    ) {
-                        TransactionTypeHeader(selectedType = type, onTypeSelected = ::onTypeSelected)
-                    }
-                }
+                // Transaction Type Tabs
+                TransactionTypeHeader(selectedType = type, onTypeSelected = ::onTypeSelected)
 
                 Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Spacer(Modifier.height(2.dp))
-
-                    // ── Source Banner ──
+                    // Source / AI Review Banner
                     if (initialDraft?.sourceType != null) {
                         Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -594,38 +534,19 @@ fun AddEditTransactionDialog(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                buildString {
-                                    append("Draft from ")
-                                    append(initialDraft.sourceType.replaceFirstChar { it.uppercase() })
-                                    if (initialDraft.sourceSender != null) {
-                                        append(" · ${initialDraft.sourceSender}")
-                                    }
-                                    if (initialDraft.date != null) {
-                                        val elapsedMs = System.currentTimeMillis() - initialDraft.date
-                                        if (elapsedMs in 60_000..Long.MAX_VALUE) {
-                                            val minutesAgo = elapsedMs / 60_000
-                                            append(" · ${minutesAgo} minutes ago")
-                                        } else {
-                                            append(" · just now")
-                                        }
-                                    }
-                                },
+                                "Draft from ${initialDraft.sourceType.replaceFirstChar { it.uppercase() }}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
 
-                    // ── Review Banner (amber warning strip for low-confidence AI drafts) ──
                     if (showReviewBanner(initialDraft)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(
-                                    MaterialTheme.colorScheme.tertiaryContainer,
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
@@ -636,545 +557,126 @@ fun AddEditTransactionDialog(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "Some fields need your review — AI was not confident about highlighted values.",
+                                "Some fields need review — AI confidence low.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                             )
                         }
-                        Spacer(Modifier.height(8.dp))
                     }
 
-                    // 1. Amount, Date & Account Card
-                    val isAmountDateAccountAiField = "amount" in aiSuggestedFields || "date" in aiSuggestedFields || "account" in aiSuggestedFields
-                    val isAmountDateAccountLowConfidence = isAmountDateAccountAiField && (
-                        (fieldIsLowConfidence(ConfidenceKey.AMOUNT, initialDraft) && "amount" in aiSuggestedFields) ||
-                        (fieldIsLowConfidence(ConfidenceKey.DATE, initialDraft) && "date" in aiSuggestedFields) ||
-                        (fieldIsLowConfidence(ConfidenceKey.ACCOUNT_NAME, initialDraft) && "account" in aiSuggestedFields)
-                    )
-                    BadgedBox(
-                        badge = {
-                            if (isAmountDateAccountAiField) {
-                                Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                    Icon(
-                                        Icons.Default.AutoAwesome, contentDescription = "AI suggested",
-                                        modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                }
-                            }
-                        }
-                    ) {
-                        val amountDateAccountBg = when {
-                            isAmountDateAccountLowConfidence ->
-                                MaterialTheme.colorScheme.errorContainer
-                            isAmountDateAccountAiField ->
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                            else -> null
-                        }
-                        Box(
-                            modifier = if (amountDateAccountBg != null) Modifier.background(
-                                amountDateAccountBg,
-                                RoundedCornerShape(4.dp)
-                            ).padding(horizontal = 2.dp) else Modifier
-                        ) {
-                            Box {
-                                FormAmountDateAccountCard(
-                            amount = amount,
-                            currency = currency,
-                            selectedDate = selectedDate,
-                            selectedAccountId = selectedAccountId,
-                            accounts = accounts,
-                            expectedReturnDate = expectedReturnDate,
-                            showExpectedReturnDate = TransactionFeature.RETURN_DATE in features,
-                            accentColor = accentColor,
-                            onAmountClick = { isCalculatorVisible = !isCalculatorVisible },
-                            onDateClick = { showDatePicker = true },
-                            onAccountClick = { showAccountDropdown = true },
-                            onExpectedReturnDateClick = { showExpectedReturnDatePicker = true }
-                        )
-                        DropdownMenu(
-                            expanded = showAccountDropdown,
-                            onDismissRequest = { showAccountDropdown = false }
-                        ) {
-                            (filteredAccounts.ifEmpty { accounts }).forEach { acc ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(acc.name)
-                                        }
-                                    },
-                                    onClick = { aiSuggestedFields = aiSuggestedFields - "account"; selectedAccountId = acc.id; showAccountDropdown = false }
-                                )
-                            }
-                        }
-                            }
-                        }
-                    }
-
-                    // 2. Categories
-                    if (TransactionFeature.CATEGORY in features) {
-                        val isCategoryAiField = "category" in aiSuggestedFields
-                        BadgedBox(
-                            badge = {
-                                if (isCategoryAiField) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                        Icon(
-                                            Icons.Default.AutoAwesome, contentDescription = "AI suggested",
-                                            modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    }
-                                }
-                            }
-                        ) {
-                            val categoryFieldBg = when {
-                                fieldIsLowConfidence(ConfidenceKey.CATEGORY_NAME, initialDraft) && isCategoryAiField ->
-                                    MaterialTheme.colorScheme.errorContainer
-                                isCategoryAiField ->
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                                else -> null
-                            }
-                            Box(
-                                modifier = if (categoryFieldBg != null) Modifier.background(
-                                    categoryFieldBg,
-                                    RoundedCornerShape(4.dp)
-                                ).padding(horizontal = 2.dp) else Modifier
-                            ) {
-                                FormCategorySection(
-                                    categories = categories,
-                                    categoryFilter = categoryFilter,
-                                    selectedCategoryId = selectedCategoryId,
-                                    expandedCategoryId = expandedCategoryId,
-                                    categoryUsageCounts = categoryUsageCounts,
-                                    accentColor = accentColor,
-                                    accentContainer = accentContainer,
-                                    onCategoryClick = { cat ->
-                                        aiSuggestedFields = aiSuggestedFields - "category"
-                                        if (cat.id == selectedCategoryId) {
-                                            selectedCategoryId = null
-                                            if (cat.parentId == null) expandedCategoryId = null
-                                        } else {
-                                            selectedCategoryId = cat.id
-                                            if (cat.parentId == null) expandedCategoryId = cat.id
-                                        }
-                                    },
-                                    onBackClick = { expandedCategoryId = null },
-                                    onMoreClick = { showCategorySearch = true }
-                                )
-                            }
-                        }
-                    }
-
-                    // 11. Action Buttons
-                    FormActionButtons(
-                        isEdit = isEdit,
-                        amountValid = amount.isNotEmpty() && amount.toDoubleOrNull() != null,
-                        accountValid = selectedAccountId != null,
+                    // 1. Amount, Date, Account Card
+                    FormAmountDateAccountCard(
+                        amount = amount,
+                        currency = currency,
+                        selectedDate = selectedDate,
+                        selectedAccountId = selectedAccountId,
+                        selectedToAccountId = selectedToAccountId,
+                        selectedPeerId = selectedPeerId,
+                        type = type,
+                        accounts = accounts,
+                        peers = peers,
+                        expectedReturnDate = expectedReturnDate,
+                        showExpectedReturnDate = TransactionFeature.RETURN_DATE in features,
                         accentColor = accentColor,
-                        onCancel = { aiSuggestedFields = emptySet(); onDraftDismiss?.invoke(); onDismiss() },
-                        onSave = {
-                            val tx = buildTransaction()
-                            if (tx != null) {
-                                if (isEmiEnabled && type == "expense" && onConfirmEmi != null) {
-                                    val tenure = emiTenure.toIntOrNull() ?: 6
-                                    val rate = emiInterestRate.toDoubleOrNull() ?: 0.0
-                                    val fee = emiProcessingFee.toDoubleOrNull() ?: 0.0
-                                    onConfirmEmi(tx, tenure, rate, isNoCostEmi, fee)
-                                } else {
-                                    val children = if (splitEnabled && TransactionFeature.SPLIT in features)
-                                        buildSplitChildren(tx.id) else null
-                                    onConfirm(tx, children)
-                                }
-                            }
-                        }
+                        onDateClick = { showDatePicker = true },
+                        onAccountClick = { showAccountDropdown = true },
+                        onToAccountClick = { showToAccountDropdown = true },
+                        onPeerClick = { showPeerDialog = true },
+                        onExpectedReturnDateClick = { showExpectedReturnDatePicker = true }
                     )
 
-                    // 3. Peer Picker
-                    if (TransactionFeature.PEER in features) {
-                        val isPeerAiField = "peer" in aiSuggestedFields
-                        BadgedBox(
-                            badge = {
-                                if (isPeerAiField) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                        Icon(
-                                            Icons.Default.AutoAwesome, contentDescription = "AI suggested",
-                                            modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
-                                        )
+                    // Account Dropdown Menus
+                    DropdownMenu(
+                        expanded = showAccountDropdown,
+                        onDismissRequest = { showAccountDropdown = false }
+                    ) {
+                        (filteredAccounts.ifEmpty { accounts }).forEach { acc ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(acc.name)
                                     }
+                                },
+                                onClick = {
+                                    aiSuggestedFields -= "account"
+                                    selectedAccountId = acc.id
+                                    showAccountDropdown = false
                                 }
-                            }
-                        ) {
-                            val peerFieldBg = when {
-                                fieldIsLowConfidence(ConfidenceKey.PEER_NAME, initialDraft) && isPeerAiField ->
-                                    MaterialTheme.colorScheme.errorContainer
-                                isPeerAiField ->
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                                else -> null
-                            }
-                            Box(
-                                modifier = if (peerFieldBg != null) Modifier.background(
-                                    peerFieldBg,
-                                    RoundedCornerShape(4.dp)
-                                ).padding(horizontal = 2.dp) else Modifier
-                            ) {
-                                FormPeerSection(
-                                    peers = peers,
-                                    selectedPeerId = selectedPeerId,
-                                    onPeerSelected = { aiSuggestedFields = aiSuggestedFields - "peer"; selectedPeerId = it }
-                                )
-                            }
-                        }
-                    }
-
-                    // 4. Transfer To-Account
-                    if (TransactionFeature.TO_ACCOUNT in features) {
-                        FormTransferSection(
-                            accounts = accounts,
-                            selectedAccountId = selectedAccountId,
-                            selectedToAccountId = selectedToAccountId,
-                            showToAccountDropdown = showToAccountDropdown,
-                            isSavingsType = type == "savings",
-                            onToAccountSelected = { selectedToAccountId = it },
-                            onToggleToAccountDropdown = { showToAccountDropdown = !showToAccountDropdown }
-                        )
-                    }
-
-                    // 4b. Pay via EMI (Expense Type Only)
-                    if (type == "expense" && !isEdit) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                                .padding(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CreditCard, contentDescription = null, tint = accentColor)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text("Pay via EMI", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                        Text("Split into monthly installments", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                                Switch(
-                                    checked = isEmiEnabled,
-                                    onCheckedChange = { enabled ->
-                                        isEmiEnabled = enabled
-                                        if (enabled) {
-                                            val acc = accounts.firstOrNull { it.id == selectedAccountId }
-                                            if (acc != null && acc.type != "credit") {
-                                                showNonCreditCardEmiWarning = true
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-
-                            if (isEmiEnabled) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(
-                                        value = emiTenure,
-                                        onValueChange = { emiTenure = it },
-                                        label = { Text("Tenure (Months)") },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    OutlinedTextField(
-                                        value = emiInterestRate,
-                                        onValueChange = { emiInterestRate = it },
-                                        label = { Text("Interest Rate (%)") },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("No-Cost EMI", fontSize = 13.sp)
-                                    Checkbox(
-                                        checked = isNoCostEmi,
-                                        onCheckedChange = {
-                                            isNoCostEmi = it
-                                            if (it) emiInterestRate = "0"
-                                        }
-                                    )
-                                }
-                                OutlinedTextField(
-                                    value = emiProcessingFee,
-                                    onValueChange = { emiProcessingFee = it },
-                                    label = { Text("Processing Fee ($currency)") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-                    }
-
-                    if (showNonCreditCardEmiWarning) {
-                        val accName = accounts.firstOrNull { it.id == selectedAccountId }?.name ?: "Selected Account"
-                        AlertDialog(
-                            onDismissRequest = {
-                                showNonCreditCardEmiWarning = false
-                                isEmiEnabled = false
-                            },
-                            title = { Text("Non-Credit Card Account") },
-                            text = {
-                                Text("The selected account '$accName' is not a Credit Card account. Do you still want to set up an EMI on this account?")
-                            },
-                            confirmButton = {
-                                TextButton(
-                                    onClick = { showNonCreditCardEmiWarning = false }
-                                ) {
-                                    Text("Proceed")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(
-                                    onClick = {
-                                        showNonCreditCardEmiWarning = false
-                                        isEmiEnabled = false
-                                    }
-                                ) {
-                                    Text("Cancel")
-                                }
-                            }
-                        )
-                    }
-
-                    // 5. Goal & Platform
-                    if (TransactionFeature.GOAL in features) {
-                        FormGoalSection(
-                            goals = goals,
-                            selectedGoalId = selectedGoalId,
-                            showGoalDropdown = showGoalDropdown,
-                            onGoalSelected = { selectedGoalId = it },
-                            onToggleGoalDropdown = { showGoalDropdown = !showGoalDropdown }
-                        )
-                    }
-
-                    if (TransactionFeature.PLATFORM in features) {
-                        OutlinedTextField(
-                            value = selectedPlatform ?: "",
-                            onValueChange = { selectedPlatform = it.ifEmpty { null } },
-                            label = { Text("Investment Platform") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                    }
-
-                    // 6. Utility Action Chips (Note / Tags / Attach / Split)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(
-                            UtilityActionItemData(
-                                Icons.AutoMirrored.Filled.Notes, "Note",
-                                if (description.isEmpty()) "Add note" else description,
-                                showNoteInput
-                            ) { 
-                                showNoteInput = !showNoteInput
-                                if (showNoteInput) isCalculatorVisible = false
-                            },
-                            UtilityActionItemData(
-                                Icons.Default.LocalOffer, "Tags",
-                                if (selectedTagIds.isEmpty()) "Add tags" else "${selectedTagIds.size} tags",
-                                showTagInput
-                            ) { 
-                                showTagInput = !showTagInput
-                                if (showTagInput) isCalculatorVisible = false
-                            },
-                            UtilityActionItemData(
-                                Icons.Default.AttachFile, "Attach",
-                                if (receiptData == null) "Add" else "1 file",
-                                showReceiptInput
-                            ) {
-                                isCalculatorVisible = false
-                                if (receiptData != null) {
-                                    showReceiptPreview = true
-                                } else {
-                                    filePicker.launch("image/*")
-                                }
-                            },
-                            UtilityActionItemData(
-                                Icons.AutoMirrored.Filled.CallSplit, "Split",
-                                if (!splitEnabled) "Off" else "On",
-                                splitEnabled
-                            ) { 
-                                splitEnabled = !splitEnabled
-                                if (splitEnabled) isCalculatorVisible = false
-                            },
-                        ).filter { a ->
-                            when (a.label) {
-                                "Tags"   -> TransactionFeature.TAGS in features
-                                "Split"  -> TransactionFeature.SPLIT in features
-                                "Attach" -> imageAttachmentsEnabled
-                                else     -> true
-                            }
-                        }.forEach { a ->
-                            UtilityActionItem(
-                                icon = a.icon,
-                                label = a.label,
-                                subtext = a.subtext,
-                                onClick = a.onClick,
-                                isActive = a.active,
-                                accentColor = accentColor,
-                                accentContainer = accentContainer,
-                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
 
-                    // 7. Split Section
-                    AnimatedVisibility(
-                        visible = TransactionFeature.SPLIT in features && splitEnabled,
-                        enter = expandVertically() + fadeIn(tween(200)),
-                        exit = shrinkVertically() + fadeOut(tween(200))
+                    DropdownMenu(
+                        expanded = showToAccountDropdown,
+                        onDismissRequest = { showToAccountDropdown = false }
                     ) {
-                        FormSplitSection(
-                            splitRows = splitRows,
-                            splitRemaining = splitRemaining,
-                            splitTotal = splitTotal,
+                        accounts.filter { it.id != selectedAccountId }.forEach { acc ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(acc.name)
+                                    }
+                                },
+                                onClick = {
+                                    selectedToAccountId = acc.id
+                                    showToAccountDropdown = false
+                                }
+                            )
+                        }
+                    }
+
+                    // 2. Category Section (Directly above keypad)
+                    if (TransactionFeature.CATEGORY in features) {
+                        FormCategorySection(
                             categories = categories,
-                            type = type,
-                            currency = currency,
-                            showSplitCategoryDropdown = showSplitCategoryDropdown,
-                            onUpdateRow = { index, updated ->
-                                splitRows = splitRows.toMutableList().also { it[index] = updated }
-                                isCalculatorVisible = false
+                            categoryFilter = categoryFilter,
+                            selectedCategoryId = selectedCategoryId,
+                            expandedCategoryId = expandedCategoryId,
+                            categoryUsageCounts = categoryUsageCounts,
+                            accentColor = accentColor,
+                            accentContainer = accentContainer,
+                            onCategoryClick = { cat ->
+                                aiSuggestedFields -= "category"
+                                if (cat.id == selectedCategoryId) {
+                                    selectedCategoryId = null
+                                    if (cat.parentId == null) expandedCategoryId = null
+                                } else {
+                                    selectedCategoryId = cat.id
+                                    if (cat.parentId == null) expandedCategoryId = cat.id
+                                }
                             },
-                            onRemoveRow = { index ->
-                                splitRows = splitRows.toMutableList().also { it.removeAt(index) }
-                            },
-                            onToggleDropdown = { rowId ->
-                                showSplitCategoryDropdown =
-                                    if (showSplitCategoryDropdown == rowId) null else rowId
-                                if (showSplitCategoryDropdown != null) isCalculatorVisible = false
-                            },
-                            onAddRow = { 
-                                splitRows = splitRows + SplitRowData(splitIdCounter++)
-                                isCalculatorVisible = false
-                            }
+                            onBackClick = { expandedCategoryId = null },
+                            onMoreClick = { showCategorySearch = true }
                         )
                     }
 
-                    // 8. Note Input (expandable)
-                    AnimatedVisibility(
-                        visible = showNoteInput,
-                        enter = expandVertically() + fadeIn(tween(200)),
-                        exit = shrinkVertically() + fadeOut(tween(200))
-                    ) {
-                        val isNoteAiField = "note" in aiSuggestedFields
-                        BadgedBox(
-                            badge = {
-                                if (isNoteAiField) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                        Icon(
-                                            Icons.Default.AutoAwesome, contentDescription = "AI suggested",
-                                            modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    }
-                                }
-                            }
-                        ) {
-                            val noteFieldBg = when {
-                                (fieldIsLowConfidence(ConfidenceKey.DESCRIPTION, initialDraft) || fieldIsLowConfidence(ConfidenceKey.NOTE, initialDraft)) && isNoteAiField ->
-                                    MaterialTheme.colorScheme.errorContainer
-                                isNoteAiField ->
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                                else -> null
-                            }
-                            Box(
-                                modifier = if (noteFieldBg != null) Modifier.background(
-                                    noteFieldBg,
-                                    RoundedCornerShape(4.dp)
-                                ).padding(horizontal = 2.dp) else Modifier
-                            ) {
-                                OutlinedTextField(
-                                    value = description,
-                                    onValueChange = { 
-                                        aiSuggestedFields = aiSuggestedFields - "note"
-                                        description = it 
-                                        isCalculatorVisible = false
-                                    },
-                                    label = { Text("Note") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
+                    Spacer(Modifier.weight(1f))
 
-                    // 9. Tag Input (expandable)
-                    AnimatedVisibility(
-                        visible = TransactionFeature.TAGS in features && showTagInput,
-                        enter = expandVertically() + fadeIn(tween(200)),
-                        exit = shrinkVertically() + fadeOut(tween(200))
+                    // 3. Fixed Bottom Section: Keypad (Left) + More Side Panel (Right)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.Bottom
                     ) {
-                        val isTagsAiField = "tags" in aiSuggestedFields
-                        BadgedBox(
-                            badge = {
-                                if (isTagsAiField) {
-                                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                                        Icon(
-                                            Icons.Default.AutoAwesome, contentDescription = "AI suggested",
-                                            modifier = Modifier.size(10.dp), tint = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    }
-                                }
-                            }
-                        ) {
-                            Box(
-                                modifier = if (isTagsAiField) Modifier.background(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                                    RoundedCornerShape(4.dp)
-                                ).padding(horizontal = 2.dp) else Modifier
-                            ) {
-                                // BUG-01 fix: pass filtered tags + callbacks so the dropdown renders.
-                                FormTagSection(
-                                    selectedTags = selectedTags,
-                                    filteredTags = filteredTags.filter { it.id !in selectedTagIds },
-                                    tagQuery = tagQuery,
-                                    showDropdown = showTagDropdown,
-                                    onTagQueryChange = { newQuery ->
-                                        tagQuery = newQuery
-                                        showTagDropdown = newQuery.isNotEmpty()
-                                        if (newQuery.isNotEmpty()) isCalculatorVisible = false
-                                    },
-                                    onRemoveTag = { aiSuggestedFields = aiSuggestedFields - "tags"; selectedTagIds = selectedTagIds - it },
-                                    onTagSelected = { tag ->
-                                        aiSuggestedFields = aiSuggestedFields - "tags"
-                                        selectedTagIds = selectedTagIds + tag.id
-                                        tagQuery = ""
-                                        showTagDropdown = false
-                                    },
-                                    onDismissDropdown = { showTagDropdown = false }
-                                )
-                            }
-                        }
-                    }
-
-                    // 10. Numeric Keypad (expandable)
-                    AnimatedVisibility(
-                        visible = isCalculatorVisible,
-                        enter = expandVertically() + fadeIn(tween(200)),
-                        exit = shrinkVertically() + fadeOut(tween(200))
-                    ) {
+                        // Left 4-Column Keypad (Fixed in place)
                         NumericKeypad(
+                            modifier = Modifier.weight(1.65f),
                             accentColor = accentColor,
                             accentContainer = accentContainer,
+                            saveButtonText = "Save ${config.displayName}",
+                            saveButtonEnabled = amount.isNotEmpty() && (amount.toDoubleOrNull() ?: 0.0) > 0 && selectedAccountId != null,
                             onNumberClick = { num ->
-                                aiSuggestedFields = aiSuggestedFields - "amount"
+                                aiSuggestedFields -= "amount"
                                 if (num == ".") {
                                     val lastNumber = amount.split('+', '-', '*', '/').last()
                                     if (!lastNumber.contains(".")) {
-                                        if (lastNumber.isEmpty()) amount += "0."
-                                        else amount += "."
+                                        amount += if (lastNumber.isEmpty()) "0." else "."
                                     }
                                 } else if (num in listOf("+", "-", "*", "/")) {
                                     if (amount.isNotEmpty() && !amount.last().isDigit() && amount.last() != '.')
@@ -1184,20 +686,63 @@ fun AddEditTransactionDialog(
                                     if (amount == "0") amount = num else amount += num
                                 }
                             },
-                            onDeleteClick = { aiSuggestedFields = aiSuggestedFields - "amount"; if (amount.isNotEmpty()) amount = amount.dropLast(1) },
-                            onClearClick = { aiSuggestedFields = aiSuggestedFields - "amount"; amount = "" },
+                            onDeleteClick = {
+                                aiSuggestedFields -= "amount"
+                                if (amount.isNotEmpty()) amount = amount.dropLast(1)
+                            },
+                            onClearClick = {
+                                aiSuggestedFields -= "amount"
+                                amount = ""
+                            },
                             onEvaluate = {
-                                aiSuggestedFields = aiSuggestedFields - "amount"
                                 try {
                                     val res = evaluateExpression(amount)
-                                    amount = if (res % 1.0 == 0.0) {
-                                        "%.0f".format(Locale.US, res)
-                                    } else {
-                                        "%.2f".format(Locale.US, res)
-                                    }
-                                    isCalculatorVisible = false
+                                    amount = if (res % 1.0 == 0.0) "%.0f".format(Locale.US, res) else "%.2f".format(Locale.US, res)
                                 } catch (_: Exception) {}
-                            }
+                            },
+                            onSaveClick = { handleSave() }
+                        )
+
+                        // Vertical Divider Line
+                        VerticalDivider(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .padding(vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                        )
+
+                        // Right More Secondary Options Side Panel
+                        MoreOptionsSidePanel(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            type = type,
+                            features = features,
+                            note = description,
+                            selectedTagIds = selectedTagIds,
+                            tags = tags,
+                            receiptData = receiptData,
+                            splitEnabled = splitEnabled,
+                            splitRows = splitRows,
+                            isEmiEnabled = isEmiEnabled,
+                            emiTenure = emiTenure,
+                            selectedGoalId = selectedGoalId,
+                            goals = goals,
+                            selectedPlatform = selectedPlatform,
+                            selectedPeerId = selectedPeerId,
+                            peers = peers,
+                            expectedReturnDate = expectedReturnDate,
+                            accentColor = accentColor,
+                            imageAttachmentsEnabled = imageAttachmentsEnabled,
+                            onOpenNote = { showNoteDialog = true },
+                            onOpenTags = { showTagsDialog = true },
+                            onOpenAttach = { showAttachDialog = true },
+                            onOpenSplit = { showSplitDialog = true },
+                            onOpenEmi = { showEmiDialog = true },
+                            onOpenGoal = { showGoalDialog = true },
+                            onOpenPlatform = { showPlatformDialog = true },
+                            onOpenPeer = { showPeerDialog = true },
+                            onOpenReturnDate = { showExpectedReturnDatePicker = true }
                         )
                     }
 
@@ -1207,7 +752,114 @@ fun AddEditTransactionDialog(
         }
     }
 
-    // ── Category Search Dialog ──
+    // ── Secondary Field Modal Dialogs ──
+
+    // Note Dialog
+    if (showNoteDialog) {
+        SecondaryNoteDialog(
+            note = description,
+            onNoteChange = { description = it },
+            onDismiss = { showNoteDialog = false }
+        )
+    }
+
+    // Tags Dialog
+    if (showTagsDialog) {
+        SecondaryTagsDialog(
+            tags = tags,
+            selectedTagIds = selectedTagIds,
+            tagQuery = tagQuery,
+            onQueryChange = { tagQuery = it },
+            onToggleTag = { tagId ->
+                selectedTagIds = if (tagId in selectedTagIds) selectedTagIds - tagId else selectedTagIds + tagId
+            },
+            onDismiss = { showTagsDialog = false }
+        )
+    }
+
+    // Attach Dialog
+    if (showAttachDialog) {
+        SecondaryAttachDialog(
+            receiptData = receiptData,
+            onPickFile = { filePicker.launch("image/*") },
+            onRemoveFile = { receiptData = null },
+            onPreviewFile = { showReceiptPreview = true },
+            onDismiss = { showAttachDialog = false }
+        )
+    }
+
+    // Split Dialog
+    if (showSplitDialog) {
+        SecondarySplitDialog(
+            splitEnabled = splitEnabled,
+            splitRows = splitRows,
+            splitRemaining = splitRemaining,
+            splitTotal = splitTotal,
+            categories = categories,
+            type = type,
+            currency = currency,
+            onToggleSplitEnabled = { splitEnabled = it },
+            onUpdateRow = { index, updated ->
+                splitRows = splitRows.toMutableList().also { it[index] = updated }
+            },
+            onRemoveRow = { index ->
+                splitRows = splitRows.toMutableList().also { it.removeAt(index) }
+            },
+            onAddRow = {
+                splitRows = splitRows + SplitRowData(splitIdCounter++)
+            },
+            onDismiss = { showSplitDialog = false }
+        )
+    }
+
+    // EMI Dialog
+    if (showEmiDialog) {
+        SecondaryEmiDialog(
+            isEmiEnabled = isEmiEnabled,
+            emiTenure = emiTenure,
+            emiInterestRate = emiInterestRate,
+            isNoCostEmi = isNoCostEmi,
+            emiProcessingFee = emiProcessingFee,
+            currency = currency,
+            onEmiEnabledChange = { isEmiEnabled = it },
+            onTenureChange = { emiTenure = it },
+            onRateChange = { emiInterestRate = it },
+            onNoCostChange = { isNoCostEmi = it; if (it) emiInterestRate = "0" },
+            onFeeChange = { emiProcessingFee = it },
+            onDismiss = { showEmiDialog = false }
+        )
+    }
+
+    // Goal Dialog
+    if (showGoalDialog) {
+        SecondaryGoalDialog(
+            goals = goals,
+            selectedGoalId = selectedGoalId,
+            onGoalSelected = { selectedGoalId = it; showGoalDialog = false },
+            onDismiss = { showGoalDialog = false }
+        )
+    }
+
+    // Platform Dialog
+    if (showPlatformDialog) {
+        SecondaryPlatformDialog(
+            platform = selectedPlatform ?: "",
+            onPlatformChange = { selectedPlatform = it.ifEmpty { null } },
+            onDismiss = { showPlatformDialog = false }
+        )
+    }
+
+    // Peer Dialog
+    if (showPeerDialog) {
+        SecondaryPeerDialog(
+            peers = peers,
+            selectedPeerId = selectedPeerId,
+            onPeerSelected = { selectedPeerId = it; showPeerDialog = false },
+            onDismiss = { showPeerDialog = false }
+        )
+    }
+
+    // Category Search Dialog
     if (showCategorySearch && TransactionFeature.CATEGORY in features) {
         FormCategorySearchDialog(
             query = categorySearchQuery,
@@ -1216,28 +868,60 @@ fun AddEditTransactionDialog(
             categoryFilter = categoryFilter,
             categoryUsageCounts = categoryUsageCounts,
             onCategorySelected = { cat ->
-                aiSuggestedFields = aiSuggestedFields - "category"
+                aiSuggestedFields -= "category"
                 selectedCategoryId = cat.id
-                expandedCategoryId = if (cat.parentId != null) cat.parentId else cat.id
+                expandedCategoryId = cat.parentId ?: cat.id
                 showCategorySearch = false
             },
             onDismiss = { showCategorySearch = false }
         )
     }
+
+    // Discard Confirmation Dialog
+    if (showDiscardConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmation = false },
+            title = { Text("Discard unsaved changes?") },
+            text = { Text("You have unsaved changes in this transaction. Are you sure you want to exit without saving?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirmation = false
+                        aiSuggestedFields = emptySet()
+                        onDraftDismiss?.invoke()
+                        onDismiss()
+                    }
+                ) {
+                    Text("Discard", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirmation = false }) {
+                    Text("Keep editing")
+                }
+            }
+        )
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  Extracted Section Composables
+//  Top Bar & Amount/Date/Account Components
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
-private fun DialogTopBar(title: String, accentColor: Color, onDismiss: () -> Unit) {
+private fun DialogTopBar(
+    title: String,
+    accentColor: Color,
+    onBackClick: () -> Unit
+) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onDismiss) {
+        IconButton(onClick = onBackClick) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface)
         }
         Text(
@@ -1246,7 +930,9 @@ private fun DialogTopBar(title: String, accentColor: Color, onDismiss: () -> Uni
             fontWeight = FontWeight.Bold,
             color = accentColor
         )
-        IconButton(onClick = {}, enabled = false) {}
+        IconButton(onClick = {}) {
+            Icon(Icons.Default.MoreVert, "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -1256,13 +942,18 @@ private fun FormAmountDateAccountCard(
     currency: String,
     selectedDate: Long,
     selectedAccountId: Long?,
+    selectedToAccountId: Long?,
+    selectedPeerId: Long?,
+    type: String,
     accounts: List<AccountEntity>,
+    peers: List<PeerContact>,
     expectedReturnDate: Long?,
     showExpectedReturnDate: Boolean,
     accentColor: Color,
-    onAmountClick: () -> Unit,
     onDateClick: () -> Unit,
     onAccountClick: () -> Unit,
+    onToAccountClick: () -> Unit,
+    onPeerClick: () -> Unit,
     onExpectedReturnDateClick: () -> Unit,
 ) {
     Card(
@@ -1273,12 +964,16 @@ private fun FormAmountDateAccountCard(
         border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Amount — left, large + prominent
+            // Amount — left, prominent
             Column(
-                modifier = Modifier.weight(1.4f).clickable { onAmountClick() },
+                modifier = Modifier
+                    .weight(1.3f),
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
@@ -1288,7 +983,7 @@ private fun FormAmountDateAccountCard(
                     letterSpacing = 1.sp,
                     fontSize = 9.sp
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         CurrencyUtils.getCurrencySymbol(currency),
@@ -1296,32 +991,34 @@ private fun FormAmountDateAccountCard(
                         color = if (amount.isEmpty())
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         else accentColor.copy(alpha = 0.85f),
-                        modifier = Modifier.padding(bottom = 5.dp)
+                        modifier = Modifier.padding(bottom = 3.dp)
                     )
                     Spacer(Modifier.width(2.dp))
                     Text(
-                        text = if (amount.isEmpty()) "0" else amount,
+                        text = amount.ifEmpty { "0" },
                         fontWeight = FontWeight.ExtraBold,
                         color = if (amount.isEmpty())
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
                         else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        fontSize = 40.sp,
-                        lineHeight = 44.sp
+                        fontSize = 34.sp,
+                        lineHeight = 38.sp
                     )
                 }
             }
 
             VerticalDivider(
-                modifier = Modifier.fillMaxHeight().padding(vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(vertical = 2.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
             )
 
             // Date & Account — right, compact stacked tiles
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 CompactInfoTile(
                     icon = Icons.Default.CalendarToday,
@@ -1332,12 +1029,30 @@ private fun FormAmountDateAccountCard(
                 )
                 CompactInfoTile(
                     icon = Icons.Default.AccountBalance,
-                    label = "Account",
+                    label = if (type == "transfer" || type == "savings") "From Account" else "Account",
                     value = accounts.find { it.id == selectedAccountId }?.name ?: "Select Account",
                     accentColor = accentColor,
                     onClick = onAccountClick
                 )
-                if (showExpectedReturnDate) {
+                if (type == "transfer" || type == "savings") {
+                    CompactInfoTile(
+                        icon = Icons.Default.SwapHoriz,
+                        label = if (type == "savings") "Investment Account" else "To Account",
+                        value = accounts.find { it.id == selectedToAccountId }?.name ?: "Select Account",
+                        accentColor = accentColor,
+                        onClick = onToAccountClick
+                    )
+                }
+                if (type == "lend" || type == "borrow") {
+                    CompactInfoTile(
+                        icon = Icons.Default.Person,
+                        label = "Person",
+                        value = peers.find { it.id == selectedPeerId }?.effectiveDisplayName ?: "Select Person",
+                        accentColor = accentColor,
+                        onClick = onPeerClick
+                    )
+                }
+                if (showExpectedReturnDate && (type == "lend" || type == "borrow")) {
                     CompactInfoTile(
                         icon = Icons.AutoMirrored.Filled.EventNote,
                         label = "Return Date",
@@ -1365,9 +1080,9 @@ private fun CompactInfoTile(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
             .clickable { onClick() }
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, null, modifier = Modifier.size(13.dp), tint = accentColor)
@@ -1391,6 +1106,10 @@ private fun CompactInfoTile(
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  Category Section & Shortcuts Carousel
+// ═══════════════════════════════════════════════════════════════
+
 @Composable
 private fun FormCategorySection(
     categories: List<CategoryEntity>,
@@ -1404,7 +1123,7 @@ private fun FormCategorySection(
     onBackClick: () -> Unit,
     onMoreClick: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1416,14 +1135,27 @@ private fun FormCategorySection(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (expandedCategoryId != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (expandedCategoryId != null) {
+                    TextButton(
+                        onClick = onBackClick,
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(12.dp), tint = accentColor)
+                        Spacer(Modifier.width(2.dp))
+                        Text("Back", style = MaterialTheme.typography.labelSmall, color = accentColor)
+                    }
+                }
                 TextButton(
-                    onClick = onBackClick,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    onClick = onMoreClick,
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(14.dp), tint = accentColor)
-                    Spacer(Modifier.width(2.dp))
-                    Text("Back", style = MaterialTheme.typography.labelSmall, color = accentColor)
+                    Text(
+                        "See all >",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor
+                    )
                 }
             }
         }
@@ -1441,271 +1173,768 @@ private fun FormCategorySection(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FormDropdownCard(
-    label: String,
-    value: String,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    onDismissRequest: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    items: @Composable ColumnScope.() -> Unit,
+internal fun CategoryCarousel(
+    categories: List<CategoryEntity>,
+    type: String,
+    selectedCategoryId: Long?,
+    expandedCategoryId: Long?,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    accentContainer: Color = MaterialTheme.colorScheme.primaryContainer,
+    categoryUsageCounts: Map<Long, Int> = emptyMap(),
+    onCategoryClick: (CategoryEntity) -> Unit,
+    onMoreClick: () -> Unit,
 ) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-    ) {
-        ExposedDropdownMenuBox(expanded, onExpandedChange) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(label) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable).padding(8.dp),
-                singleLine = true
-            )
-            ExposedDropdownMenu(expanded, onDismissRequest, content = items)
+    val filtered = remember(categories, type) { categories.filter { it.type == type } }
+    val sortedParents = remember(filtered, categoryUsageCounts) {
+        val subsByParent = filtered.filter { it.parentId != null }.groupBy { it.parentId }
+        filtered.filter { it.parentId == null }.sortedByDescending { cat ->
+            val direct = categoryUsageCounts[cat.id] ?: 0
+            val subCounts = subsByParent[cat.id]?.sumOf { categoryUsageCounts[it.id] ?: 0 } ?: 0
+            direct + subCounts
         }
     }
-}
 
-@Composable
-private fun FormPeerSection(
-    peers: List<PeerContact>,
-    selectedPeerId: Long?,
-    onPeerSelected: (Long?) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedPeer = peers.find { it.id == selectedPeerId }
-
-    FormDropdownCard(
-        label = "Person",
-        value = selectedPeer?.effectiveDisplayName ?: "Select person",
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        onDismissRequest = { expanded = false }
-    ) {
-        if (selectedPeerId != null) {
-            DropdownMenuItem(
-                text = { Text("None") },
-                onClick = { onPeerSelected(null); expanded = false }
-            )
-        }
-        peers.forEach { peer ->
-            DropdownMenuItem(
-                text = { Text(peer.effectiveDisplayName) },
-                onClick = { onPeerSelected(peer.id); expanded = false }
-            )
+    val displayCats = remember(sortedParents, expandedCategoryId, selectedCategoryId, filtered) {
+        if (expandedCategoryId != null) {
+            val subs = filtered.filter { it.parentId == expandedCategoryId }
+                .sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
+            val parent = sortedParents.firstOrNull { it.id == expandedCategoryId }
+            if (parent != null) listOf(parent) + subs else subs
+        } else {
+            val top5 = sortedParents.take(5).toMutableList()
+            if (selectedCategoryId != null && top5.none { it.id == selectedCategoryId }) {
+                val selectedCat = filtered.firstOrNull { it.id == selectedCategoryId }
+                if (selectedCat != null) {
+                    val catToAdd = if (selectedCat.parentId != null) filtered.firstOrNull { it.id == selectedCat.parentId } ?: selectedCat else selectedCat
+                    if (top5.size == 5) top5[4] = catToAdd
+                    else top5.add(catToAdd)
+                }
+            }
+            top5
         }
     }
-}
 
-@Composable
-private fun FormTransferSection(
-    accounts: List<AccountEntity>,
-    selectedAccountId: Long?,
-    selectedToAccountId: Long?,
-    showToAccountDropdown: Boolean,
-    isSavingsType: Boolean = false,
-    onToAccountSelected: (Long?) -> Unit,
-    onToggleToAccountDropdown: () -> Unit,
-) {
-    val eligibleAccounts = remember(accounts, selectedAccountId, isSavingsType) {
-        accounts.filter { acc ->
-            acc.id != selectedAccountId && (!isSavingsType || acc.type == "savings")
-        }
-    }
-    FormDropdownCard(
-        label = if (isSavingsType) "Investment Platform Account" else "To Account",
-        value = accounts.find { it.id == selectedToAccountId }?.name ?: if (isSavingsType) "Select investment platform account" else "Select destination account",
-        expanded = showToAccountDropdown,
-        onExpandedChange = { if (it) onToggleToAccountDropdown() },
-        onDismissRequest = { onToggleToAccountDropdown() }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        eligibleAccounts.forEach { acc ->
-            DropdownMenuItem(
-                text = {
-                    Column {
-                        Text(acc.name)
-                        Text(
-                            "${acc.type} · ${acc.currency}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+        displayCats.forEach { cat ->
+            val isSelected = selectedCategoryId == cat.id || expandedCategoryId == cat.id
+            val itemBg by animateColorAsState(
+                if (isSelected) accentContainer.copy(alpha = 0.35f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                animationSpec = tween(200),
+                label = "catBg"
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(60.dp)
+                    .clickable { onCategoryClick(cat) }
+            ) {
+                Box(contentAlignment = Alignment.TopEnd) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = itemBg,
+                        modifier = Modifier.size(52.dp),
+                        border = if (isSelected) BorderStroke(1.5.dp, accentColor) else null,
+                        shadowElevation = if (isSelected) 2.dp else 0.dp
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 22.sp)
+                        }
+                    }
+                    if (isSelected) {
+                        Box(
+                            Modifier
+                                .size(16.dp)
+                                .background(MaterialTheme.colorScheme.surface, CircleShape)
+                                .padding(1.5.dp)
+                                .background(accentColor, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Check, null,
+                                modifier = Modifier.size(8.dp),
+                                tint = MaterialTheme.colorScheme.surface
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    cat.name,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    fontSize = 9.sp,
+                    color = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
+        }
+
+        if (expandedCategoryId == null) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(60.dp)
+                    .clickable { onMoreClick() }
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.MoreHoriz, null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                },
-                onClick = { onToAccountSelected(acc.id); onToggleToAccountDropdown() }
-            )
+                }
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    "More",
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    fontSize = 9.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  Right More Options Side Panel
+// ═══════════════════════════════════════════════════════════════
+
 @Composable
-private fun FormGoalSection(
-    goals: List<GoalEntity>,
+private fun MoreOptionsSidePanel(
+    modifier: Modifier = Modifier,
+    type: String,
+    features: Set<TransactionFeature>,
+    note: String,
+    selectedTagIds: Set<Long>,
+    tags: List<TagEntity>,
+    receiptData: String?,
+    splitEnabled: Boolean,
+    splitRows: List<SplitRowData>,
+    isEmiEnabled: Boolean,
+    emiTenure: String,
     selectedGoalId: Long?,
-    showGoalDropdown: Boolean,
-    onGoalSelected: (Long?) -> Unit,
-    onToggleGoalDropdown: () -> Unit,
+    goals: List<GoalEntity>,
+    selectedPlatform: String?,
+    selectedPeerId: Long?,
+    peers: List<PeerContact>,
+    expectedReturnDate: Long?,
+    accentColor: Color,
+    imageAttachmentsEnabled: Boolean,
+    onOpenNote: () -> Unit,
+    onOpenTags: () -> Unit,
+    onOpenAttach: () -> Unit,
+    onOpenSplit: () -> Unit,
+    onOpenEmi: () -> Unit,
+    onOpenGoal: () -> Unit,
+    onOpenPlatform: () -> Unit,
+    onOpenPeer: () -> Unit,
+    onOpenReturnDate: () -> Unit,
 ) {
-    FormDropdownCard(
-        label = "Goal",
-        value = goals.find { it.id == selectedGoalId }?.name ?: "Select goal (optional)",
-        expanded = showGoalDropdown,
-        onExpandedChange = { if (it) onToggleGoalDropdown() },
-        onDismissRequest = { onToggleGoalDropdown() }
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 2.dp, vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (selectedGoalId != null) {
-            DropdownMenuItem(
-                text = { Text("None") },
-                onClick = { onGoalSelected(null); onToggleGoalDropdown() }
+        // Drag Handle
+        Box(
+            modifier = Modifier
+                .padding(top = 2.dp, bottom = 2.dp)
+                .width(26.dp)
+                .height(3.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+        )
+
+        // Note Card
+        if (TransactionFeature.NOTE in features) {
+            MoreOptionCard(
+                icon = Icons.AutoMirrored.Filled.Notes,
+                title = "Note",
+                subtitle = note.ifBlank { "Add note" },
+                isActive = note.isNotBlank(),
+                accentColor = accentColor,
+                onClick = onOpenNote
             )
         }
-        goals.forEach { goal ->
-            DropdownMenuItem(
-                text = { Text(goal.name) },
-                onClick = { onGoalSelected(goal.id); onToggleGoalDropdown() }
+
+        // Tags Card
+        if (TransactionFeature.TAGS in features) {
+            val count = selectedTagIds.size
+            val tagSubtitle = when (count) {
+                0 -> "Add tags"
+                1 -> tags.find { it.id in selectedTagIds }?.name ?: "1 tag"
+                else -> "$count tags"
+            }
+            MoreOptionCard(
+                icon = Icons.Default.LocalOffer,
+                title = "Tags",
+                subtitle = tagSubtitle,
+                isActive = count > 0,
+                accentColor = accentColor,
+                onClick = onOpenTags
+            )
+        }
+
+        // Attach Card
+        if (imageAttachmentsEnabled && TransactionFeature.RECEIPT in features) {
+            MoreOptionCard(
+                icon = Icons.Default.AttachFile,
+                title = "Attach",
+                subtitle = if (receiptData == null) "Add file" else "1 file",
+                isActive = receiptData != null,
+                accentColor = accentColor,
+                onClick = onOpenAttach
+            )
+        }
+
+        // Split Card
+        if (TransactionFeature.SPLIT in features) {
+            MoreOptionCard(
+                icon = Icons.AutoMirrored.Filled.CallSplit,
+                title = "Split",
+                subtitle = if (!splitEnabled) "Off" else "${splitRows.size} splits",
+                isActive = splitEnabled,
+                accentColor = accentColor,
+                onClick = onOpenSplit
+            )
+        }
+
+        // Pay via EMI Card (Expense Only)
+        if (type == "expense") {
+            MoreOptionCard(
+                icon = Icons.Default.CreditCard,
+                title = "Pay via EMI",
+                subtitle = if (!isEmiEnabled) "Off" else "$emiTenure mos",
+                isActive = isEmiEnabled,
+                accentColor = accentColor,
+                onClick = onOpenEmi
+            )
+        }
+
+        // Goal Card
+        if (TransactionFeature.GOAL in features) {
+            val goalName = goals.find { it.id == selectedGoalId }?.name
+            MoreOptionCard(
+                icon = Icons.Default.Flag,
+                title = "Goal",
+                subtitle = goalName ?: "Select goal",
+                isActive = goalName != null,
+                accentColor = accentColor,
+                onClick = onOpenGoal
+            )
+        }
+
+        // Platform Card
+        if (TransactionFeature.PLATFORM in features) {
+            MoreOptionCard(
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                title = "Platform",
+                subtitle = if (selectedPlatform.isNullOrBlank()) "Add platform" else selectedPlatform,
+                isActive = !selectedPlatform.isNullOrBlank(),
+                accentColor = accentColor,
+                onClick = onOpenPlatform
+            )
+        }
+
+        // Person Card (Lend / Borrow)
+        if (TransactionFeature.PEER in features) {
+            val peerName = peers.find { it.id == selectedPeerId }?.effectiveDisplayName
+            MoreOptionCard(
+                icon = Icons.Default.Person,
+                title = "Person",
+                subtitle = peerName ?: "Select person",
+                isActive = peerName != null,
+                accentColor = accentColor,
+                onClick = onOpenPeer
+            )
+        }
+
+        // Return Date Card (Lend / Borrow)
+        if (TransactionFeature.RETURN_DATE in features) {
+            val returnDateStr = expectedReturnDate?.let { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(it)) }
+            MoreOptionCard(
+                icon = Icons.Default.CalendarToday,
+                title = "Return Date",
+                subtitle = returnDateStr ?: "Not set",
+                isActive = returnDateStr != null,
+                accentColor = accentColor,
+                onClick = onOpenReturnDate
             )
         }
     }
 }
 
 @Composable
-private fun FormSplitSection(
+private fun MoreOptionCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    isActive: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isActive) accentColor.copy(alpha = 0.15f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        border = BorderStroke(
+            0.5.dp,
+            if (isActive) accentColor.copy(alpha = 0.5f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                icon,
+                contentDescription = title,
+                tint = if (isActive) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 11.sp,
+                    color = if (isActive) accentColor else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Secondary Field Dialog Overlays
+// ═══════════════════════════════════════════════════════════════
+
+@Composable
+private fun SecondaryNoteDialog(
+    note: String,
+    onNoteChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Note", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = onNoteChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Add note...") },
+                    maxLines = 3
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Done") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecondaryTagsDialog(
+    tags: List<TagEntity>,
+    selectedTagIds: Set<Long>,
+    tagQuery: String,
+    onQueryChange: (String) -> Unit,
+    onToggleTag: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.6f), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Tags", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(
+                    value = tagQuery,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search tags...") },
+                    singleLine = true
+                )
+                val filtered = remember(tags, tagQuery) {
+                    if (tagQuery.isBlank()) tags else tags.filter { it.name.contains(tagQuery, ignoreCase = true) }
+                }
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(filtered) { tag ->
+                        val isSelected = tag.id in selectedTagIds
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggleTag(tag.id) }
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(tag.name, style = MaterialTheme.typography.bodyMedium)
+                            Checkbox(checked = isSelected, onCheckedChange = { onToggleTag(tag.id) })
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Done") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecondaryAttachDialog(
+    receiptData: String?,
+    onPickFile: () -> Unit,
+    onRemoveFile: () -> Unit,
+    onPreviewFile: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Attachment / Receipt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (receiptData != null) {
+                    Text("1 File Attached", style = MaterialTheme.typography.bodyMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onPreviewFile) { Text("View Receipt") }
+                        Button(
+                            onClick = { onRemoveFile(); onDismiss() },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) { Text("Remove") }
+                    }
+                } else {
+                    Button(onClick = { onPickFile(); onDismiss() }) {
+                        Icon(Icons.Default.AttachFile, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Pick Photo / File")
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Close") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecondarySplitDialog(
+    splitEnabled: Boolean,
     splitRows: List<SplitRowData>,
     splitRemaining: Double,
     splitTotal: Double,
     categories: List<CategoryEntity>,
     type: String,
     currency: String,
-    showSplitCategoryDropdown: Int?,
+    onToggleSplitEnabled: (Boolean) -> Unit,
     onUpdateRow: (Int, SplitRowData) -> Unit,
     onRemoveRow: (Int) -> Unit,
-    onToggleDropdown: (Int) -> Unit,
     onAddRow: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-    ) {
-        Column(Modifier.padding(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    "Remaining: ${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, splitRemaining)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (abs(splitRemaining) < 0.01) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-                )
-                Text(
-                    "Allocated: ${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, splitTotal)}",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-            splitRows.forEachIndexed { index, row ->
-                SplitRowCard(
-                    row = row,
-                    allCategories = categories,
-                    type = type,
-                    onUpdate = { updated -> onUpdateRow(index, updated) },
-                    onRemove = { onRemoveRow(index) },
-                    showDropdown = showSplitCategoryDropdown == row.localId,
-                    onToggleDropdown = { onToggleDropdown(row.localId) },
-                    remainingAmount = splitRemaining,
-                    currencySymbol = CurrencyUtils.getCurrencySymbol(currency)
-                )
-            }
-            TextButton(onClick = onAddRow, modifier = Modifier.height(32.dp)) {
-                Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
-                Text(" Add Split", style = MaterialTheme.typography.labelSmall)
+    var activeDropdownRowId by remember { mutableStateOf<Int?>(null) }
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.7f), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Split Transaction", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Switch(checked = splitEnabled, onCheckedChange = onToggleSplitEnabled)
+                }
+
+                if (splitEnabled) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            "Remaining: ${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, splitRemaining)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (abs(splitRemaining) < 0.01) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            "Allocated: ${CurrencyUtils.getCurrencySymbol(currency)}${"%.2f".format(Locale.US, splitTotal)}",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+
+                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        items(splitRows.size) { index ->
+                            val row = splitRows[index]
+                            SplitRowCard(
+                                row = row,
+                                allCategories = categories,
+                                type = type,
+                                onUpdate = { updated -> onUpdateRow(index, updated) },
+                                onRemove = { onRemoveRow(index) },
+                                showDropdown = activeDropdownRowId == row.localId,
+                                onToggleDropdown = {
+                                    activeDropdownRowId = if (activeDropdownRowId == row.localId) null else row.localId
+                                },
+                                remainingAmount = splitRemaining,
+                                currencySymbol = CurrencyUtils.getCurrencySymbol(currency)
+                            )
+                        }
+                    }
+
+                    TextButton(onClick = onAddRow) {
+                        Icon(Icons.Default.Add, null)
+                        Text(" Add Split Row")
+                    }
+                }
+
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Done") }
             }
         }
     }
 }
 
 @Composable
-private fun FormTagSection(
-    selectedTags: List<TagEntity>,
-    filteredTags: List<TagEntity>,
-    tagQuery: String,
-    showDropdown: Boolean,
-    onTagQueryChange: (String) -> Unit,
-    onRemoveTag: (Long) -> Unit,
-    onTagSelected: (TagEntity) -> Unit,
-    onDismissDropdown: () -> Unit,
+private fun SecondaryEmiDialog(
+    isEmiEnabled: Boolean,
+    emiTenure: String,
+    emiInterestRate: String,
+    isNoCostEmi: Boolean,
+    emiProcessingFee: String,
+    currency: String,
+    onEmiEnabledChange: (Boolean) -> Unit,
+    onTenureChange: (String) -> Unit,
+    onRateChange: (String) -> Unit,
+    onNoCostChange: (Boolean) -> Unit,
+    onFeeChange: (String) -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (selectedTags.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                selectedTags.forEach { tag ->
-                    InputChip(
-                        selected = true,
-                        onClick = { onRemoveTag(tag.id) },
-                        label = { Text(tag.name, fontSize = 10.sp) },
-                        trailingIcon = { Icon(Icons.Default.Close, null, Modifier.size(10.dp)) },
-                        modifier = Modifier.height(24.dp)
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Pay via EMI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Switch(checked = isEmiEnabled, onCheckedChange = onEmiEnabledChange)
+                }
+
+                if (isEmiEnabled) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = emiTenure,
+                            onValueChange = onTenureChange,
+                            label = { Text("Tenure (Mos)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = emiInterestRate,
+                            onValueChange = onRateChange,
+                            label = { Text("Interest Rate (%)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("No-Cost EMI")
+                        Checkbox(checked = isNoCostEmi, onCheckedChange = onNoCostChange)
+                    }
+
+                    OutlinedTextField(
+                        value = emiProcessingFee,
+                        onValueChange = onFeeChange,
+                        label = { Text("Processing Fee (${CurrencyUtils.getCurrencySymbol(currency)})") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            }
-        }
-        Box {
-            OutlinedTextField(
-                value = tagQuery,
-                onValueChange = onTagQueryChange,
-                label = { Text("Search or add tag") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            DropdownMenu(
-                expanded = showDropdown && filteredTags.isNotEmpty(),
-                onDismissRequest = onDismissDropdown
-            ) {
-                filteredTags.forEach { tag ->
-                    DropdownMenuItem(
-                        text = { Text(tag.name) },
-                        onClick = { onTagSelected(tag) }
-                    )
-                }
+
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Done") }
             }
         }
     }
 }
 
 @Composable
-private fun FormActionButtons(
-    isEdit: Boolean,
-    amountValid: Boolean,
-    accountValid: Boolean,
-    accentColor: Color,
-    onCancel: () -> Unit,
-    onSave: () -> Unit,
+private fun SecondaryGoalDialog(
+    goals: List<GoalEntity>,
+    selectedGoalId: Long?,
+    onGoalSelected: (Long?) -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    Row(
-        Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        OutlinedButton(
-            onClick = onCancel,
-            modifier = Modifier.weight(1f).height(52.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) { Text("Cancel") }
-        Button(
-            onClick = onSave,
-            modifier = Modifier.weight(2f).height(52.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accentColor,
-                disabledContainerColor = accentColor.copy(alpha = 0.38f)
-            ),
-            enabled = amountValid && accountValid
-        ) {
-            Text(
-                if (isEdit) "Update" else "Save",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Select Goal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(
+                    Modifier.fillMaxWidth().clickable { onGoalSelected(null) }.padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("None")
+                    RadioButton(selected = selectedGoalId == null, onClick = { onGoalSelected(null) })
+                }
+                goals.forEach { goal ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onGoalSelected(goal.id) }.padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(goal.name)
+                        RadioButton(selected = selectedGoalId == goal.id, onClick = { onGoalSelected(goal.id) })
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Cancel") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecondaryPlatformDialog(
+    platform: String,
+    onPlatformChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Investment Platform", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(
+                    value = platform,
+                    onValueChange = onPlatformChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("e.g., Zerodha, Groww") },
+                    singleLine = true
+                )
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Done") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecondaryPeerDialog(
+    peers: List<PeerContact>,
+    selectedPeerId: Long?,
+    onPeerSelected: (Long?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.6f), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Select Person", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(
+                    Modifier.fillMaxWidth().clickable { onPeerSelected(null) }.padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("None")
+                    RadioButton(selected = selectedPeerId == null, onClick = { onPeerSelected(null) })
+                }
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(peers) { peer ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable { onPeerSelected(peer.id) }.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(peer.effectiveDisplayName)
+                            RadioButton(selected = selectedPeerId == peer.id, onClick = { onPeerSelected(peer.id) })
+                        }
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Cancel") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FormCategorySearchDialog(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    categories: List<CategoryEntity>,
+    categoryFilter: String,
+    categoryUsageCounts: Map<Long, Int> = emptyMap(),
+    onCategorySelected: (CategoryEntity) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Search Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) }
+                )
+                Spacer(Modifier.height(8.dp))
+                val filteredCats = remember(query, categories, categoryFilter, categoryUsageCounts) {
+                    categories.filter {
+                        it.type == categoryFilter && it.name.contains(query, ignoreCase = true)
+                    }.sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
+                }
+                LazyColumn(Modifier.weight(1f)) {
+                    items(filteredCats) { cat ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { onCategorySelected(cat) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 24.sp)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(cat.name, fontWeight = FontWeight.Medium)
+                                if (cat.parentId != null) {
+                                    val parent = categories.find { it.id == cat.parentId }
+                                    Text(
+                                        parent?.name ?: "",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Close")
+                }
+            }
         }
     }
 }
@@ -1747,69 +1976,8 @@ private fun FormReceiptPreviewDialog(receiptData: String, onDismiss: () -> Unit)
     }
 }
 
-@Composable
-private fun FormCategorySearchDialog(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    categories: List<CategoryEntity>,
-    categoryFilter: String,
-    categoryUsageCounts: Map<Long, Int> = emptyMap(),
-    onCategorySelected: (CategoryEntity) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Search Category", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search...") },
-                    leadingIcon = { Icon(Icons.Default.Search, null) }
-                )
-                Spacer(Modifier.height(8.dp))
-                val filteredCats = remember(query, categories, categoryFilter, categoryUsageCounts) {
-                    categories.filter {
-                        it.type == categoryFilter && it.name.contains(query, ignoreCase = true)
-                    }.sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
-                }
-                LazyColumn(Modifier.weight(1f)) {
-                    items(filteredCats) { cat ->
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable { onCategorySelected(cat) }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 24.sp)
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(cat.name)
-                                if (cat.parentId != null) {
-                                    val parent = categories.find { it.id == cat.parentId }
-                                    Text(
-                                        parent?.name ?: "",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    }
-                }
-                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                    Text("Close")
-                }
-            }
-        }
-    }
-}
-
 // ═══════════════════════════════════════════════════════════════
-//  Reusable UI Components (internal)
+//  Transaction Type Tabs Header
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
@@ -1821,7 +1989,7 @@ internal fun TransactionTypeHeader(selectedType: String, onTypeSelected: (String
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1862,15 +2030,15 @@ internal fun TransactionTypeHeader(selectedType: String, onTypeSelected: (String
                     .clip(RoundedCornerShape(12.dp))
                     .background(bgColor)
                     .clickable { onTypeSelected(item.id) }
-                    .padding(vertical = 7.dp, horizontal = 2.dp)
+                    .padding(vertical = 6.dp, horizontal = 2.dp)
             ) {
                 Icon(
                     item.icon,
                     contentDescription = item.label,
                     tint = contentColor,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     item.label,
                     style = MaterialTheme.typography.labelSmall,
@@ -1879,189 +2047,6 @@ internal fun TransactionTypeHeader(selectedType: String, onTypeSelected: (String
                     color = contentColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
-internal fun UtilityActionItem(
-    icon: ImageVector,
-    label: String,
-    subtext: String,
-    onClick: () -> Unit,
-    isActive: Boolean,
-    accentColor: Color,
-    accentContainer: Color,
-    modifier: Modifier = Modifier,
-) {
-    val bgColor by animateColorAsState(
-        if (isActive) accentContainer.copy(alpha = 0.25f)
-        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        animationSpec = tween(200),
-        label = "chipBg"
-    )
-    val contentColor by animateColorAsState(
-        if (isActive) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(200),
-        label = "chipContent"
-    )
-    val borderColor by animateColorAsState(
-        if (isActive) accentColor.copy(alpha = 0.45f)
-        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-        animationSpec = tween(200),
-        label = "chipBorder"
-    )
-
-    Card(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        border = BorderStroke(1.dp, borderColor)
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Icon(icon, null, modifier = Modifier.size(18.dp), tint = contentColor)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                color = contentColor,
-                fontSize = 10.sp
-            )
-            Text(
-                subtext,
-                style = MaterialTheme.typography.labelSmall,
-                color = contentColor.copy(alpha = 0.65f),
-                fontSize = 8.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-internal fun CategoryCarousel(
-    categories: List<CategoryEntity>,
-    type: String,
-    selectedCategoryId: Long?,
-    expandedCategoryId: Long?,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
-    accentContainer: Color = MaterialTheme.colorScheme.primaryContainer,
-    categoryUsageCounts: Map<Long, Int> = emptyMap(),
-    onCategoryClick: (CategoryEntity) -> Unit,
-    onMoreClick: () -> Unit,
-) {
-    val filtered = remember(categories, type) { categories.filter { it.type == type } }
-    val parents = remember(filtered, categoryUsageCounts) {
-        val subsByParent = filtered.filter { it.parentId != null }.groupBy { it.parentId }
-        filtered.filter { it.parentId == null }.sortedByDescending { cat ->
-            val direct = categoryUsageCounts[cat.id] ?: 0
-            val subCounts = subsByParent[cat.id]?.sumOf { categoryUsageCounts[it.id] ?: 0 } ?: 0
-            direct + subCounts
-        }
-    }
-    val displayCats = if (expandedCategoryId != null) {
-        val subs = filtered.filter { it.parentId == expandedCategoryId }
-            .sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
-        val p = parents.firstOrNull { it.id == expandedCategoryId }
-        if (p != null) listOf(p) + subs else subs
-    } else parents.take(5)
-
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        displayCats.forEach { cat ->
-            val isSelected = selectedCategoryId == cat.id
-            val itemBg by animateColorAsState(
-                if (isSelected) accentContainer.copy(alpha = 0.3f)
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                animationSpec = tween(200),
-                label = "catBg"
-            )
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.width(62.dp).clickable { onCategoryClick(cat) }
-            ) {
-                Box(contentAlignment = Alignment.TopEnd) {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = itemBg,
-                        modifier = Modifier.size(56.dp),
-                        border = if (isSelected) BorderStroke(1.5.dp, accentColor.copy(alpha = 0.7f)) else null,
-                        shadowElevation = if (isSelected) 3.dp else 0.dp
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 24.sp)
-                        }
-                    }
-                    if (isSelected) {
-                        // Check indicator: surface ring + accent fill
-                        Box(
-                            Modifier
-                                .size(17.dp)
-                                .background(MaterialTheme.colorScheme.surface, CircleShape)
-                                .padding(2.dp)
-                                .background(accentColor, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Check, null,
-                                modifier = Modifier.size(9.dp),
-                                tint = MaterialTheme.colorScheme.surface
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    cat.name,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    fontSize = 9.sp,
-                    color = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                )
-            }
-        }
-        if (expandedCategoryId == null) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.width(62.dp).clickable { onMoreClick() }
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.MoreHoriz, null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "More",
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                    fontSize = 9.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
