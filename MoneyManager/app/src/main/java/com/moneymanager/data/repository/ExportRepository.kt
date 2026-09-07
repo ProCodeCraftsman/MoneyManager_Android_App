@@ -299,6 +299,8 @@ class ExportRepository @Inject constructor(
             obj.put("parentTransactionId", tx.parentTransactionId)
             obj.put("isTransfer", tx.isTransfer)
             obj.put("toAccountId", tx.toAccountId)
+            obj.put("emiId", tx.emiId)
+            obj.put("emiInstallmentNumber", tx.emiInstallmentNumber)
             array.put(obj)
         }
         return array
@@ -698,6 +700,8 @@ class ExportRepository @Inject constructor(
                 toAccountId = if (obj.has("toAccountId") && !obj.isNull("toAccountId")) obj.getLong("toAccountId") else null,
                 investmentPlatform = if (obj.has("investmentPlatform") && !obj.isNull("investmentPlatform")) obj.getString("investmentPlatform") else null,
                 expectedReturnDate = if (obj.has("expectedReturnDate") && !obj.isNull("expectedReturnDate")) obj.getLong("expectedReturnDate") else null,
+                emiId = if (obj.has("emiId") && !obj.isNull("emiId")) obj.getLong("emiId") else null,
+                emiInstallmentNumber = if (obj.has("emiInstallmentNumber") && !obj.isNull("emiInstallmentNumber")) obj.getInt("emiInstallmentNumber") else null,
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
             )
             transactionDao.insertTransaction(transaction)

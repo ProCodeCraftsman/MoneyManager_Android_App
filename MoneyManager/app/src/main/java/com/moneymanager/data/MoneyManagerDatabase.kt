@@ -166,6 +166,74 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
     }
 }
 
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // 1. Create `emis` table
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `emis` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `title` TEXT NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `categoryId` INTEGER,
+                `totalAmount` REAL NOT NULL,
+                `tenureMonths` INTEGER NOT NULL,
+                `monthlyAmount` REAL NOT NULL,
+                `annualInterestRate` REAL NOT NULL DEFAULT 0.0,
+                `isNoCost` INTEGER NOT NULL DEFAULT 0,
+                `processingFee` REAL NOT NULL DEFAULT 0.0,
+                `startDate` INTEGER NOT NULL,
+                `status` TEXT NOT NULL DEFAULT 'ACTIVE',
+                `createdAt` INTEGER NOT NULL,
+                FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_emis_accountId` ON `emis` (`accountId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_emis_categoryId` ON `emis` (`categoryId`)")
+
+        // 2. Add EMI columns to transactions table
+        db.execSQL("ALTER TABLE transactions ADD COLUMN emiId INTEGER")
+        db.execSQL("ALTER TABLE transactions ADD COLUMN emiInstallmentNumber INTEGER")
+
+        // 3. Migrate legacy `type = 'savings'` transactions: Ensure toAccountId is set for destination platform account
+        val cursor = db.query("SELECT id, accountId, investmentPlatform FROM transactions WHERE type = 'savings' AND (toAccountId IS NULL OR toAccountId = 0)")
+        while (cursor.moveToNext()) {
+            val txId = cursor.getLong(0)
+            val platformName = cursor.getString(2)
+            if (!platformName.isNull_or_blank()) {
+                // Check if platform account exists
+                val accCursor = db.query("SELECT id FROM accounts WHERE name = ? AND type = 'savings'", arrayOf(platformName))
+                var platformAccountId: Long? = null
+                if (accCursor.moveToFirst()) {
+                    platformAccountId = accCursor.getLong(0)
+                }
+                accCursor.close()
+
+                // If not found, create new platform account
+                if (platformAccountId == null) {
+                    val now = System.currentTimeMillis()
+                    db.execSQL(
+                        "INSERT INTO accounts (name, type, initialBalance, balance, currency, emoji, iconType, color, createdAt, updatedAt) VALUES (?, 'savings', 0.0, 0.0, 'INR', '📈', 'emoji', '#2a6049', ?, ?)",
+                        arrayOf(platformName, now, now)
+                    )
+                    val idCursor = db.query("SELECT last_insert_rowid()")
+                    if (idCursor.moveToFirst()) {
+                        platformAccountId = idCursor.getLong(0)
+                    }
+                    idCursor.close()
+                }
+
+                if (platformAccountId != null) {
+                    db.execSQL("UPDATE transactions SET toAccountId = ? WHERE id = ?", arrayOf(platformAccountId, txId))
+                }
+            }
+        }
+        cursor.close()
+    }
+}
+
+private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()
+
 @Database(
     entities = [
         AccountEntity::class,
@@ -178,8 +246,9 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         PeerContact::class,
         AiConversationEntity::class,
         MerchantCategoryMemoryEntity::class,
+        EmiEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {
@@ -193,4 +262,5 @@ abstract class MoneyManagerDatabase : RoomDatabase() {
     abstract fun peerContactDao(): PeerContactDao
     abstract fun aiConversationDao(): AiConversationDao
     abstract fun merchantCategoryMemoryDao(): MerchantCategoryMemoryDao
+    abstract fun emiDao(): EmiDao
 }

@@ -54,6 +54,8 @@ data class TransactionEntity(
     val toAccountId: Long? = null,
     val investmentPlatform: String? = null,
     val expectedReturnDate: Long? = null,
+    val emiId: Long? = null,
+    val emiInstallmentNumber: Int? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     companion object {

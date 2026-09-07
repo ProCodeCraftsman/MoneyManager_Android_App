@@ -24,6 +24,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
@@ -128,6 +130,7 @@ fun AddEditTransactionDialog(
     onDraftDismiss: (() -> Unit)? = null,
     onDismiss: () -> Unit,
     onConfirm: (TransactionEntity, List<TransactionEntity>?) -> Unit,
+    onConfirmEmi: ((TransactionEntity, Int, Double, Boolean, Double) -> Unit)? = null,
 ) {
     val isEdit = transaction != null
     var aiSuggestedFields by remember { mutableStateOf(emptySet<String>()) }
@@ -137,10 +140,13 @@ fun AddEditTransactionDialog(
 
     val filteredAccounts = remember(type, accounts) {
         when (type) {
-            "expense" -> accounts.filter { it.type != "savings" }
-            "savings" -> accounts.filter { it.type == "savings" }
+            "expense", "savings" -> accounts.filter { it.type != "savings" }
             else -> accounts
         }
+    }
+
+    val investmentAccounts = remember(accounts) {
+        accounts.filter { it.type == "savings" }
     }
 
     var amount by rememberSaveable {
@@ -158,10 +164,18 @@ fun AddEditTransactionDialog(
     var selectedToAccountId by rememberSaveable {
         mutableStateOf(
             if (isIncomingTransferLeg) transaction?.accountId
-            else transaction?.toAccountId
+            else transaction?.toAccountId ?: if (type == "savings") investmentAccounts.firstOrNull()?.id else null
         )
     }
     var showToAccountDropdown by rememberSaveable { mutableStateOf(false) }
+
+    // ── EMI State ──
+    var isEmiEnabled by rememberSaveable { mutableStateOf(false) }
+    var emiTenure by rememberSaveable { mutableStateOf("6") }
+    var emiInterestRate by rememberSaveable { mutableStateOf("0") }
+    var isNoCostEmi by rememberSaveable { mutableStateOf(true) }
+    var emiProcessingFee by rememberSaveable { mutableStateOf("0") }
+    var showNonCreditCardEmiWarning by rememberSaveable { mutableStateOf(false) }
     var selectedCategoryId by rememberSaveable { 
         mutableStateOf<Long?>(transaction?.subCategoryId ?: transaction?.categoryId) 
     }
@@ -339,8 +353,8 @@ fun AddEditTransactionDialog(
             isRecurring = transaction?.isRecurring ?: false,
             recurringId = transaction?.recurringId,
             isSplitParent = splitEnabled && TransactionFeature.SPLIT in features,
-            isTransfer = type == "transfer",
-            toAccountId = if (type == "transfer") selectedToAccountId else null,
+            isTransfer = type == "transfer" || type == "savings",
+            toAccountId = if (type == "transfer" || type == "savings") selectedToAccountId else null,
             createdAt = transaction?.createdAt ?: System.currentTimeMillis()
         )
     }
@@ -761,9 +775,16 @@ fun AddEditTransactionDialog(
                         onSave = {
                             val tx = buildTransaction()
                             if (tx != null) {
-                                val children = if (splitEnabled && TransactionFeature.SPLIT in features)
-                                    buildSplitChildren(tx.id) else null
-                                onConfirm(tx, children)
+                                if (isEmiEnabled && type == "expense" && onConfirmEmi != null) {
+                                    val tenure = emiTenure.toIntOrNull() ?: 6
+                                    val rate = emiInterestRate.toDoubleOrNull() ?: 0.0
+                                    val fee = emiProcessingFee.toDoubleOrNull() ?: 0.0
+                                    onConfirmEmi(tx, tenure, rate, isNoCostEmi, fee)
+                                } else {
+                                    val children = if (splitEnabled && TransactionFeature.SPLIT in features)
+                                        buildSplitChildren(tx.id) else null
+                                    onConfirm(tx, children)
+                                }
                             }
                         }
                     )
@@ -812,8 +833,119 @@ fun AddEditTransactionDialog(
                             selectedAccountId = selectedAccountId,
                             selectedToAccountId = selectedToAccountId,
                             showToAccountDropdown = showToAccountDropdown,
+                            isSavingsType = type == "savings",
                             onToAccountSelected = { selectedToAccountId = it },
                             onToggleToAccountDropdown = { showToAccountDropdown = !showToAccountDropdown }
+                        )
+                    }
+
+                    // 4b. Pay via EMI (Expense Type Only)
+                    if (type == "expense" && !isEdit) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CreditCard, contentDescription = null, tint = accentColor)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text("Pay via EMI", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                        Text("Split into monthly installments", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                                Switch(
+                                    checked = isEmiEnabled,
+                                    onCheckedChange = { enabled ->
+                                        isEmiEnabled = enabled
+                                        if (enabled) {
+                                            val acc = accounts.firstOrNull { it.id == selectedAccountId }
+                                            if (acc != null && acc.type != "credit") {
+                                                showNonCreditCardEmiWarning = true
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+
+                            if (isEmiEnabled) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = emiTenure,
+                                        onValueChange = { emiTenure = it },
+                                        label = { Text("Tenure (Months)") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedTextField(
+                                        value = emiInterestRate,
+                                        onValueChange = { emiInterestRate = it },
+                                        label = { Text("Interest Rate (%)") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("No-Cost EMI", fontSize = 13.sp)
+                                    Checkbox(
+                                        checked = isNoCostEmi,
+                                        onCheckedChange = {
+                                            isNoCostEmi = it
+                                            if (it) emiInterestRate = "0"
+                                        }
+                                    )
+                                }
+                                OutlinedTextField(
+                                    value = emiProcessingFee,
+                                    onValueChange = { emiProcessingFee = it },
+                                    label = { Text("Processing Fee ($currency)") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+
+                    if (showNonCreditCardEmiWarning) {
+                        val accName = accounts.firstOrNull { it.id == selectedAccountId }?.name ?: "Selected Account"
+                        AlertDialog(
+                            onDismissRequest = {
+                                showNonCreditCardEmiWarning = false
+                                isEmiEnabled = false
+                            },
+                            title = { Text("Non-Credit Card Account") },
+                            text = {
+                                Text("The selected account '$accName' is not a Credit Card account. Do you still want to set up an EMI on this account?")
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = { showNonCreditCardEmiWarning = false }
+                                ) {
+                                    Text("Proceed")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = {
+                                        showNonCreditCardEmiWarning = false
+                                        isEmiEnabled = false
+                                    }
+                                ) {
+                                    Text("Cancel")
+                                }
+                            }
                         )
                     }
 
@@ -1378,15 +1510,18 @@ private fun FormTransferSection(
     selectedAccountId: Long?,
     selectedToAccountId: Long?,
     showToAccountDropdown: Boolean,
+    isSavingsType: Boolean = false,
     onToAccountSelected: (Long?) -> Unit,
     onToggleToAccountDropdown: () -> Unit,
 ) {
-    val eligibleAccounts = remember(accounts, selectedAccountId) {
-        accounts.filter { it.id != selectedAccountId }
+    val eligibleAccounts = remember(accounts, selectedAccountId, isSavingsType) {
+        accounts.filter { acc ->
+            acc.id != selectedAccountId && (!isSavingsType || acc.type == "savings")
+        }
     }
     FormDropdownCard(
-        label = "To Account",
-        value = accounts.find { it.id == selectedToAccountId }?.name ?: "Select destination account",
+        label = if (isSavingsType) "Investment Platform Account" else "To Account",
+        value = accounts.find { it.id == selectedToAccountId }?.name ?: if (isSavingsType) "Select investment platform account" else "Select destination account",
         expanded = showToAccountDropdown,
         onExpandedChange = { if (it) onToggleToAccountDropdown() },
         onDismissRequest = { onToggleToAccountDropdown() }

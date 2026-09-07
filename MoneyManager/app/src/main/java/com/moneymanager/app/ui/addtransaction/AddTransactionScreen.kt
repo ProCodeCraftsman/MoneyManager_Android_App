@@ -47,6 +47,10 @@ fun AddTransactionScreen(
                 }
                 onDismiss()
             },
+            onConfirmEmi = { tx, tenure, rate, isNoCost, fee ->
+                viewModel.addEmiExpense(tx, tenure, rate, isNoCost, fee)
+                onDismiss()
+            },
         )
     }
 }
