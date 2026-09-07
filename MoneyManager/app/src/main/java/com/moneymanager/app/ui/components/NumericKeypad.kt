@@ -78,7 +78,7 @@ fun NumericKeypad(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
+                            .height(58.dp),
                         contentPadding = PaddingValues(0.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = when {
@@ -97,13 +97,13 @@ fun NumericKeypad(
                         }
                     ) {
                         if (isDelete) {
-                            Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = "Delete", modifier = Modifier.size(20.dp))
+                            Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = "Delete", modifier = Modifier.size(22.dp))
                         } else {
                             Text(
                                 text = if (key == "*") "×" else key,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Medium,
-                                fontSize = 20.sp
+                                fontSize = 22.sp
                             )
                         }
                     }
@@ -119,7 +119,7 @@ fun NumericKeypad(
                 onClick = onClearClick,
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp),
+                    .height(58.dp),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -130,7 +130,7 @@ fun NumericKeypad(
                     text = "C",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 20.sp
+                    fontSize = 22.sp
                 )
             }
 
@@ -140,7 +140,7 @@ fun NumericKeypad(
                     enabled = saveButtonEnabled,
                     modifier = Modifier
                         .weight(3f)
-                        .height(48.dp),
+                        .height(58.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = resolvedAccent,
@@ -157,13 +157,13 @@ fun NumericKeypad(
                             text = saveButtonText,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+                            fontSize = 16.sp
                         )
                         Spacer(Modifier.width(6.dp))
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -172,7 +172,7 @@ fun NumericKeypad(
                     onClick = onEvaluate,
                     modifier = Modifier
                         .weight(3f)
-                        .height(48.dp),
+                        .height(58.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = resolvedAccent,
@@ -183,7 +183,7 @@ fun NumericKeypad(
                         text = "=",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp
+                        fontSize = 24.sp
                     )
                 }
             }

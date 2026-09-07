@@ -660,13 +660,13 @@ fun AddEditTransactionDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(260.dp),
+                            .height(312.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.Top
                     ) {
-                        // Left 4-Column Keypad (Fixed in place)
+                        // Left 4-Column Keypad (Fixed in place, wider)
                         NumericKeypad(
-                            modifier = Modifier.weight(1.65f),
+                            modifier = Modifier.weight(2.3f),
                             accentColor = accentColor,
                             accentContainer = accentContainer,
                             saveButtonText = "Save ${config.displayName}",
