@@ -654,15 +654,15 @@ fun AddEditTransactionDialog(
                         )
                     }
 
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.height(8.dp))
 
-                    // 3. Fixed Bottom Section: Keypad (Left) + More Side Panel (Right)
+                    // 3. Keypad (Left) + More Side Panel (Right) immediately below Category
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(260.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.Bottom
+                        verticalAlignment = Alignment.Top
                     ) {
                         // Left 4-Column Keypad (Fixed in place)
                         NumericKeypad(
