@@ -35,7 +35,7 @@ class BorrowLendViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             combine(
-                accountRepository.getAllAccounts(),
+                accountRepository.getActiveAccounts(),
                 preferencesManager.currency
             ) { accounts, currency ->
                 Pair(accounts, currency)

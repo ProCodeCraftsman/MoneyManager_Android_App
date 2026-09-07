@@ -32,7 +32,7 @@ class RecurringViewModel @Inject constructor(
 
     val uiState: StateFlow<RecurringUiState> = combine(
         recurringRepository.getAllRecurring(),
-        accountRepository.getAllAccounts(),
+        accountRepository.getActiveAccounts(),
         categoryRepository.getAllCategories(),
         categoryRepository.getAllTags(),
         peerContactRepository.getAllPeers(),

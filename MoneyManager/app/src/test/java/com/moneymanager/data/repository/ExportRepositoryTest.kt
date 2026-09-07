@@ -23,6 +23,7 @@ class ExportRepositoryTest {
     @Mock lateinit var tagDao: TagDao
     @Mock lateinit var peerContactDao: PeerContactDao
     @Mock lateinit var recurringDao: RecurringDao
+    @Mock lateinit var emiDao: EmiDao
 
     private lateinit var repository: ExportRepository
 
@@ -31,7 +32,7 @@ class ExportRepositoryTest {
         MockitoAnnotations.openMocks(this)
         repository = ExportRepository(
             mockContext, accountDao, transactionDao, categoryDao, 
-            budgetDao, goalDao, tagDao, peerContactDao, recurringDao
+            budgetDao, goalDao, tagDao, peerContactDao, recurringDao, emiDao
         )
     }
 

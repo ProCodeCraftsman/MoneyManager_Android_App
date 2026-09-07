@@ -20,29 +20,44 @@ class AccountsViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
 ) : AndroidViewModel(application) {
 
+    private val _selectedChartTypeFilter = MutableStateFlow("All")
+
     val uiState: StateFlow<AccountsUiState> = combine(
         accountRepository.getAllAccounts(),
         accountRepository.getTotalAssets(),
         transactionRepository.getAllTransactions(),
         preferencesManager.currency,
-    ) { accounts, totalAssets, transactions, currencyCode ->
-        val comparisonData = accounts.map { account ->
+        _selectedChartTypeFilter,
+    ) { accounts, totalAssets, transactions, currencyCode, chartFilter ->
+        val active = accounts.filter { !it.isArchived }
+        val archived = accounts.filter { it.isArchived }
+
+        val chartAccounts = active.filter { account ->
+            if (chartFilter.equals("All", ignoreCase = true)) true
+            else account.type.equals(chartFilter, ignoreCase = true)
+        }
+
+        val comparisonData = chartAccounts.map { account ->
             val accountTxns = transactions.filter { it.accountId == account.id && !it.isSplitParent }
             val inflow = accountTxns.filter { it.type == "income" || it.type == "borrow" }.sumOf { it.amount }
             val outflow = accountTxns.filter { it.type == "expense" || it.type == "lend" }.sumOf { it.amount }
             AccountBarData(
                 accountName = account.name,
                 inflow = inflow,
-                outflow = outflow
+                outflow = outflow,
+                accountType = account.type
             )
         }
 
         AccountsUiState(
             accounts = accounts,
+            activeAccounts = active,
+            archivedAccounts = archived,
             totalAssets = totalAssets,
             currencyCode = currencyCode,
             isLoading = false,
-            accountComparisonData = comparisonData
+            accountComparisonData = comparisonData,
+            selectedChartTypeFilter = chartFilter
         )
     }.stateIn(
         scope = viewModelScope,
@@ -52,6 +67,10 @@ class AccountsViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<AccountEvent>()
     val events = _events.asSharedFlow()
+
+    fun setChartTypeFilter(filter: String) {
+        _selectedChartTypeFilter.value = filter
+    }
 
     fun addAccount(name: String, type: String, emoji: String, iconType: String, balance: Double) {
         viewModelScope.launch {
@@ -77,6 +96,28 @@ class AccountsViewModel @Inject constructor(
                 _events.emit(AccountEvent.Success("Account updated successfully"))
             } catch (e: Exception) {
                 _events.emit(AccountEvent.Error(e.message ?: "Failed to update account"))
+            }
+        }
+    }
+
+    fun archiveAccount(id: Long) {
+        viewModelScope.launch {
+            try {
+                accountRepository.archiveAccount(id)
+                _events.emit(AccountEvent.Success("Account archived successfully"))
+            } catch (e: Exception) {
+                _events.emit(AccountEvent.Error(e.message ?: "Failed to archive account"))
+            }
+        }
+    }
+
+    fun reactivateAccount(id: Long) {
+        viewModelScope.launch {
+            try {
+                accountRepository.reactivateAccount(id)
+                _events.emit(AccountEvent.Success("Account reactivated successfully"))
+            } catch (e: Exception) {
+                _events.emit(AccountEvent.Error(e.message ?: "Failed to reactivate account"))
             }
         }
     }

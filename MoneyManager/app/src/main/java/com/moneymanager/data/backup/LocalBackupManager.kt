@@ -2,6 +2,7 @@ package com.moneymanager.data.backup
 
 import android.content.Context
 import com.moneymanager.data.repository.ExportRepository
+import com.moneymanager.data.repository.ImportResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,6 +12,14 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class LocalBackupItem(
+    val file: File,
+    val fileName: String,
+    val formattedDate: String,
+    val sizeBytes: Long,
+    val timestamp: Long
+)
 
 @Singleton
 class LocalBackupManager @Inject constructor(
@@ -46,6 +55,37 @@ class LocalBackupManager @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun getLocalBackups(): List<LocalBackupItem> = withContext(Dispatchers.IO) {
+        val backupDir = getBackupDirectory()
+        if (!backupDir.exists()) return@withContext emptyList()
+
+        val files = backupDir.listFiles { file ->
+            file.isFile && file.name.startsWith("backup_") && file.name.endsWith(".json")
+        } ?: return@withContext emptyList()
+
+        val dateFormatter = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+
+        files.map { file ->
+            val millis = file.lastModified()
+            LocalBackupItem(
+                file = file,
+                fileName = file.name,
+                formattedDate = dateFormatter.format(java.util.Date(millis)),
+                sizeBytes = file.length(),
+                timestamp = millis
+            )
+        }.sortedByDescending { it.timestamp }
+    }
+
+    suspend fun restoreLocalBackup(file: File): ImportResult = withContext(Dispatchers.IO) {
+        val bytes = file.readBytes()
+        exportRepository.importFromJsonBytes(bytes)
+    }
+
+    suspend fun deleteLocalBackup(file: File): Boolean = withContext(Dispatchers.IO) {
+        if (file.exists()) file.delete() else false
     }
 
     @androidx.annotation.VisibleForTesting(otherwise = androidx.annotation.VisibleForTesting.PRIVATE)

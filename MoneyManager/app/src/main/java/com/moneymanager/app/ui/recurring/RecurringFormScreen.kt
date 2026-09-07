@@ -66,8 +66,7 @@ fun RecurringFormScreen(
     // Filter accounts based on type
     val filteredAccounts = remember(selectedType, uiState.accounts) {
         when (selectedType) {
-            "expense" -> uiState.accounts.filter { it.type != "savings" }
-            "savings" -> uiState.accounts.filter { it.type == "savings" }
+            "expense", "savings" -> uiState.accounts.filter { it.type != "savings" }
             else -> uiState.accounts
         }
     }

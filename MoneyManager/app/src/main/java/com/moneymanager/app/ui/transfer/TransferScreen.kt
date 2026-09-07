@@ -42,7 +42,7 @@ class TransferViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
 ) : AndroidViewModel(application) {
 
-    val uiState: StateFlow<TransferUiState> = accountRepository.getAllAccounts()
+    val uiState: StateFlow<TransferUiState> = accountRepository.getActiveAccounts()
         .map { accounts ->
             TransferUiState(accounts = accounts, isLoading = false)
         }

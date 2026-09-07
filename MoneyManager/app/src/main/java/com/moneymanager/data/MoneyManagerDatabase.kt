@@ -232,6 +232,13 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
     }
 }
 
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE accounts ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE accounts ADD COLUMN archivedAt INTEGER")
+    }
+}
+
 private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()
 
 @Database(
@@ -248,7 +255,7 @@ private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isE
         MerchantCategoryMemoryEntity::class,
         EmiEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

@@ -35,6 +35,7 @@ data class ImportResult(
     val tagsImported: Int = 0,
     val peersImported: Int = 0,
     val recurringImported: Int = 0,
+    val emisImported: Int = 0,
     val totalProcessed: Int = 0,
 )
 
@@ -50,6 +51,7 @@ class ExportRepository @Inject constructor(
     private val tagDao: TagDao,
     private val peerContactDao: com.moneymanager.data.dao.PeerContactDao,
     private val recurringDao: RecurringDao,
+    private val emiDao: com.moneymanager.data.dao.EmiDao,
 ) {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
@@ -76,6 +78,7 @@ class ExportRepository @Inject constructor(
             put("tags", exportTags())
             put("peers", exportPeers())
             put("recurring", exportRecurring())
+            put("emis", exportEmis())
         }
     }
 
@@ -107,6 +110,7 @@ class ExportRepository @Inject constructor(
                 ExportType.TAGS -> exportTagsCsv()
                 ExportType.PEERS -> exportPeersCsv()
                 ExportType.RECURRING -> exportRecurringCsv()
+                ExportType.EMIS -> exportEmisCsv()
             }
             
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -147,6 +151,7 @@ class ExportRepository @Inject constructor(
             var tagsImported = 0
             var peersImported = 0
             var recurringImported = 0
+            var emisImported = 0
 
             if (jsonObject.has("accounts")) {
                 accountsImported = importAccounts(jsonObject.getJSONArray("accounts"))
@@ -156,6 +161,9 @@ class ExportRepository @Inject constructor(
             }
             if (jsonObject.has("tags")) {
                 tagsImported = importTags(jsonObject.getJSONArray("tags"))
+            }
+            if (jsonObject.has("emis")) {
+                emisImported = importEmis(jsonObject.getJSONArray("emis"))
             }
             if (jsonObject.has("transactions")) {
                 transactionsImported = importTransactions(jsonObject.getJSONArray("transactions"))
@@ -173,9 +181,12 @@ class ExportRepository @Inject constructor(
                 recurringImported = importRecurring(jsonObject.getJSONArray("recurring"))
             }
 
+            val total = accountsImported + transactionsImported + categoriesImported +
+                    budgetsImported + goalsImported + tagsImported + peersImported + recurringImported + emisImported
+
             ImportResult(
                 success = true,
-                message = "Import completed: $accountsImported accounts, $transactionsImported transactions, $peersImported peers, etc.",
+                message = "Import completed: $accountsImported accounts, $transactionsImported transactions, $emisImported EMIs, $peersImported peers, etc.",
                 accountsImported = accountsImported,
                 transactionsImported = transactionsImported,
                 categoriesImported = categoriesImported,
@@ -184,6 +195,8 @@ class ExportRepository @Inject constructor(
                 tagsImported = tagsImported,
                 peersImported = peersImported,
                 recurringImported = recurringImported,
+                emisImported = emisImported,
+                totalProcessed = total
             )
         } catch (e: Exception) {
             ImportResult(success = false, message = "Import failed: ${e.message}")
@@ -238,6 +251,11 @@ class ExportRepository @Inject constructor(
                     val count = importRecurringFromCsv(csv)
                     val total = csv.lines().size - 1
                     ImportResult(success = true, message = "$count recurring items imported (total: $total)", recurringImported = count, totalProcessed = total)
+                }
+                ExportType.EMIS -> {
+                    val count = importEmisFromCsv(csv)
+                    val total = csv.lines().size - 1
+                    ImportResult(success = true, message = "$count EMIs imported (total: $total)", emisImported = count, totalProcessed = total)
                 }
                 ExportType.ALL -> importAllFromCsv(csv)
                 else -> ImportResult(success = false, message = "CSV import not supported for ${type.name}")
@@ -420,14 +438,37 @@ class ExportRepository @Inject constructor(
         return array
     }
 
+    private suspend fun exportEmis(): JSONArray {
+        val emis = emiDao.getAllEmis().first()
+        val array = JSONArray()
+        emis.forEach { emi ->
+            val obj = JSONObject()
+            obj.put("id", emi.id)
+            obj.put("title", emi.title)
+            obj.put("accountId", emi.accountId)
+            obj.put("categoryId", emi.categoryId)
+            obj.put("totalAmount", emi.totalAmount)
+            obj.put("tenureMonths", emi.tenureMonths)
+            obj.put("monthlyAmount", emi.monthlyAmount)
+            obj.put("annualInterestRate", emi.annualInterestRate)
+            obj.put("isNoCost", emi.isNoCost)
+            obj.put("processingFee", emi.processingFee)
+            obj.put("startDate", emi.startDate)
+            obj.put("status", emi.status)
+            obj.put("createdAt", emi.createdAt)
+            array.put(obj)
+        }
+        return array
+    }
+
     private suspend fun exportTransactionsCsv(): String {
         val transactions = transactionDao.getAllTransactions().first()
         val accounts = accountDao.getAllAccounts().first().associateBy { it.id }
         val categories = categoryDao.getAllCategories().first().associateBy { it.id }
         
         val sb = StringBuilder()
-        // Updated header with all TransactionEntity fields
-        sb.appendLine("id,account_id,category_id,sub_category_id,goal_id,peer_contact_id,tag_ids,date,amount,type,note,description,receipt_path,recurring_id,split_data,investment_platform,expected_return_date,created_at,is_recurring,is_split_parent,is_split_child,parent_transaction_id,is_transfer,to_account_id")
+        // Updated header with all TransactionEntity fields including emi_id and emi_installment_number
+        sb.appendLine("id,account_id,category_id,sub_category_id,goal_id,peer_contact_id,tag_ids,date,amount,type,note,description,receipt_path,recurring_id,split_data,investment_platform,expected_return_date,created_at,is_recurring,is_split_parent,is_split_child,parent_transaction_id,is_transfer,to_account_id,emi_id,emi_installment_number")
         
         transactions.forEach { tx ->
             val accountName = accounts[tx.accountId]?.name ?: ""
@@ -461,7 +502,9 @@ class ExportRepository @Inject constructor(
                 "${tx.isSplitChild}," +
                 "${tx.parentTransactionId ?: ""}," +
                 "${tx.isTransfer}," +
-                "${tx.toAccountId ?: ""}"
+                "${tx.toAccountId ?: ""}," +
+                "${tx.emiId ?: ""}," +
+                "${tx.emiInstallmentNumber ?: ""}"
             )
         }
         return sb.toString()
@@ -562,6 +605,17 @@ class ExportRepository @Inject constructor(
         return sb.toString()
     }
 
+    private suspend fun exportEmisCsv(): String {
+        val emis = emiDao.getAllEmis().first()
+        val sb = StringBuilder()
+        sb.appendLine("title,account_id,category_id,total_amount,tenure_months,monthly_amount,annual_interest_rate,is_no_cost,processing_fee,start_date,status")
+        emis.forEach { emi ->
+            val startDateStr = dateFormat.format(Date(emi.startDate))
+            sb.appendLine("\"${emi.title.replace("\"", "\"\"")}\",${emi.accountId},${emi.categoryId ?: ""},${emi.totalAmount},${emi.tenureMonths},${emi.monthlyAmount},${emi.annualInterestRate},${emi.isNoCost},${emi.processingFee},\"$startDateStr\",${emi.status}")
+        }
+        return sb.toString()
+    }
+
     private suspend fun exportAllCsv(): String {
         return buildString {
             appendLine("# ACCOUNTS")
@@ -591,7 +645,7 @@ class ExportRepository @Inject constructor(
         }
     }
     
-    private fun generateCsvHeader(): String = "id,account_id,category_id,sub_category_id,goal_id,peer_contact_id,tag_ids,date,amount,type,note,description,receipt_path,recurring_id,split_data,investment_platform,expected_return_date,created_at,is_recurring,is_split_parent,is_split_child,parent_transaction_id,is_transfer,to_account_id"
+    private fun generateCsvHeader(): String = "id,account_id,category_id,sub_category_id,goal_id,peer_contact_id,tag_ids,date,amount,type,note,description,receipt_path,recurring_id,split_data,investment_platform,expected_return_date,created_at,is_recurring,is_split_parent,is_split_child,parent_transaction_id,is_transfer,to_account_id,emi_id,emi_installment_number"
     
     private suspend fun generateCsvData(): String {
         val transactions = transactionDao.getAllTransactions().first()
@@ -627,7 +681,9 @@ class ExportRepository @Inject constructor(
                     "${tx.isSplitChild}," +
                     "${tx.parentTransactionId ?: ""}," +
                     "${tx.isTransfer}," +
-                    "${tx.toAccountId ?: ""}"
+                    "${tx.toAccountId ?: ""}," +
+                    "${tx.emiId ?: ""}," +
+                    "${tx.emiInstallmentNumber ?: ""}"
                 )
             }
         }
@@ -835,6 +891,31 @@ class ExportRepository @Inject constructor(
         return count
     }
 
+    private suspend fun importEmis(array: JSONArray): Int {
+        var count = 0
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            val emi = com.moneymanager.data.entity.EmiEntity(
+                id = obj.optLong("id", 0),
+                title = obj.getString("title"),
+                accountId = obj.getLong("accountId"),
+                categoryId = if (obj.has("categoryId") && !obj.isNull("categoryId")) obj.getLong("categoryId") else null,
+                totalAmount = obj.getDouble("totalAmount"),
+                tenureMonths = obj.getInt("tenureMonths"),
+                monthlyAmount = obj.getDouble("monthlyAmount"),
+                annualInterestRate = obj.optDouble("annualInterestRate", 0.0),
+                isNoCost = obj.optBoolean("isNoCost", false),
+                processingFee = obj.optDouble("processingFee", 0.0),
+                startDate = obj.optLong("startDate", System.currentTimeMillis()),
+                status = obj.optString("status", "ACTIVE"),
+                createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+            )
+            emiDao.insertEmi(emi)
+            count++
+        }
+        return count
+    }
+
     private suspend fun importPeersFromCsv(csv: String): Int {
         var count = 0
         val lines = csv.lines().drop(1)
@@ -919,13 +1000,16 @@ class ExportRepository @Inject constructor(
             val isSplitChild = parts[20].toBooleanStrictOrNull() ?: false
             val parentTransactionId = parts[21].toLongOrNull()
 
-            // New fields (indices 22-23)
+            // New fields (indices 22-25)
             val isTransfer = if (parts.size > 22) {
                 parts[22].toBooleanStrictOrNull() ?: (type == "transfer")
             } else {
                 type == "transfer"
             }
-            val toAccountId = parts.getOrNull(23)?.toLongOrNull()
+            val toAccountPart = parts.getOrNull(23)?.trim()
+            val toAccountId = toAccountPart?.toLongOrNull() ?: accountsByName[toAccountPart]?.id
+            val emiId = parts.getOrNull(24)?.toLongOrNull()
+            val emiInstallmentNumber = parts.getOrNull(25)?.toIntOrNull()
 
             val date = try {
                 dateFormat.parse(dateStr.trim())?.time ?: System.currentTimeMillis()
@@ -959,6 +1043,8 @@ class ExportRepository @Inject constructor(
                     parentTransactionId = parentTransactionId,
                     isTransfer = isTransfer,
                     toAccountId = toAccountId,
+                    emiId = emiId,
+                    emiInstallmentNumber = emiInstallmentNumber,
                 ))
             } else {
                 transactionDao.insertTransaction(TransactionEntity(
@@ -986,6 +1072,8 @@ class ExportRepository @Inject constructor(
                     parentTransactionId = parentTransactionId,
                     isTransfer = isTransfer,
                     toAccountId = toAccountId,
+                    emiId = emiId,
+                    emiInstallmentNumber = emiInstallmentNumber,
                 ))
             }
             count++
@@ -1158,6 +1246,53 @@ class ExportRepository @Inject constructor(
         return count
     }
 
+    private suspend fun importEmisFromCsv(csv: String): Int {
+        var count = 0
+        val lines = csv.lines().drop(1)
+        val accountsByName = accountDao.getAllAccounts().first().associateBy { it.name }
+
+        for (line in lines) {
+            if (line.isBlank()) continue
+            val parts = parseCsvLine(line)
+            if (parts.size < 6) continue
+
+            val title = parts[0].removeSurrounding("\"")
+            val accountId = parts[1].toLongOrNull() ?: accountsByName[parts[1]]?.id ?: continue
+            val categoryId = parts[2].toLongOrNull()
+            val totalAmount = parts[3].toDoubleOrNull() ?: 0.0
+            val tenureMonths = parts[4].toIntOrNull() ?: 1
+            val monthlyAmount = parts[5].toDoubleOrNull() ?: (totalAmount / tenureMonths)
+            val annualInterestRate = parts.getOrNull(6)?.toDoubleOrNull() ?: 0.0
+            val isNoCost = parts.getOrNull(7)?.toBooleanStrictOrNull() ?: false
+            val processingFee = parts.getOrNull(8)?.toDoubleOrNull() ?: 0.0
+            val startDateStr = parts.getOrNull(9) ?: ""
+            val status = parts.getOrNull(10) ?: "ACTIVE"
+
+            val startDate = try {
+                dateFormat.parse(startDateStr.trim())?.time ?: System.currentTimeMillis()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
+
+            val emi = com.moneymanager.data.entity.EmiEntity(
+                title = title,
+                accountId = accountId,
+                categoryId = categoryId,
+                totalAmount = totalAmount,
+                tenureMonths = tenureMonths,
+                monthlyAmount = monthlyAmount,
+                annualInterestRate = annualInterestRate,
+                isNoCost = isNoCost,
+                processingFee = processingFee,
+                startDate = startDate,
+                status = status
+            )
+            emiDao.insertEmi(emi)
+            count++
+        }
+        return count
+    }
+
     private suspend fun importAllFromCsv(csv: String): ImportResult {
         var accountsCount = 0
         var categoriesCount = 0
@@ -1242,7 +1377,7 @@ class ExportRepository @Inject constructor(
             val json = data.toString(Charsets.UTF_8)
             val jsonObject = JSONObject(json)
             var maxTimestamp = 0L
-            val keys = listOf("accounts", "transactions", "categories", "budgets", "goals", "peers", "recurring")
+            val keys = listOf("accounts", "transactions", "categories", "budgets", "goals", "peers", "recurring", "emis")
             for (key in keys) {
                 if (jsonObject.has(key)) {
                     val array = jsonObject.getJSONArray(key)
@@ -1262,5 +1397,5 @@ class ExportRepository @Inject constructor(
 
 
 enum class ExportType {
-    TRANSACTIONS, ACCOUNTS, CATEGORIES, BUDGETS, GOALS, ALL, TAGS, PEERS, RECURRING
+    TRANSACTIONS, ACCOUNTS, CATEGORIES, BUDGETS, GOALS, ALL, TAGS, PEERS, RECURRING, EMIS
 }

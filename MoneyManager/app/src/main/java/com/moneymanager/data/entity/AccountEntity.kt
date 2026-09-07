@@ -16,6 +16,8 @@ data class AccountEntity(
     val iconType: String = "emoji", // "emoji", "material", "image"
     val color: String = "#2a6049",
     val peerContactId: Long? = null, // Link to peer if type = "peer"
+    val isArchived: Boolean = false,
+    val archivedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
