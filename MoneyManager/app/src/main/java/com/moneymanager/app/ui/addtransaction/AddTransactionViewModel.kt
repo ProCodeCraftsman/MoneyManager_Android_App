@@ -37,7 +37,7 @@ class AddTransactionViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
 
     val uiState: StateFlow<AddTransactionUiState> = combine(
-        accountRepository.getAllAccounts(),
+        accountRepository.getActiveAccounts(),
         categoryRepository.getAllCategories(),
         categoryRepository.getAllTags(),
         goalRepository.getAllGoals(),

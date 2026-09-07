@@ -217,7 +217,7 @@ class AiDraftViewModel @Inject constructor(
     private suspend fun loadPromptContext(): com.moneymanager.domain.ai.PromptContext {
         return cachedPromptContext ?: withContext(Dispatchers.IO) {
             val categories = categoryRepository.getAllCategories().first()
-            val accounts = accountRepository.getAllAccounts().first()
+            val accounts = accountRepository.getActiveAccounts().first()
             val peers = peerContactRepository.getAllPeers().first()
             val transactions = transactionRepository.getAllTransactions().first()
             val tags = categoryRepository.getAllTags().first()

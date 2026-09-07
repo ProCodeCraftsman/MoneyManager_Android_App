@@ -54,10 +54,16 @@ class SettingsViewModel @Inject constructor(
     private val backupPreferences: BackupPreferences,
     private val backupScheduler: BackupScheduler,
     private val categoryRepository: CategoryRepository,
+    private val localBackupManager: com.moneymanager.data.backup.LocalBackupManager,
 ) : ViewModel() {
 
     private val importResult = MutableStateFlow<ImportResult?>(null)
     private val exportResult = MutableStateFlow<ExportResult?>(null)
+    private val _localBackups = MutableStateFlow<List<com.moneymanager.data.backup.LocalBackupItem>>(emptyList())
+
+    init {
+        refreshLocalBackups()
+    }
 
     private val driveBackupOpStatus = MutableStateFlow<DriveOpStatus>(DriveOpStatus.Idle)
     private val driveRestoreOpStatus = MutableStateFlow<DriveOpStatus>(DriveOpStatus.Idle)
@@ -122,6 +128,7 @@ class SettingsViewModel @Inject constructor(
         importResult,
         exportResult,
         driveBackupUiState,
+        _localBackups,
     ) { values ->
         val selectedTheme = values[0] as AppTheme
         val storedDarkMode = values[1] as Boolean
@@ -138,6 +145,8 @@ class SettingsViewModel @Inject constructor(
         val impResult = values[12] as ImportResult?
         val expResult = values[13] as ExportResult?
         val driveBackup = values[14] as DriveBackupUiState
+        @Suppress("UNCHECKED_CAST")
+        val localBackupsList = values[15] as List<com.moneymanager.data.backup.LocalBackupItem>
 
         val systemDarkMode = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         val effectiveDarkMode = if (hasUserSetTheme) storedDarkMode else systemDarkMode
@@ -163,6 +172,7 @@ class SettingsViewModel @Inject constructor(
             exportResult = expResult,
             imageAttachmentsEnabled = attachmentsEnabled,
             driveBackup = driveBackup,
+            localBackups = localBackupsList,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -438,6 +448,49 @@ class SettingsViewModel @Inject constructor(
     fun reassignCategoryColors() {
         viewModelScope.launch {
             categoryRepository.reassignCategoryColors(shuffle = false)
+        }
+    }
+
+    fun refreshLocalBackups() {
+        viewModelScope.launch {
+            val backups = localBackupManager.getLocalBackups()
+            _localBackups.value = backups
+        }
+    }
+
+    fun triggerLocalBackup() {
+        viewModelScope.launch {
+            localBackupManager.performLocalBackup().fold(
+                onSuccess = { file ->
+                    backupPreferences.setLastLocalBackupTime(System.currentTimeMillis())
+                    refreshLocalBackups()
+                    exportResult.value = ExportResult(
+                        success = true,
+                        message = "Local backup saved: ${file.name}"
+                    )
+                },
+                onFailure = { err ->
+                    exportResult.value = ExportResult(
+                        success = false,
+                        message = "Local backup failed: ${err.message}"
+                    )
+                }
+            )
+        }
+    }
+
+    fun restoreLocalBackup(file: java.io.File) {
+        viewModelScope.launch {
+            val result = localBackupManager.restoreLocalBackup(file)
+            importResult.value = result
+            refreshLocalBackups()
+        }
+    }
+
+    fun deleteLocalBackup(file: java.io.File) {
+        viewModelScope.launch {
+            localBackupManager.deleteLocalBackup(file)
+            refreshLocalBackups()
         }
     }
 }

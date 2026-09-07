@@ -1,10 +1,11 @@
 package com.moneymanager.data.worker
 
 import android.content.Context
-import android.content.Intent
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.moneymanager.data.dao.AccountDao
+import com.moneymanager.data.dao.GoalDao
 import com.moneymanager.data.dao.RecurringDao
 import com.moneymanager.data.dao.TransactionDao
 import com.moneymanager.data.entity.RecurringEntity
@@ -19,7 +20,8 @@ class RecurringGenerationWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val recurringDao: RecurringDao,
     private val transactionDao: TransactionDao,
-    private val accountDao: com.moneymanager.data.dao.AccountDao
+    private val accountDao: AccountDao,
+    private val goalDao: GoalDao,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -28,15 +30,31 @@ class RecurringGenerationWorker @AssistedInject constructor(
             val dueRecurring = recurringDao.getDueRecurring(currentTime)
 
             for (recurring in dueRecurring) {
-                // Check if recurring has ended
-                if (recurring.endDate != null && recurring.nextDate > recurring.endDate) {
-                    val finishedRecurring = recurring.copy(isActive = false)
-                    recurringDao.updateRecurring(finishedRecurring)
-                    continue
+                var currentNextDate = recurring.nextDate
+                var isActive = recurring.isActive
+
+                // Catch-up loop to process all past-due occurrences up to currentTime
+                while (currentNextDate <= currentTime && isActive) {
+                    if (recurring.endDate != null && currentNextDate > recurring.endDate) {
+                        isActive = false
+                        break
+                    }
+
+                    val occurrence = recurring.copy(nextDate = currentNextDate)
+                    createTransactionFromRecurring(occurrence)
+
+                    currentNextDate = calculateNextDate(currentNextDate, recurring.frequency)
+
+                    if (recurring.endDate != null && currentNextDate > recurring.endDate) {
+                        isActive = false
+                    }
                 }
 
-                createTransactionFromRecurring(recurring)
-                updateNextDate(recurring)
+                val updatedRecurring = recurring.copy(
+                    nextDate = currentNextDate,
+                    isActive = isActive
+                )
+                recurringDao.updateRecurring(updatedRecurring)
             }
 
             Result.success()
@@ -61,14 +79,14 @@ class RecurringGenerationWorker @AssistedInject constructor(
             receiptPath = recurring.receiptPath,
             isRecurring = true,
             recurringId = recurring.id,
-            isTransfer = recurring.type == "transfer",
+            isTransfer = recurring.type == "transfer" || recurring.type == "savings",
             toAccountId = recurring.toAccountId,
             investmentPlatform = recurring.investmentPlatform,
             createdAt = System.currentTimeMillis()
         )
         transactionDao.insertTransaction(transaction)
         
-        // Update account balance
+        // Update source account balance
         val account = accountDao.getAccountById(recurring.accountId)
         if (account != null) {
             val delta = when (recurring.type) {
@@ -83,8 +101,8 @@ class RecurringGenerationWorker @AssistedInject constructor(
             )
             accountDao.updateAccount(updatedAccount)
 
-            // If it's a transfer, update destination account too
-            if (recurring.type == "transfer" && recurring.toAccountId != null) {
+            // If it's a transfer or savings with a destination account, update destination account balance too
+            if ((recurring.type == "transfer" || recurring.type == "savings") && recurring.toAccountId != null) {
                 val toAccount = accountDao.getAccountById(recurring.toAccountId)
                 if (toAccount != null) {
                     val updatedToAccount = toAccount.copy(
@@ -95,19 +113,19 @@ class RecurringGenerationWorker @AssistedInject constructor(
                 }
             }
         }
-    }
 
-    private suspend fun updateNextDate(recurring: RecurringEntity) {
-        val newNextDate = calculateNextDate(recurring.nextDate, recurring.frequency)
-        
-        // If the new next date is beyond end date, mark as inactive
-        val shouldBeActive = recurring.endDate == null || newNextDate <= recurring.endDate
-        
-        val updatedRecurring = recurring.copy(
-            nextDate = newNextDate,
-            isActive = shouldBeActive
-        )
-        recurringDao.updateRecurring(updatedRecurring)
+        // If linked to a goal, update goal progress
+        if (recurring.goalId != null) {
+            val goal = goalDao.getGoalById(recurring.goalId)
+            if (goal != null) {
+                val newCurrentAmount = goal.currentAmount + recurring.amount
+                val isCompleted = newCurrentAmount >= goal.targetAmount
+                goalDao.updateGoal(goal.copy(
+                    currentAmount = newCurrentAmount,
+                    isCompleted = isCompleted
+                ))
+            }
+        }
     }
 
     private fun calculateNextDate(currentDate: Long, frequency: String): Long {

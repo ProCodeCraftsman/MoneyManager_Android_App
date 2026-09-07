@@ -24,6 +24,8 @@ fun DriveBackupSection(
     onClearFoundBackup: () -> Unit,
     onAutoBackupToggle: (Boolean) -> Unit,
     onLocalBackupToggle: (Boolean) -> Unit,
+    onTriggerLocalBackup: () -> Unit = {},
+    onManageLocalBackups: () -> Unit = {},
     onFrequencyChange: (Boolean) -> Unit,
     onClearDriveError: () -> Unit,
     onClearDriveOp: () -> Unit,
@@ -36,10 +38,28 @@ fun DriveBackupSection(
         icon = Icons.Default.FolderZip,
         title = "Local JSON Backup",
         subtitle = uiState.lastLocalBackupTime?.let { "Last: ${dateFormat.format(Date(it))} (Stored for 30 days)" }
-            ?: "Individual JSON backups in app folder",
+            ?: "Individual JSON backups in dedicated folder",
         checked = uiState.localBackupEnabled,
         enabled = true,
         onCheckedChange = onLocalBackupToggle
+    )
+
+    DriveActionRow(
+        icon = Icons.Default.Save,
+        title = "Create Local Backup Now",
+        subtitle = "Save a manual local JSON backup file",
+        enabled = true,
+        isLoading = false,
+        onClick = onTriggerLocalBackup
+    )
+
+    DriveActionRow(
+        icon = Icons.Default.History,
+        title = "30-Day Local Backups History",
+        subtitle = "View, restore or delete local rolling backups",
+        enabled = true,
+        isLoading = false,
+        onClick = onManageLocalBackups
     )
 
     if (!uiState.isSignedIn) {

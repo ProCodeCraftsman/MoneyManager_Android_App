@@ -12,6 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +40,8 @@ fun AccountsScreen(
     }
     val showAddDialog = remember { mutableStateOf(value = false) }
     var editingAccount by remember { mutableStateOf<AccountEntity?>(null) }
+    var accountToArchive by remember { mutableStateOf<AccountEntity?>(null) }
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Active, 1 = Archived
     val snackbarHostState = remember { SnackbarHostState() }
     val lazyListState = rememberLazyListState()
 
@@ -65,8 +69,10 @@ fun AccountsScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog.value = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Account")
+            if (selectedTab == 0) {
+                FloatingActionButton(onClick = { showAddDialog.value = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Account")
+                }
             }
         },
     ) { padding ->
@@ -81,58 +87,144 @@ fun AccountsScreen(
                     TotalAssetsHeader(
                         totalAssets = uiState.totalAssets,
                         currencyFormat = currencyFormat,
-                        accountCount = uiState.accounts.size
+                        accountCount = uiState.activeAccounts.size
                     )
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(7.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                if (uiState.accountComparisonData.isNotEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                            )
-                        ) {
-                            com.moneymanager.app.ui.components.AccountComparisonChart(
-                                data = uiState.accountComparisonData,
-                                currencyCode = uiState.currencyCode
+                item {
+                    PrimaryTabRow(
+                        selectedTabIndex = selectedTab,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = { Text("Active Accounts (${uiState.activeAccounts.size})") }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = { Text("Archived (${uiState.archivedAccounts.size})") }
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                if (selectedTab == 0) {
+                    if (uiState.accountComparisonData.isNotEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                )
+                            ) {
+                                com.moneymanager.app.ui.components.AccountComparisonChart(
+                                    data = uiState.accountComparisonData,
+                                    currencyCode = uiState.currencyCode,
+                                    selectedTypeFilter = uiState.selectedChartTypeFilter,
+                                    onFilterSelected = { viewModel.setChartTypeFilter(it) }
+                                )
+                            }
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+
+                    val liquidAccounts = uiState.activeAccounts.filter { it.type != "credit" && it.type != "savings" && it.type != "peer" }
+                    val creditAccounts = uiState.activeAccounts.filter { it.type == "credit" || it.type == "peer" }
+                    val investmentAccounts = uiState.activeAccounts.filter { it.type == "savings" }
+
+                    if (liquidAccounts.isNotEmpty()) {
+                        item { AccountsSectionHeader(title = "Bank & Cash Accounts") }
+                        items(liquidAccounts) { account ->
+                            AccountCard(
+                                account = account,
+                                currencyFormat = currencyFormat,
+                                onClick = { editingAccount = account },
+                                onArchiveClick = { accountToArchive = account }
                             )
                         }
                     }
 
-                    item {
-                        Spacer(modifier = Modifier.height(7.dp))
+                    if (investmentAccounts.isNotEmpty()) {
+                        item { AccountsSectionHeader(title = "Investment Platforms") }
+                        items(investmentAccounts) { account ->
+                            AccountCard(
+                                account = account,
+                                currencyFormat = currencyFormat,
+                                onClick = { editingAccount = account },
+                                onArchiveClick = { accountToArchive = account }
+                            )
+                        }
                     }
-                }
 
-                val liquidAccounts = uiState.accounts.filter { it.type != "credit" && it.type != "savings" && it.type != "peer" }
-                val creditAccounts = uiState.accounts.filter { it.type == "credit" || it.type == "peer" }
-                val investmentAccounts = uiState.accounts.filter { it.type == "savings" }
-
-                if (liquidAccounts.isNotEmpty()) {
-                    item { AccountsSectionHeader(title = "Bank & Cash Accounts") }
-                    items(liquidAccounts) { account ->
-                        AccountCard(account = account, currencyFormat = currencyFormat, onClick = { editingAccount = account })
+                    if (creditAccounts.isNotEmpty()) {
+                        item { AccountsSectionHeader(title = "Credit Cards & Loans") }
+                        items(creditAccounts) { account ->
+                            AccountCard(
+                                account = account,
+                                currencyFormat = currencyFormat,
+                                onClick = { editingAccount = account },
+                                onArchiveClick = { accountToArchive = account }
+                            )
+                        }
                     }
-                }
 
-                if (investmentAccounts.isNotEmpty()) {
-                    item { AccountsSectionHeader(title = "Investment Platforms") }
-                    items(investmentAccounts) { account ->
-                        AccountCard(account = account, currencyFormat = currencyFormat, onClick = { editingAccount = account })
+                    if (uiState.activeAccounts.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No active accounts. Tap + to add one.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
-                }
-
-                if (creditAccounts.isNotEmpty()) {
-                    item { AccountsSectionHeader(title = "Credit Cards & Loans") }
-                    items(creditAccounts) { account ->
-                        AccountCard(account = account, currencyFormat = currencyFormat, onClick = { editingAccount = account })
+                } else {
+                    // Archived Accounts tab
+                    if (uiState.archivedAccounts.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No archived accounts.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(uiState.archivedAccounts) { account ->
+                            AccountCard(
+                                account = account,
+                                currencyFormat = currencyFormat,
+                                isArchivedView = true,
+                                onClick = { editingAccount = account },
+                                onReactivateClick = { viewModel.reactivateAccount(account.id) }
+                            )
+                        }
                     }
                 }
 
@@ -160,6 +252,27 @@ fun AccountsScreen(
             onConfirm = { name, type, balance ->
                 viewModel.updateAccount(account.copy(name = name, type = type, balance = balance))
                 editingAccount = null
+            }
+        )
+    }
+
+    accountToArchive?.let { account ->
+        AlertDialog(
+            onDismissRequest = { accountToArchive = null },
+            title = { Text("Archive Account?") },
+            text = { Text("Archiving '${account.name}' will hide it from new transaction entry lists while preserving all historical data and reports.") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.archiveAccount(account.id)
+                    accountToArchive = null
+                }) {
+                    Text("Archive")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { accountToArchive = null }) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -228,7 +341,7 @@ private fun TotalAssetsHeader(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
                 Text(
-                    text = if (accountCount == 1) "Account" else "Accounts",
+                    text = if (accountCount == 1) "Active Acc" else "Active Accs",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                 )
@@ -252,7 +365,10 @@ private fun AccountsSectionHeader(title: String) {
 private fun AccountCard(
     account: AccountEntity,
     currencyFormat: NumberFormat,
-    onClick: () -> Unit
+    isArchivedView: Boolean = false,
+    onClick: () -> Unit,
+    onArchiveClick: (() -> Unit)? = null,
+    onReactivateClick: (() -> Unit)? = null
 ) {
     Column {
         Row(
@@ -278,11 +394,26 @@ private fun AccountCard(
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = account.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = account.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    if (isArchivedView) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        ) {
+                            Text(
+                                text = "Archived",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
                 Text(
                     text = account.type.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.bodySmall,
@@ -296,6 +427,23 @@ private fun AccountCard(
                 fontWeight = FontWeight.Bold,
                 color = if (account.balance >= 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
             )
+            if (isArchivedView && onReactivateClick != null) {
+                IconButton(onClick = onReactivateClick) {
+                    Icon(
+                        Icons.Default.Unarchive,
+                        contentDescription = "Reactivate Account",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else if (!isArchivedView && onArchiveClick != null) {
+                IconButton(onClick = onArchiveClick) {
+                    Icon(
+                        Icons.Default.Archive,
+                        contentDescription = "Archive Account",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            }
         }
         HorizontalDivider(
             modifier = Modifier.padding(start = 50.dp),

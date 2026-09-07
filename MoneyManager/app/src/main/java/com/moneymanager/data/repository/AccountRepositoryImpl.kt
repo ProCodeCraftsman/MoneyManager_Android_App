@@ -16,6 +16,12 @@ class AccountRepositoryImpl @Inject constructor(
     override fun getAllAccounts(): Flow<List<AccountEntity>> =
         accountDao.getAllAccounts()
 
+    override fun getActiveAccounts(): Flow<List<AccountEntity>> =
+        accountDao.getActiveAccounts()
+
+    override fun getArchivedAccounts(): Flow<List<AccountEntity>> =
+        accountDao.getArchivedAccounts()
+
     override fun getTotalAssets(): Flow<Double> =
         accountDao.getTotalAssets().map { it ?: 0.0 }
 
@@ -30,6 +36,14 @@ class AccountRepositoryImpl @Inject constructor(
 
     override suspend fun deleteAccount(account: AccountEntity) =
         accountDao.deleteAccount(account)
+
+    override suspend fun archiveAccount(id: Long) {
+        accountDao.setAccountArchived(id, isArchived = true, archivedAt = System.currentTimeMillis())
+    }
+
+    override suspend fun reactivateAccount(id: Long) {
+        accountDao.setAccountArchived(id, isArchived = false, archivedAt = null)
+    }
 
     override suspend fun updateAccountBalance(accountId: Long, delta: Double) {
         accountDao.getAccountById(accountId)?.let { account ->

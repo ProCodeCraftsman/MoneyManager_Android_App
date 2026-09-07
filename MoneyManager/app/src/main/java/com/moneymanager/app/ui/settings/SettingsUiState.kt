@@ -25,6 +25,7 @@ data class SettingsUiState(
     val exportResult: ExportResult? = null,
     val imageAttachmentsEnabled: Boolean = true,
     val driveBackup: DriveBackupUiState = DriveBackupUiState(),
+    val localBackups: List<com.moneymanager.data.backup.LocalBackupItem> = emptyList(),
 )
 
 data class DriveBackupUiState(

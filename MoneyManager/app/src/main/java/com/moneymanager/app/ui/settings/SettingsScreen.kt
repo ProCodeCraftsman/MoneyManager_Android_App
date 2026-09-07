@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,6 +62,7 @@ fun SettingsScreen(
     var showAutoLockDialog by remember { mutableStateOf(false) }
     var showPinSetupDialog by remember { mutableStateOf(false) }
     var showDeleteAttachmentsConfirm by remember { mutableStateOf(false) }
+    var showLocalBackupsDialog by remember { mutableStateOf(false) }
     var pendingCsvAction by remember { mutableStateOf<String?>(null) }
     var selectedCsvType by remember { mutableStateOf<ExportType?>(null) }
     val lazyListState = rememberLazyListState()
@@ -344,7 +346,7 @@ fun SettingsScreen(
                         icon = Icons.Default.Schedule,
                         title = "Auto-lock",
                         subtitle = if (uiState.autoLockMinutes <= 0) "Off"
-                                   else "$uiState.autoLockMinutes min",
+                                   else "${uiState.autoLockMinutes} min",
                         trailing = {
                             Icon(
                                 Icons.Default.ChevronRight,
@@ -466,6 +468,11 @@ fun SettingsScreen(
                             viewModel.setDriveAutoBackup(enabled)
                         },
                         onLocalBackupToggle = { enabled -> viewModel.setLocalBackupEnabled(enabled) },
+                        onTriggerLocalBackup = { viewModel.triggerLocalBackup() },
+                        onManageLocalBackups = {
+                            viewModel.refreshLocalBackups()
+                            showLocalBackupsDialog = true
+                        },
                         onFrequencyChange = { weekly -> viewModel.setDriveBackupFrequency(weekly) },
                         onClearDriveError = { viewModel.clearDriveError() },
                         onClearDriveOp = { viewModel.clearDriveOp() },
@@ -841,6 +848,70 @@ fun SettingsScreen(
         )
     }
 
+    if (showLocalBackupsDialog) {
+        LocalBackupsDialog(
+            backups = uiState.localBackups,
+            onRestore = { file ->
+                viewModel.restoreLocalBackup(file)
+                showLocalBackupsDialog = false
+            },
+            onDelete = { file ->
+                viewModel.deleteLocalBackup(file)
+            },
+            onDismiss = { showLocalBackupsDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun LocalBackupsDialog(
+    backups: List<com.moneymanager.data.backup.LocalBackupItem>,
+    onRestore: (java.io.File) -> Unit,
+    onDelete: (java.io.File) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Local Backups (Last 30 Days)") },
+        text = {
+            if (backups.isEmpty()) {
+                Text("No local backups found. Tap 'Create Local Backup Now' to save a local backup.")
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(backups) { item ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(item.fileName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                    Text(item.formattedDate + " • " + (item.sizeBytes / 1024) + " KB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Row {
+                                    TextButton(onClick = { onRestore(item.file) }) {
+                                        Text("Restore")
+                                    }
+                                    IconButton(onClick = { onDelete(item.file) }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
 }
 
 @Composable

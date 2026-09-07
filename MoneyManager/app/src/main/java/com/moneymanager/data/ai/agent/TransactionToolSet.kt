@@ -62,7 +62,7 @@ class TransactionToolSet @Inject constructor(
     fun getDefaultAccount(): Map<String, String> = runBlocking(Dispatchers.IO) {
         sendProgress("getDefaultAccount", true, "Looking up accounts...")
         try {
-            val accounts = accountRepository.getAllAccounts().first()
+            val accounts = accountRepository.getActiveAccounts().first()
             val default = accounts.firstOrNull { it.type != "peer" } ?: accounts.firstOrNull()
             if (default != null) {
                 Log.d(TAG, "getDefaultAccount → ${default.name}(${default.id})")
