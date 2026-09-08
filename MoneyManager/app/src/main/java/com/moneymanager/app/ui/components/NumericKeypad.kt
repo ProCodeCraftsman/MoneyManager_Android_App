@@ -4,16 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Backspace
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -38,12 +35,14 @@ fun NumericKeypad(
     saveButtonText: String? = null,
     saveButtonEnabled: Boolean = true,
     onSaveClick: (() -> Unit)? = null,
+    onCancelClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val resolvedAccent = if (accentColor != Color.Unspecified) accentColor
                          else MaterialTheme.colorScheme.primary
-    val resolvedContainer = if (accentContainer != Color.Unspecified) accentContainer
-                            else MaterialTheme.colorScheme.primaryContainer
+
+    val darkRedOperatorContainer = resolvedAccent.copy(alpha = 0.35f)
+    val numberButtonBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
 
     val rows = listOf(
         listOf("7", "8", "9", "/"),
@@ -56,54 +55,57 @@ fun NumericKeypad(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        // Grid Rows 1 - 4
         rows.forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 row.forEach { key ->
                     val isOperator = key in listOf("/", "*", "-", "+")
                     val isDelete = key == "DEL"
-                    val isClear = key == "C"
 
                     Button(
                         onClick = {
                             when (key) {
                                 "DEL" -> onDeleteClick()
-                                "C"   -> onClearClick()
                                 else  -> onNumberClick(key)
                             }
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(58.dp),
+                            .height(48.dp),
                         contentPadding = PaddingValues(0.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(10.dp),
                         colors = when {
                             isOperator -> ButtonDefaults.buttonColors(
-                                containerColor = resolvedContainer.copy(alpha = 0.6f),
-                                contentColor = resolvedAccent
+                                containerColor = darkRedOperatorContainer,
+                                contentColor = Color.White
                             )
-                            isDelete || isClear -> ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            isDelete -> ButtonDefaults.buttonColors(
+                                containerColor = numberButtonBg,
+                                contentColor = MaterialTheme.colorScheme.onSurface
                             )
                             else -> ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                containerColor = numberButtonBg,
                                 contentColor = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     ) {
                         if (isDelete) {
-                            Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = "Delete", modifier = Modifier.size(22.dp))
+                            Icon(
+                                Icons.AutoMirrored.Outlined.Backspace,
+                                contentDescription = "Delete",
+                                modifier = Modifier.size(20.dp)
+                            )
                         } else {
                             Text(
-                                text = if (key == "*") "×" else key,
+                                text = if (key == "*") "x" else key,
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 22.sp
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 20.sp
                             )
                         }
                     }
@@ -111,79 +113,98 @@ fun NumericKeypad(
             }
         }
 
+        // Row 5: Clear (C) and Evaluate (=)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Button(
                 onClick = onClearClick,
                 modifier = Modifier
-                    .weight(1f)
-                    .height(58.dp),
-                shape = RoundedCornerShape(8.dp),
+                    .weight(3f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    containerColor = numberButtonBg,
+                    contentColor = resolvedAccent
                 )
             ) {
                 Text(
                     text = "C",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 22.sp
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = resolvedAccent
                 )
             }
 
-            if (onSaveClick != null && saveButtonText != null) {
+            Button(
+                onClick = onEvaluate,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = darkRedOperatorContainer,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "=",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+            }
+        }
+
+        // Row 6: Cancel and Save Action Buttons
+        if (onSaveClick != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onCancelClick != null) {
+                    Button(
+                        onClick = onCancelClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
+
                 Button(
                     onClick = onSaveClick,
                     enabled = saveButtonEnabled,
                     modifier = Modifier
-                        .weight(3f)
-                        .height(58.dp),
+                        .weight(if (onCancelClick != null) 1.5f else 1f)
+                        .height(52.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = resolvedAccent,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        contentColor = Color.White,
                         disabledContainerColor = resolvedAccent.copy(alpha = 0.38f),
-                        disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f)
-                    )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = saveButtonText,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            } else {
-                Button(
-                    onClick = onEvaluate,
-                    modifier = Modifier
-                        .weight(3f)
-                        .height(58.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = resolvedAccent,
-                        contentColor = MaterialTheme.colorScheme.surface
+                        disabledContentColor = Color.White.copy(alpha = 0.6f)
                     )
                 ) {
                     Text(
-                        text = "=",
-                        style = MaterialTheme.typography.titleLarge,
+                        text = saveButtonText ?: "Save",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp
+                        fontSize = 16.sp
                     )
                 }
             }
