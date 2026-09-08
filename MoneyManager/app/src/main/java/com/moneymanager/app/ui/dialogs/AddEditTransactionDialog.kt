@@ -141,7 +141,6 @@ fun AddEditTransactionDialog(
             else (transaction?.toAccountId ?: if (type == "savings") investmentAccounts.firstOrNull()?.id else null)
         )
     }
-    var showToAccountDropdown by rememberSaveable { mutableStateOf(false) }
 
     // ── EMI State ──
     var isEmiEnabled by rememberSaveable { mutableStateOf(false) }
@@ -199,7 +198,8 @@ fun AddEditTransactionDialog(
 
     // ── UI Modal Toggles ──
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
-    var showAccountDropdown by rememberSaveable { mutableStateOf(false) }
+    var showAccountPickerSheet by rememberSaveable { mutableStateOf(false) }
+    var accountPickerTarget by rememberSaveable { mutableStateOf("account") }
     var expectedReturnDate by rememberSaveable { mutableStateOf(transaction?.expectedReturnDate) }
     var showExpectedReturnDatePicker by rememberSaveable { mutableStateOf(false) }
     var expandedCategoryId by rememberSaveable {
@@ -593,54 +593,51 @@ fun AddEditTransactionDialog(
                     showExpectedReturnDate = TransactionFeature.RETURN_DATE in features,
                     accentColor = accentColor,
                     onDateClick = { showDatePicker = true },
-                    onAccountClick = { showAccountDropdown = true },
-                    onToAccountClick = { showToAccountDropdown = true },
+                    onAccountClick = {
+                        accountPickerTarget = "account"
+                        showAccountPickerSheet = true
+                    },
+                    onToAccountClick = {
+                        accountPickerTarget = "to"
+                        showAccountPickerSheet = true
+                    },
                     onPeerClick = { showPeerDialog = true },
                     onExpectedReturnDateClick = { showExpectedReturnDatePicker = true }
                 )
 
-                // Account Dropdown Menus
-                DropdownMenu(
-                    expanded = showAccountDropdown,
-                    onDismissRequest = { showAccountDropdown = false }
-                ) {
-                    (filteredAccounts.ifEmpty { accounts }).forEach { acc ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(acc.name)
-                                }
-                            },
-                            onClick = {
+                if (showAccountPickerSheet) {
+                    val isToAccount = accountPickerTarget == "to"
+                    val sheetTitle = when {
+                        isToAccount && type == "savings" -> "Select Investment Account"
+                        isToAccount -> "Select To Account"
+                        type == "transfer" || type == "savings" -> "Select From Account"
+                        else -> "Select Account"
+                    }
+                    val targetAccounts = if (isToAccount) {
+                        if (type == "savings") investmentAccounts else accounts.filter { it.id != selectedAccountId }
+                    } else {
+                        filteredAccounts.ifEmpty { accounts }
+                    }
+                    val currentSelectedId = if (isToAccount) selectedToAccountId else selectedAccountId
+
+                    AccountPickerSheet(
+                        title = sheetTitle,
+                        accounts = targetAccounts,
+                        selectedAccountId = currentSelectedId,
+                        currency = currency,
+                        accentColor = accentColor,
+                        accentContainer = accentContainer,
+                        onAccountSelected = { acc ->
+                            if (isToAccount) {
+                                selectedToAccountId = acc.id
+                            } else {
                                 aiSuggestedFields -= "account"
                                 selectedAccountId = acc.id
-                                showAccountDropdown = false
                             }
-                        )
-                    }
-                }
-
-                DropdownMenu(
-                    expanded = showToAccountDropdown,
-                    onDismissRequest = { showToAccountDropdown = false }
-                ) {
-                    accounts.filter { it.id != selectedAccountId }.forEach { acc ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(acc.name)
-                                }
-                            },
-                            onClick = {
-                                selectedToAccountId = acc.id
-                                showToAccountDropdown = false
-                            }
-                        )
-                    }
+                            showAccountPickerSheet = false
+                        },
+                        onDismiss = { showAccountPickerSheet = false }
+                    )
                 }
 
                 // 2. Category Section with Special Features Trigger
@@ -763,18 +760,20 @@ fun AddEditTransactionDialog(
     // ── Secondary Field Modal Dialogs ──
 
     if (showNoteDialog) {
-        SecondaryNoteDialog(
+        SecondaryNoteSheet(
             note = description,
+            accentColor = accentColor,
             onNoteChange = { description = it },
             onDismiss = { showNoteDialog = false }
         )
     }
 
     if (showTagsDialog) {
-        SecondaryTagsDialog(
+        SecondaryTagsSheet(
             tags = tags,
             selectedTagIds = selectedTagIds,
             tagQuery = tagQuery,
+            accentColor = accentColor,
             onQueryChange = { tagQuery = it },
             onToggleTag = { tagId ->
                 selectedTagIds = if (tagId in selectedTagIds) selectedTagIds - tagId else selectedTagIds + tagId
@@ -784,8 +783,9 @@ fun AddEditTransactionDialog(
     }
 
     if (showAttachDialog) {
-        SecondaryAttachDialog(
+        SecondaryAttachSheet(
             receiptData = receiptData,
+            accentColor = accentColor,
             onPickFile = { filePicker.launch("image/*") },
             onRemoveFile = { receiptData = null },
             onPreviewFile = { showReceiptPreview = true },
@@ -794,7 +794,7 @@ fun AddEditTransactionDialog(
     }
 
     if (showSplitDialog) {
-        SecondarySplitDialog(
+        SecondarySplitSheet(
             splitEnabled = splitEnabled,
             splitRows = splitRows,
             splitRemaining = splitRemaining,
@@ -802,6 +802,8 @@ fun AddEditTransactionDialog(
             categories = categories,
             type = type,
             currency = currency,
+            accentColor = accentColor,
+            accentContainer = accentContainer,
             onToggleSplitEnabled = { splitEnabled = it },
             onUpdateRow = { index, updated ->
                 splitRows = splitRows.toMutableList().also { it[index] = updated }
@@ -817,13 +819,15 @@ fun AddEditTransactionDialog(
     }
 
     if (showEmiDialog) {
-        SecondaryEmiDialog(
+        SecondaryEmiSheet(
             isEmiEnabled = isEmiEnabled,
             emiTenure = emiTenure,
             emiInterestRate = emiInterestRate,
             isNoCostEmi = isNoCostEmi,
             emiProcessingFee = emiProcessingFee,
             currency = currency,
+            mainAmount = mainAmount,
+            accentColor = accentColor,
             onEmiEnabledChange = { isEmiEnabled = it },
             onTenureChange = { emiTenure = it },
             onRateChange = { emiInterestRate = it },
@@ -834,38 +838,46 @@ fun AddEditTransactionDialog(
     }
 
     if (showGoalDialog) {
-        SecondaryGoalDialog(
+        SecondaryGoalSheet(
             goals = goals,
             selectedGoalId = selectedGoalId,
+            currency = currency,
+            accentColor = accentColor,
+            accentContainer = accentContainer,
             onGoalSelected = { selectedGoalId = it; showGoalDialog = false },
             onDismiss = { showGoalDialog = false }
         )
     }
 
     if (showPlatformDialog) {
-        SecondaryPlatformDialog(
+        SecondaryPlatformSheet(
             platform = selectedPlatform ?: "",
+            accentColor = accentColor,
             onPlatformChange = { selectedPlatform = it.ifEmpty { null } },
             onDismiss = { showPlatformDialog = false }
         )
     }
 
     if (showPeerDialog) {
-        SecondaryPeerDialog(
+        SecondaryPeerSheet(
             peers = peers,
             selectedPeerId = selectedPeerId,
+            accentColor = accentColor,
+            accentContainer = accentContainer,
             onPeerSelected = { selectedPeerId = it; showPeerDialog = false },
             onDismiss = { showPeerDialog = false }
         )
     }
 
     if (showCategorySearch && TransactionFeature.CATEGORY in features) {
-        FormCategorySearchDialog(
+        FormCategorySearchSheet(
             query = categorySearchQuery,
             onQueryChange = { categorySearchQuery = it },
             categories = categories,
             categoryFilter = categoryFilter,
             categoryUsageCounts = categoryUsageCounts,
+            accentColor = accentColor,
+            accentContainer = accentContainer,
             onCategorySelected = { cat ->
                 aiSuggestedFields -= "category"
                 selectedCategoryId = cat.id
@@ -1864,44 +1876,270 @@ private fun ExtraOptionTile(
     }
 }
 
-// ── Secondary Option Dialogs ──
+// ── Secondary Option Sheets & Dialogs ──
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SecondaryNoteDialog(
+internal fun AccountPickerSheet(
+    title: String,
+    accounts: List<AccountEntity>,
+    selectedAccountId: Long?,
+    currency: String,
+    accentColor: Color,
+    accentContainer: Color,
+    onAccountSelected: (AccountEntity) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val filtered = remember(accounts, searchQuery) {
+        if (searchQuery.isBlank()) accounts
+        else accounts.filter { it.name.contains(searchQuery, ignoreCase = true) || it.type.contains(searchQuery, ignoreCase = true) }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.AccountBalance, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("${accounts.size} available accounts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            if (accounts.size > 5) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search account...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                filtered.forEach { acc ->
+                    val isSelected = acc.id == selectedAccountId
+                    Surface(
+                        onClick = { onAccountSelected(acc) },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) accentContainer.copy(alpha = 0.25f)
+                               else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 0.5.dp,
+                            color = if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) accentColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
+                                    modifier = Modifier.size(42.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            accountTypeIcon(acc.type),
+                                            contentDescription = null,
+                                            tint = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        acc.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        acc.type.replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    "${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, acc.balance)}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (acc.balance >= 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                                )
+                                if (isSelected) {
+                                    Surface(shape = CircleShape, color = accentColor, modifier = Modifier.size(20.dp)) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun SecondaryNoteSheet(
     note: String,
+    accentColor: Color,
     onNoteChange: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var tempNote by rememberSaveable { mutableStateOf(note) }
-    AlertDialog(
+    val presets = remember { listOf("Dinner", "Groceries", "Uber / Cab", "Rent", "Utility Bill", "Shopping", "Salary", "Snacks", "Medicine", "Fuel") }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Note & Description") },
-        text = {
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.AutoMirrored.Filled.Notes, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Note & Description", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
             OutlinedTextField(
                 value = tempNote,
                 onValueChange = { tempNote = it },
-                label = { Text("Add Note") },
-                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Add transaction note or remarks...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 100.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = accentColor,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                ),
                 maxLines = 4
             )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onNoteChange(tempNote)
-                onDismiss()
-            }) { Text("Done") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+
+            Text("Quick Presets", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                presets.forEach { preset ->
+                    AssistChip(
+                        onClick = {
+                            tempNote = if (tempNote.isBlank()) preset else "$tempNote - $preset"
+                        },
+                        label = { Text(preset, style = MaterialTheme.typography.labelSmall) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            labelColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                }
+            }
+
+            Button(
+                onClick = {
+                    onNoteChange(tempNote)
+                    onDismiss()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+            ) {
+                Text("Save Note", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun SecondaryTagsDialog(
+internal fun SecondaryTagsSheet(
     tags: List<TagEntity>,
     selectedTagIds: Set<Long>,
     tagQuery: String,
+    accentColor: Color,
     onQueryChange: (String) -> Unit,
     onToggleTag: (Long) -> Unit,
     onDismiss: () -> Unit
@@ -1911,100 +2149,233 @@ internal fun SecondaryTagsDialog(
         else tags.filter { it.name.contains(tagQuery, ignoreCase = true) }
     }
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Tags & Labels") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = tagQuery,
-                    onValueChange = onQueryChange,
-                    label = { Text("Search tags") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 200.dp)
-                ) {
-                    items(filteredTags) { tag ->
-                        val isSelected = tag.id in selectedTagIds
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onToggleTag(tag.id) }
-                                .padding(vertical = 8.dp, horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("#${tag.name}")
-                            Checkbox(checked = isSelected, onCheckedChange = { onToggleTag(tag.id) })
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.LocalOffer, null, tint = accentColor, modifier = Modifier.size(20.dp))
                         }
                     }
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text("Tags & Labels", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("${selectedTagIds.size} selected", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
+
+            OutlinedTextField(
+                value = tagQuery,
+                onValueChange = onQueryChange,
+                placeholder = { Text("Search tags...") },
+                leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    focusedBorderColor = accentColor,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+            )
+
+            if (filteredTags.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    filteredTags.forEach { tag ->
+                        val isSelected = tag.id in selectedTagIds
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { onToggleTag(tag.id) },
+                            label = { Text("#${tag.name}", style = MaterialTheme.typography.labelMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = accentColor.copy(alpha = 0.2f),
+                                selectedLabelColor = accentColor,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                selectedBorderColor = accentColor
+                            )
+                        )
+                    }
+                }
+            } else {
+                Text("No tags found.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+            ) {
+                Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SecondaryAttachDialog(
+internal fun SecondaryAttachSheet(
     receiptData: String?,
+    accentColor: Color,
     onPickFile: () -> Unit,
     onRemoveFile: () -> Unit,
     onPreviewFile: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Attach Receipt / File") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (receiptData == null) {
-                    Button(
-                        onClick = {
-                            onPickFile()
-                            onDismiss()
-                        },
-                        modifier = Modifier.fillMaxWidth()
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(Icons.Default.AttachFile, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Choose File / Image")
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        OutlinedButton(onClick = onPreviewFile) {
-                            Text("Preview File")
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.AttachFile, null, tint = accentColor, modifier = Modifier.size(20.dp))
                         }
-                        Button(
-                            onClick = {
-                                onRemoveFile()
-                                onDismiss()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Attach Receipt / Image", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            if (receiptData == null) {
+                Surface(
+                    onClick = {
+                        onPickFile()
+                        onDismiss()
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AddPhotoAlternate, null, tint = accentColor, modifier = Modifier.size(28.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("Choose Receipt Image from Device", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = accentColor)
+                    }
+                }
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Receipt Attached Successfully", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Remove")
+                            OutlinedButton(
+                                onClick = onPreviewFile,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Visibility, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Preview Image")
+                            }
+                            Button(
+                                onClick = {
+                                    onRemoveFile()
+                                    onDismiss()
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Remove")
+                            }
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SecondarySplitDialog(
+internal fun SecondarySplitSheet(
     splitEnabled: Boolean,
     splitRows: List<SplitRowData>,
     splitRemaining: Double,
@@ -2012,83 +2383,157 @@ internal fun SecondarySplitDialog(
     categories: List<CategoryEntity>,
     type: String,
     currency: String,
+    accentColor: Color,
+    accentContainer: Color,
     onToggleSplitEnabled: (Boolean) -> Unit,
     onUpdateRow: (Int, SplitRowData) -> Unit,
     onRemoveRow: (Int) -> Unit,
     onAddRow: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Split Transaction") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.AutoMirrored.Filled.CallSplit, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Split Bill Allocation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Enable Split")
-                    Switch(checked = splitEnabled, onCheckedChange = onToggleSplitEnabled)
-                }
-
-                if (splitEnabled) {
-                    Text(
-                        "Remaining: ${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, splitRemaining)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (splitRemaining == 0.0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                    )
-
-                    var openDropdownIndex by remember { mutableStateOf<Int?>(null) }
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 280.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(splitRows.size) { index ->
-                            val row = splitRows[index]
-                            SplitRowCard(
-                                row = row,
-                                allCategories = categories,
-                                type = type,
-                                onUpdate = { updated -> onUpdateRow(index, updated) },
-                                onRemove = { onRemoveRow(index) },
-                                showDropdown = openDropdownIndex == index,
-                                onToggleDropdown = {
-                                    openDropdownIndex = if (openDropdownIndex == index) null else index
-                                },
-                                remainingAmount = splitRemaining,
-                                currencySymbol = CurrencyUtils.getCurrencySymbol(currency)
-                            )
-                        }
+                    Column {
+                        Text("Enable Split Transaction", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Divide into multiple categories & amounts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                     }
-
-                    OutlinedButton(
-                        onClick = onAddRow,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Add, null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Add Split Category")
-                    }
+                    Switch(checked = splitEnabled, onCheckedChange = onToggleSplitEnabled, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = accentColor))
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
+
+            if (splitEnabled) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (abs(splitRemaining) < 0.01) accentContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                    border = BorderStroke(0.5.dp, if (abs(splitRemaining) < 0.01) accentColor else MaterialTheme.colorScheme.error)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Allocated: ${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, splitTotal)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            if (abs(splitRemaining) < 0.01) "Fully Balanced ✓"
+                            else "Unallocated: ${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, splitRemaining)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (abs(splitRemaining) < 0.01) accentColor else MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+                var openDropdownIndex by remember { mutableStateOf<Int?>(null) }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    splitRows.forEachIndexed { index, row ->
+                        SplitRowCard(
+                            row = row,
+                            allCategories = categories,
+                            type = type,
+                            onUpdate = { updated -> onUpdateRow(index, updated) },
+                            onRemove = { onRemoveRow(index) },
+                            showDropdown = openDropdownIndex == index,
+                            onToggleDropdown = {
+                                openDropdownIndex = if (openDropdownIndex == index) null else index
+                            },
+                            remainingAmount = splitRemaining,
+                            currencySymbol = CurrencyUtils.getCurrencySymbol(currency)
+                        )
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onAddRow,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, accentColor)
+                ) {
+                    Icon(Icons.Default.Add, null, tint = accentColor)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add Split Category", color = accentColor, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+            ) {
+                Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun SecondaryEmiDialog(
+internal fun SecondaryEmiSheet(
     isEmiEnabled: Boolean,
     emiTenure: String,
     emiInterestRate: String,
     isNoCostEmi: Boolean,
     emiProcessingFee: String,
     currency: String,
+    mainAmount: Double,
+    accentColor: Color,
     onEmiEnabledChange: (Boolean) -> Unit,
     onTenureChange: (String) -> Unit,
     onRateChange: (String) -> Unit,
@@ -2096,253 +2541,626 @@ internal fun SecondaryEmiDialog(
     onFeeChange: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    val quickTenures = remember { listOf("3", "6", "9", "12", "18", "24") }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("EMI Options") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.CreditCard, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Pay via EMI Options", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Pay via EMI")
-                    Switch(checked = isEmiEnabled, onCheckedChange = onEmiEnabledChange)
+                    Column {
+                        Text("Pay via EMI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Convert transaction into monthly installments", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                    }
+                    Switch(checked = isEmiEnabled, onCheckedChange = onEmiEnabledChange, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = accentColor))
+                }
+            }
+
+            if (isEmiEnabled) {
+                Text("Select Tenure (Months)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    quickTenures.forEach { t ->
+                        val isSelected = emiTenure == t
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { onTenureChange(t) },
+                            label = { Text("$t Mos", style = MaterialTheme.typography.labelMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = accentColor.copy(alpha = 0.2f),
+                                selectedLabelColor = accentColor,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                selectedBorderColor = accentColor
+                            )
+                        )
+                    }
                 }
 
-                if (isEmiEnabled) {
-                    OutlinedTextField(
-                        value = emiTenure,
-                        onValueChange = onTenureChange,
-                        label = { Text("Tenure (Months)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("No Cost EMI")
+                        Text("No Cost EMI", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                         Checkbox(checked = isNoCostEmi, onCheckedChange = onNoCostChange)
                     }
+                }
 
-                    if (!isNoCostEmi) {
-                        OutlinedTextField(
-                            value = emiInterestRate,
-                            onValueChange = onRateChange,
-                            label = { Text("Interest Rate (% p.a.)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                    }
-
+                if (!isNoCostEmi) {
                     OutlinedTextField(
-                        value = emiProcessingFee,
-                        onValueChange = onFeeChange,
-                        label = { Text("Processing Fee (${CurrencyUtils.getCurrencySymbol(currency)})") },
+                        value = emiInterestRate,
+                        onValueChange = onRateChange,
+                        label = { Text("Interest Rate (% p.a.)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true
                     )
                 }
+
+                OutlinedTextField(
+                    value = emiProcessingFee,
+                    onValueChange = onFeeChange,
+                    label = { Text("Processing Fee (${CurrencyUtils.getCurrencySymbol(currency)})") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                val tenureInt = emiTenure.toIntOrNull() ?: 6
+                val feeDouble = emiProcessingFee.toDoubleOrNull() ?: 0.0
+                val estEmi = if (tenureInt > 0 && mainAmount > 0) (mainAmount + feeDouble) / tenureInt else 0.0
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = accentColor.copy(alpha = 0.12f),
+                    border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Est. Monthly EMI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, estEmi)} / mo",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = accentColor
+                        )
+                    }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+            ) {
+                Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SecondaryGoalDialog(
+internal fun SecondaryGoalSheet(
     goals: List<GoalEntity>,
     selectedGoalId: Long?,
+    currency: String,
+    accentColor: Color,
+    accentContainer: Color,
     onGoalSelected: (Long?) -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Link Goal") },
-        text = {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 240.dp)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onGoalSelected(null) }
-                            .padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        RadioButton(selected = selectedGoalId == null, onClick = { onGoalSelected(null) })
-                        Spacer(Modifier.width(8.dp))
-                        Text("None")
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Flag, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
                     }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Link Financial Goal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-                items(goals) { goal ->
-                    val isSelected = goal.id == selectedGoalId
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            val isNoneSelected = selectedGoalId == null
+            Surface(
+                onClick = { onGoalSelected(null) },
+                shape = RoundedCornerShape(16.dp),
+                color = if (isNoneSelected) accentContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(if (isNoneSelected) 1.5.dp else 0.5.dp, if (isNoneSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(selected = isNoneSelected, onClick = { onGoalSelected(null) }, colors = RadioButtonDefaults.colors(selectedColor = accentColor))
+                    Spacer(Modifier.width(10.dp))
+                    Text("None (Do not link goal)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            goals.forEach { goal ->
+                val isSelected = goal.id == selectedGoalId
+                Surface(
+                    onClick = { onGoalSelected(goal.id) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isSelected) accentContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onGoalSelected(goal.id) }
-                            .padding(vertical = 10.dp),
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(selected = isSelected, onClick = { onGoalSelected(goal.id) })
-                        Spacer(Modifier.width(8.dp))
-                        Text(goal.name)
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            RadioButton(selected = isSelected, onClick = { onGoalSelected(goal.id) }, colors = RadioButtonDefaults.colors(selectedColor = accentColor))
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(goal.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Target: ${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, goal.targetAmount)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun SecondaryPlatformDialog(
+internal fun SecondaryPlatformSheet(
     platform: String,
+    accentColor: Color,
     onPlatformChange: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var tempPlatform by rememberSaveable { mutableStateOf(platform) }
-    AlertDialog(
+    val presets = remember { listOf("Zerodha", "Groww", "Upstox", "Angel One", "Kuvera", "Paytm Money", "INDmoney", "Binance", "Coinbase", "WazirX", "Other") }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Investment Platform") },
-        text = {
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.ShowChart, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Investment Platform", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
             OutlinedTextField(
                 value = tempPlatform,
                 onValueChange = { tempPlatform = it },
-                label = { Text("Platform Name (e.g. Zerodha, Groww)") },
+                placeholder = { Text("e.g. Zerodha, Groww, Upstox...") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                shape = RoundedCornerShape(14.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = accentColor,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                )
             )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onPlatformChange(tempPlatform)
-                onDismiss()
-            }) { Text("Done") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+
+            Text("Popular Platforms", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                presets.forEach { preset ->
+                    val isSelected = tempPlatform.equals(preset, ignoreCase = true)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { tempPlatform = preset },
+                        label = { Text(preset, style = MaterialTheme.typography.labelMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = accentColor.copy(alpha = 0.2f),
+                            selectedLabelColor = accentColor,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            labelColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = isSelected,
+                            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                            selectedBorderColor = accentColor
+                        )
+                    )
+                }
+            }
+
+            Button(
+                onClick = {
+                    onPlatformChange(tempPlatform)
+                    onDismiss()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+            ) {
+                Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SecondaryPeerDialog(
+internal fun SecondaryPeerSheet(
     peers: List<PeerContact>,
     selectedPeerId: Long?,
+    accentColor: Color,
+    accentContainer: Color,
     onPeerSelected: (Long?) -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val filtered = remember(peers, searchQuery) {
+        if (searchQuery.isBlank()) peers
+        else peers.filter { it.effectiveDisplayName.contains(searchQuery, ignoreCase = true) }
+    }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Select Person") },
-        text = {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 240.dp)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onPeerSelected(null) }
-                            .padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        RadioButton(selected = selectedPeerId == null, onClick = { onPeerSelected(null) })
-                        Spacer(Modifier.width(8.dp))
-                        Text("None")
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Person, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
                     }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Select Person", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
-                items(peers) { peer ->
-                    val isSelected = peer.id == selectedPeerId
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            if (peers.size > 4) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search person...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
+                )
+            }
+
+            val isNoneSelected = selectedPeerId == null
+            Surface(
+                onClick = { onPeerSelected(null) },
+                shape = RoundedCornerShape(16.dp),
+                color = if (isNoneSelected) accentContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(if (isNoneSelected) 1.5.dp else 0.5.dp, if (isNoneSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(selected = isNoneSelected, onClick = { onPeerSelected(null) }, colors = RadioButtonDefaults.colors(selectedColor = accentColor))
+                    Spacer(Modifier.width(10.dp))
+                    Text("None (No person associated)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            filtered.forEach { peer ->
+                val isSelected = peer.id == selectedPeerId
+                Surface(
+                    onClick = { onPeerSelected(peer.id) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isSelected) accentContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onPeerSelected(peer.id) }
-                            .padding(vertical = 10.dp),
+                            .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(selected = isSelected, onClick = { onPeerSelected(peer.id) })
-                        Spacer(Modifier.width(8.dp))
-                        Text(peer.effectiveDisplayName)
+                        RadioButton(selected = isSelected, onClick = { onPeerSelected(peer.id) }, colors = RadioButtonDefaults.colors(selectedColor = accentColor))
+                        Spacer(Modifier.width(10.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = if (isSelected) accentColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    peer.effectiveDisplayName.take(1).uppercase(),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(peer.effectiveDisplayName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun FormCategorySearchDialog(
+internal fun FormCategorySearchSheet(
     query: String,
     onQueryChange: (String) -> Unit,
     categories: List<CategoryEntity>,
     categoryFilter: String,
     categoryUsageCounts: Map<Long, Int> = emptyMap(),
+    accentColor: Color,
+    accentContainer: Color,
     onCategorySelected: (CategoryEntity) -> Unit,
     onDismiss: () -> Unit
 ) {
     val filtered = remember(categories, categoryFilter, query) {
         val byType = categories.filter { it.type == categoryFilter }
-        if (query.isBlank()) byType
+        if (query.isBlank()) byType.sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
         else byType.filter { it.name.contains(query, ignoreCase = true) }
     }
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text("Select Category") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    label = { Text("Search category") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = accentColor.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Category, null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Select Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = { Text("Search categories...") },
+                leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    focusedBorderColor = accentColor,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                ) {
-                    items(filtered) { cat ->
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                filtered.forEach { cat ->
+                    val parentCat = if (cat.parentId != null) categories.firstOrNull { it.id == cat.parentId } else null
+                    Surface(
+                        onClick = { onCategorySelected(cat) },
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onCategorySelected(cat) }
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                                .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 20.sp)
+                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 22.sp)
                             Spacer(Modifier.width(12.dp))
-                            Text(cat.name, style = MaterialTheme.typography.bodyMedium)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(cat.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                if (parentCat != null) {
+                                    Text("In ${parentCat.name}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                }
+                            }
+                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+
+            Spacer(Modifier.height(16.dp))
         }
-    )
+    }
 }
 
 @Composable

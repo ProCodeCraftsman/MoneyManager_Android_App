@@ -1,38 +1,26 @@
 package com.moneymanager.app.ui.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.dialogs.SplitRowData
 import com.moneymanager.data.entity.CategoryEntity
 import java.util.Locale
@@ -62,88 +50,253 @@ fun SplitRowCard(
         selectedParent?.let { parent -> allCategories.filter { it.parentId == parent.id } } ?: emptyList()
     }
 
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ExposedDropdownMenuBox(showDropdown, { if (it) onToggleDropdown() else onToggleDropdown() }, Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = selectedParent?.let { it.name } ?: "Category",
-                        onValueChange = {}, readOnly = true, label = { Text("Category") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showDropdown) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(showDropdown, onToggleDropdown) {
-                        DropdownMenuItem(text = { Text("None") }, onClick = { onUpdate(row.copy(categoryId = null, subCategoryId = null)); onToggleDropdown() })
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Category & Sub-Category Selection Chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Parent Category Dropdown
+                ExposedDropdownMenuBox(
+                    expanded = showDropdown,
+                    onExpandedChange = { onToggleDropdown() },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onToggleDropdown() },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                if (selectedParent != null) {
+                                    CategoryIcon(
+                                        emoji = selectedParent.emoji,
+                                        iconType = selectedParent.iconType,
+                                        colorIndex = selectedParent.colorIndex,
+                                        fontSize = 16.sp
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                Text(
+                                    text = selectedParent?.name ?: "Select Category",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (selectedParent != null) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (selectedParent != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Icon(
+                                Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    ExposedDropdownMenu(
+                        expanded = showDropdown,
+                        onDismissRequest = onToggleDropdown,
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("None", style = MaterialTheme.typography.bodyMedium) },
+                            onClick = {
+                                onUpdate(row.copy(categoryId = null, subCategoryId = null))
+                                onToggleDropdown()
+                            }
+                        )
                         parentCategories.forEach { cat ->
                             DropdownMenuItem(
                                 text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 16.sp)
-                                        Text(cat.name)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        CategoryIcon(
+                                            emoji = cat.emoji,
+                                            iconType = cat.iconType,
+                                            colorIndex = cat.colorIndex,
+                                            fontSize = 18.sp
+                                        )
+                                        Text(cat.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                                     }
                                 },
-                                onClick = { onUpdate(row.copy(categoryId = cat.id, subCategoryId = null)); onToggleDropdown() }
+                                onClick = {
+                                    onUpdate(row.copy(categoryId = cat.id, subCategoryId = null))
+                                    onToggleDropdown()
+                                }
                             )
                         }
                     }
                 }
 
+                // Sub-category Dropdown (if present)
                 if (subCategories.isNotEmpty()) {
-                    ExposedDropdownMenuBox(showSubDropdown, { showSubDropdown = it }, Modifier.weight(1f)) {
-                        OutlinedTextField(
-                            value = allCategories.find { it.id == row.subCategoryId }?.name ?: "Sub-cat (Opt)",
-                            onValueChange = {}, readOnly = true, label = { Text("Sub-category") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(showSubDropdown) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(showSubDropdown, { showSubDropdown = false }) {
-                            DropdownMenuItem(text = { Text("None") }, onClick = { onUpdate(row.copy(subCategoryId = null)); showSubDropdown = false })
+                    ExposedDropdownMenuBox(
+                        expanded = showSubDropdown,
+                        onExpandedChange = { showSubDropdown = it },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { showSubDropdown = !showSubDropdown },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                val selectedSub = allCategories.find { it.id == row.subCategoryId }
+                                Text(
+                                    text = selectedSub?.name ?: "Sub-category (Opt)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (selectedSub != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        ExposedDropdownMenu(
+                            expanded = showSubDropdown,
+                            onDismissRequest = { showSubDropdown = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("None", style = MaterialTheme.typography.bodyMedium) },
+                                onClick = {
+                                    onUpdate(row.copy(subCategoryId = null))
+                                    showSubDropdown = false
+                                }
+                            )
                             subCategories.forEach { sub ->
                                 DropdownMenuItem(
-                                    text = { Text(sub.name) },
-                                    onClick = { onUpdate(row.copy(subCategoryId = sub.id)); showSubDropdown = false }
+                                    text = { Text(sub.name, style = MaterialTheme.typography.bodyMedium) },
+                                    onClick = {
+                                        onUpdate(row.copy(subCategoryId = sub.id))
+                                        showSubDropdown = false
+                                    }
                                 )
                             }
                         }
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+
+            // Description, Amount, Fill Balance Button, Remove Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 OutlinedTextField(
-                    value = row.description, onValueChange = { onUpdate(row.copy(description = it)) },
-                    label = { Text("Description") }, modifier = Modifier.weight(1f), singleLine = true
+                    value = row.description,
+                    onValueChange = { onUpdate(row.copy(description = it)) },
+                    placeholder = { Text("Description", fontSize = 12.sp) },
+                    modifier = Modifier.weight(1.2f),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
                 )
+
                 OutlinedTextField(
-                    value = row.amount, onValueChange = { onUpdate(row.copy(amount = it)) },
-                    label = { Text("Amount") },
+                    value = row.amount,
+                    onValueChange = { onUpdate(row.copy(amount = it)) },
+                    placeholder = { Text("0.00", fontSize = 12.sp) },
+                    prefix = { Text(currencySymbol, fontSize = 12.sp, fontWeight = FontWeight.Bold) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.width(100.dp), singleLine = true
+                    modifier = Modifier.width(110.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
                 )
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable {
-                        if (remainingAmount > 0) {
+
+                if (remainingAmount > 0) {
+                    Surface(
+                        onClick = {
                             val currentAmt = row.amount.toDoubleOrNull() ?: 0.0
                             val newAmt = currentAmt + remainingAmount
                             onUpdate(row.copy(amount = "%.2f".format(Locale.US, newAmt)))
-                        }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            text = "Fill",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                        )
                     }
-                ) {
-                    Text(
-                        "Fill",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (remainingAmount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "$currencySymbol${"%.2f".format(Locale.US, remainingAmount)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (abs(remainingAmount) < 0.01) MaterialTheme.colorScheme.primary
-                        else if (remainingAmount < 0) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurface
-                    )
                 }
-                IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, "Remove split", tint = MaterialTheme.colorScheme.error) }
+
+                Surface(
+                    onClick = onRemove,
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Remove split",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
         }
     }
