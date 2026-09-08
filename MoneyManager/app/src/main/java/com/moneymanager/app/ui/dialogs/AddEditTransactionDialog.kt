@@ -519,7 +519,9 @@ fun AddEditTransactionDialog(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Top Bar with Back Arrow
                 DialogTopBar(
@@ -531,158 +533,146 @@ fun AddEditTransactionDialog(
                 // Transaction Type Tabs (Expense, Income, Savings, Transfer, Lending)
                 TransactionTypeHeader(selectedType = type, onTypeSelected = ::onTypeSelected)
 
-                Spacer(Modifier.height(6.dp))
-
-                // Scrollable Upper Body (Amount, Date, Account, Category shortcuts)
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Source / AI Review Banner
-                    if (initialDraft?.sourceType != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Draft from ${initialDraft.sourceType.replaceFirstChar { it.uppercase() }}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-
-                    if (showReviewBanner(initialDraft)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Some fields need review — AI confidence low.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            )
-                        }
-                    }
-
-                    // 1. Amount, Date, Account Card
-                    FormAmountDateAccountCard(
-                        amount = amount,
-                        currency = currency,
-                        selectedDate = selectedDate,
-                        selectedAccountId = selectedAccountId,
-                        selectedToAccountId = selectedToAccountId,
-                        selectedPeerId = selectedPeerId,
-                        type = type,
-                        accounts = accounts,
-                        peers = peers,
-                        expectedReturnDate = expectedReturnDate,
-                        showExpectedReturnDate = TransactionFeature.RETURN_DATE in features,
-                        accentColor = accentColor,
-                        onDateClick = { showDatePicker = true },
-                        onAccountClick = { showAccountDropdown = true },
-                        onToAccountClick = { showToAccountDropdown = true },
-                        onPeerClick = { showPeerDialog = true },
-                        onExpectedReturnDateClick = { showExpectedReturnDatePicker = true }
-                    )
-
-                    // Account Dropdown Menus
-                    DropdownMenu(
-                        expanded = showAccountDropdown,
-                        onDismissRequest = { showAccountDropdown = false }
+                // Source / AI Review Banner
+                if (initialDraft?.sourceType != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        (filteredAccounts.ifEmpty { accounts }).forEach { acc ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(acc.name)
-                                    }
-                                },
-                                onClick = {
-                                    aiSuggestedFields -= "account"
-                                    selectedAccountId = acc.id
-                                    showAccountDropdown = false
-                                }
-                            )
-                        }
-                    }
-
-                    DropdownMenu(
-                        expanded = showToAccountDropdown,
-                        onDismissRequest = { showToAccountDropdown = false }
-                    ) {
-                        accounts.filter { it.id != selectedAccountId }.forEach { acc ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(acc.name)
-                                    }
-                                },
-                                onClick = {
-                                    selectedToAccountId = acc.id
-                                    showToAccountDropdown = false
-                                }
-                            )
-                        }
-                    }
-
-                    // 2. Category Section with Special Features Trigger
-                    if (TransactionFeature.CATEGORY in features) {
-                        FormCategorySection(
-                            categories = categories,
-                            categoryFilter = categoryFilter,
-                            selectedCategoryId = selectedCategoryId,
-                            expandedCategoryId = expandedCategoryId,
-                            categoryUsageCounts = categoryUsageCounts,
-                            hasActiveSpecialFeatures = hasActiveSpecialFeatures,
-                            accentColor = accentColor,
-                            accentContainer = accentContainer,
-                            onCategoryClick = { cat ->
-                                aiSuggestedFields -= "category"
-                                if (cat.id == selectedCategoryId) {
-                                    selectedCategoryId = null
-                                    if (cat.parentId == null) expandedCategoryId = null
-                                } else {
-                                    selectedCategoryId = cat.id
-                                    if (cat.parentId == null) expandedCategoryId = cat.id
-                                }
-                            },
-                            onBackClick = { expandedCategoryId = null },
-                            onMoreClick = { showCategorySearch = true },
-                            onOpenSpecialFeatures = { showSpecialFeaturesSheet = true }
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Draft from ${initialDraft.sourceType.replaceFirstChar { it.uppercase() }}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
 
-                Spacer(Modifier.height(6.dp))
+                if (showReviewBanner(initialDraft)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Some fields need review — AI confidence low.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
+                }
 
-                // 3. Keypad Fixed at Bottom
+                // 1. Amount, Date, Account Card
+                FormAmountDateAccountCard(
+                    amount = amount,
+                    currency = currency,
+                    selectedDate = selectedDate,
+                    selectedAccountId = selectedAccountId,
+                    selectedToAccountId = selectedToAccountId,
+                    selectedPeerId = selectedPeerId,
+                    type = type,
+                    accounts = accounts,
+                    peers = peers,
+                    expectedReturnDate = expectedReturnDate,
+                    showExpectedReturnDate = TransactionFeature.RETURN_DATE in features,
+                    accentColor = accentColor,
+                    onDateClick = { showDatePicker = true },
+                    onAccountClick = { showAccountDropdown = true },
+                    onToAccountClick = { showToAccountDropdown = true },
+                    onPeerClick = { showPeerDialog = true },
+                    onExpectedReturnDateClick = { showExpectedReturnDatePicker = true }
+                )
+
+                // Account Dropdown Menus
+                DropdownMenu(
+                    expanded = showAccountDropdown,
+                    onDismissRequest = { showAccountDropdown = false }
+                ) {
+                    (filteredAccounts.ifEmpty { accounts }).forEach { acc ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(acc.name)
+                                }
+                            },
+                            onClick = {
+                                aiSuggestedFields -= "account"
+                                selectedAccountId = acc.id
+                                showAccountDropdown = false
+                            }
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = showToAccountDropdown,
+                    onDismissRequest = { showToAccountDropdown = false }
+                ) {
+                    accounts.filter { it.id != selectedAccountId }.forEach { acc ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(accountTypeIcon(acc.type), null, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(acc.name)
+                                }
+                            },
+                            onClick = {
+                                selectedToAccountId = acc.id
+                                showToAccountDropdown = false
+                            }
+                        )
+                    }
+                }
+
+                // 2. Category Section with Special Features Trigger
+                if (TransactionFeature.CATEGORY in features) {
+                    FormCategorySection(
+                        categories = categories,
+                        categoryFilter = categoryFilter,
+                        selectedCategoryId = selectedCategoryId,
+                        expandedCategoryId = expandedCategoryId,
+                        categoryUsageCounts = categoryUsageCounts,
+                        hasActiveSpecialFeatures = hasActiveSpecialFeatures,
+                        accentColor = accentColor,
+                        accentContainer = accentContainer,
+                        onCategoryClick = { cat ->
+                            aiSuggestedFields -= "category"
+                            if (cat.id == selectedCategoryId) {
+                                selectedCategoryId = null
+                                if (cat.parentId == null) expandedCategoryId = null
+                            } else {
+                                selectedCategoryId = cat.id
+                                if (cat.parentId == null) expandedCategoryId = cat.id
+                            }
+                        },
+                        onBackClick = { expandedCategoryId = null },
+                        onMoreClick = { showCategorySearch = true },
+                        onOpenSpecialFeatures = { showSpecialFeaturesSheet = true }
+                    )
+                }
+
+                // 3. Keypad Fixed Directly Below Category Section
                 NumericKeypad(
                     modifier = Modifier.fillMaxWidth(),
                     accentColor = accentColor,
