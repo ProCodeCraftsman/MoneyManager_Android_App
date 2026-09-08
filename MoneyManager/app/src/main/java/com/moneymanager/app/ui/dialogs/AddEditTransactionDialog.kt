@@ -236,12 +236,10 @@ fun AddEditTransactionDialog(
 
     val hasActiveSpecialFeatures = remember(
         isEmiEnabled, description, selectedTagIds, receiptData,
-        splitEnabled, isRecurring, selectedGoalId, selectedPlatform,
-        selectedPeerId, expectedReturnDate
+        splitEnabled, selectedGoalId, selectedPeerId, expectedReturnDate
     ) {
         isEmiEnabled || description.isNotBlank() || selectedTagIds.isNotEmpty() ||
-                receiptData != null || splitEnabled || isRecurring ||
-                selectedGoalId != null || !selectedPlatform.isNullOrBlank() ||
+                receiptData != null || splitEnabled || selectedGoalId != null ||
                 selectedPeerId != null || expectedReturnDate != null
     }
 
@@ -734,10 +732,8 @@ fun AddEditTransactionDialog(
                 receiptData = receiptData,
                 splitEnabled = splitEnabled,
                 splitRows = splitRows,
-                isRecurring = isRecurring,
                 selectedGoalId = selectedGoalId,
                 goals = goals,
-                selectedPlatform = selectedPlatform,
                 selectedPeerId = selectedPeerId,
                 peers = peers,
                 expectedReturnDate = expectedReturnDate,
@@ -755,11 +751,10 @@ fun AddEditTransactionDialog(
                 onRemoveReceipt = { receiptData = null },
                 onPreviewReceipt = { showReceiptPreview = true },
                 onOpenSplit = { showSplitDialog = true },
-                onToggleRecurring = { isRecurring = !isRecurring },
                 onOpenGoal = { showGoalDialog = true },
-                onOpenPlatform = { showPlatformDialog = true },
                 onOpenPeer = { showPeerDialog = true },
                 onOpenReturnDate = { showExpectedReturnDatePicker = true },
+                onOpenTags = { showTagsDialog = true },
                 onDismiss = { showSpecialFeaturesSheet = false }
             )
         }
@@ -1356,10 +1351,8 @@ private fun SpecialFeaturesBottomSheetContent(
     receiptData: String?,
     splitEnabled: Boolean,
     splitRows: List<SplitRowData>,
-    isRecurring: Boolean,
     selectedGoalId: Long?,
     goals: List<GoalEntity>,
-    selectedPlatform: String?,
     selectedPeerId: Long?,
     peers: List<PeerContact>,
     expectedReturnDate: Long?,
@@ -1372,11 +1365,10 @@ private fun SpecialFeaturesBottomSheetContent(
     onRemoveReceipt: () -> Unit,
     onPreviewReceipt: () -> Unit,
     onOpenSplit: () -> Unit,
-    onToggleRecurring: () -> Unit,
     onOpenGoal: () -> Unit,
-    onOpenPlatform: () -> Unit,
     onOpenPeer: () -> Unit,
     onOpenReturnDate: () -> Unit,
+    onOpenTags: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Column(
@@ -1547,7 +1539,7 @@ private fun SpecialFeaturesBottomSheetContent(
             }
         }
 
-        // 3. Tags & Labels Card
+        // 3. Tags & Labels Card (Master data tags only)
         if (TransactionFeature.TAGS in features) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -1597,42 +1589,53 @@ private fun SpecialFeaturesBottomSheetContent(
                         )
                     }
 
-                    val defaultSampleTags = remember { listOf("personal", "office", "reimbursable", "travel") }
-                    val displayTags = remember(tags) {
-                        if (tags.isNotEmpty()) tags
-                        else defaultSampleTags.mapIndexed { idx, name -> TagEntity(id = (idx + 1).toLong(), name = name) }
-                    }
-
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        displayTags.forEach { tag ->
-                            val isSelected = tag.id in selectedTagIds
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { onToggleTag(tag.id) },
-                                label = {
-                                    Text(
-                                        "#${tag.name}",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                shape = RoundedCornerShape(20.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = accentColor.copy(alpha = 0.2f),
-                                    selectedLabelColor = accentColor,
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    labelColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
+                    if (tags.isNotEmpty()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            tags.forEach { tag ->
+                                val isSelected = tag.id in selectedTagIds
+                                FilterChip(
                                     selected = isSelected,
-                                    borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                                    selectedBorderColor = accentColor
+                                    onClick = { onToggleTag(tag.id) },
+                                    label = {
+                                        Text(
+                                            "#${tag.name}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = accentColor.copy(alpha = 0.2f),
+                                        selectedLabelColor = accentColor,
+                                        containerColor = MaterialTheme.colorScheme.surface,
+                                        labelColor = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = isSelected,
+                                        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                        selectedBorderColor = accentColor
+                                    )
                                 )
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "No tags created yet",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            TextButton(onClick = onOpenTags) {
+                                Text("Manage Tags >", style = MaterialTheme.typography.labelSmall, color = accentColor)
+                            }
                         }
                     }
                 }
@@ -1746,66 +1749,7 @@ private fun SpecialFeaturesBottomSheetContent(
             }
         }
 
-        // 5. Set Recurring Card
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)),
-            onClick = onToggleRecurring
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = accentColor.copy(alpha = 0.15f),
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.Event,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            "Set Recurring",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "Repeat expense automatically",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Text(
-                    text = if (isRecurring) "Monthly >" else "Off >",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isRecurring) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (isRecurring) FontWeight.Bold else FontWeight.Normal
-                )
-            }
-        }
-
-        // 6. Transaction Extras (Goal, Platform, Person, Return Date)
+        // 5. Transaction Extras (Goal, Person, Return Date)
         if (TransactionFeature.GOAL in features) {
             val goalName = goals.find { it.id == selectedGoalId }?.name
             ExtraOptionTile(
@@ -1814,16 +1758,6 @@ private fun SpecialFeaturesBottomSheetContent(
                 subtitle = goalName ?: "Select goal >",
                 accentColor = accentColor,
                 onClick = onOpenGoal
-            )
-        }
-
-        if (TransactionFeature.PLATFORM in features) {
-            ExtraOptionTile(
-                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                title = "Investment Platform",
-                subtitle = if (selectedPlatform.isNullOrBlank()) "Add platform >" else selectedPlatform,
-                accentColor = accentColor,
-                onClick = onOpenPlatform
             )
         }
 
