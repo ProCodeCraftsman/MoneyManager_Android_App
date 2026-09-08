@@ -3,6 +3,7 @@ package com.moneymanager.app.ui.dialogs
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import android.widget.Toast
 import java.io.File
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -165,22 +166,40 @@ fun AddEditTransactionDialog(
         mutableStateOf(
             if (transaction?.isSplitParent == true && splitChildren.isNotEmpty()) {
                 splitChildren.mapIndexed { index, child ->
-                    val pId = child.categoryId?.let { cid ->
-                        val cat = categories.firstOrNull { it.id == cid }
-                        if (cat?.parentId != null) cat.parentId else cid
-                    }
-                    val sId = child.categoryId?.let { cid ->
-                        val cat = categories.firstOrNull { it.id == cid }
-                        if (cat?.parentId != null) cid else null
+                    val (pId, sId) = if (child.subCategoryId != null) {
+                        child.categoryId to child.subCategoryId
+                    } else {
+                        child.categoryId?.let { cid ->
+                            val cat = categories.firstOrNull { it.id == cid }
+                            if (cat?.parentId != null) cat.parentId to cid else cid to null
+                        } ?: (null to null)
                     }
                     SplitRowData(index, pId, sId, child.note, child.amount.toString())
                 }
             } else {
-                listOf(SplitRowData(0), SplitRowData(1))
+                val selectedCat = categories.firstOrNull { it.id == selectedCategoryId }
+                val initialParentId = selectedCat?.parentId ?: selectedCat?.id
+                val initialSubId = if (selectedCat?.parentId != null) selectedCat.id else null
+                listOf(
+                    SplitRowData(0, initialParentId, initialSubId, description, amount),
+                    SplitRowData(1)
+                )
             }
         )
     }
     var splitIdCounter by rememberSaveable { mutableIntStateOf(2) }
+
+    fun updateSplitRowsFromSelection() {
+        if (splitRows.all { it.categoryId == null }) {
+            val selectedCat = categories.firstOrNull { it.id == selectedCategoryId }
+            val pId = selectedCat?.parentId ?: selectedCat?.id
+            val sId = if (selectedCat?.parentId != null) selectedCat.id else null
+            splitRows = listOf(
+                SplitRowData(0, pId, sId, description, amount),
+                SplitRowData(1)
+            )
+        }
+    }
 
     // ── Tags State ──
     var tagQuery by rememberSaveable { mutableStateOf("") }
@@ -365,7 +384,8 @@ fun AddEditTransactionDialog(
                 accountId = selectedAccountId!!,
                 type = type,
                 amount = rowAmt,
-                categoryId = row.subCategoryId ?: row.categoryId,
+                categoryId = row.categoryId,
+                subCategoryId = row.subCategoryId,
                 tagIds = "",
                 date = selectedDate,
                 note = row.description,
@@ -384,6 +404,22 @@ fun AddEditTransactionDialog(
                 amount = if (res % 1.0 == 0.0) "%.0f".format(Locale.US, res) else "%.2f".format(Locale.US, res)
             }
         } catch (_: Exception) {}
+
+        if (splitEnabled && TransactionFeature.SPLIT in features) {
+            val activeRows = splitRows.filter { (it.amount.toDoubleOrNull() ?: 0.0) > 0 }
+            if (activeRows.size < 2) {
+                Toast.makeText(context, "Split transaction requires at least 2 split items", Toast.LENGTH_SHORT).show()
+                return
+            }
+            if (activeRows.any { it.categoryId == null }) {
+                Toast.makeText(context, "Please select a category for each split item", Toast.LENGTH_SHORT).show()
+                return
+            }
+            if (abs(splitRemaining) >= 0.01) {
+                Toast.makeText(context, "Split total must match main amount (Unallocated: %.2f)".format(Locale.US, splitRemaining), Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
 
         val tx = buildTransaction()
         if (tx != null) {
@@ -404,13 +440,13 @@ fun AddEditTransactionDialog(
     LaunchedEffect(splitChildren) {
         if (transaction?.isSplitParent == true && splitChildren.isNotEmpty()) {
             splitRows = splitChildren.mapIndexed { index, child ->
-                val pId = child.categoryId?.let { cid ->
-                    val cat = categories.firstOrNull { it.id == cid }
-                    if (cat?.parentId != null) cat.parentId else cid
-                }
-                val sId = child.categoryId?.let { cid ->
-                    val cat = categories.firstOrNull { it.id == cid }
-                    if (cat?.parentId != null) cid else null
+                val (pId, sId) = if (child.subCategoryId != null) {
+                    child.categoryId to child.subCategoryId
+                } else {
+                    child.categoryId?.let { cid ->
+                        val cat = categories.firstOrNull { it.id == cid }
+                        if (cat?.parentId != null) cat.parentId to cid else cid to null
+                    } ?: (null to null)
                 }
                 SplitRowData(index, pId, sId, child.note, child.amount.toString())
             }
@@ -747,7 +783,7 @@ fun AddEditTransactionDialog(
                 onAddReceipt = { filePicker.launch("image/*") },
                 onRemoveReceipt = { receiptData = null },
                 onPreviewReceipt = { showReceiptPreview = true },
-                onOpenSplit = { showSplitDialog = true },
+                onOpenSplit = { updateSplitRowsFromSelection(); showSplitDialog = true },
                 onOpenGoal = { showGoalDialog = true },
                 onOpenPeer = { showPeerDialog = true },
                 onOpenReturnDate = { showExpectedReturnDatePicker = true },
@@ -804,7 +840,10 @@ fun AddEditTransactionDialog(
             currency = currency,
             accentColor = accentColor,
             accentContainer = accentContainer,
-            onToggleSplitEnabled = { splitEnabled = it },
+            onToggleSplitEnabled = { enabled ->
+                splitEnabled = enabled
+                if (enabled) updateSplitRowsFromSelection()
+            },
             onUpdateRow = { index, updated ->
                 splitRows = splitRows.toMutableList().also { it[index] = updated }
             },

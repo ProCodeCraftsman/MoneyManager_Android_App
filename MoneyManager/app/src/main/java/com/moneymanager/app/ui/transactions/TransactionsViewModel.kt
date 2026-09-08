@@ -520,12 +520,15 @@ class TransactionsViewModel @Inject constructor(
                     accountRepository.updateAccountBalance(new.accountId, -new.amount)
                     new.toAccountId?.let { accountRepository.updateAccountBalance(it, new.amount) }
                 } else {
-                    if (updatedParent.isSplitParent && children != null) {
-                        transactionRepository.deleteSplitChildren(old.id)
-                        children.forEach { child ->
-                            transactionRepository.insertTransaction(child.copy(isSplitChild = true, parentTransactionId = updatedParent.id))
-                        }
+                if (old.isSplitParent) {
+                    transactionRepository.deleteSplitChildren(old.id)
+                }
+
+                if (updatedParent.isSplitParent && children != null) {
+                    children.forEach { child ->
+                        transactionRepository.insertTransaction(child.copy(isSplitChild = true, parentTransactionId = updatedParent.id))
                     }
+                }
 
                     adjustBalance(updatedParent, reverse = false)
                     updatePeerBalance(updatedParent, reverse = false)

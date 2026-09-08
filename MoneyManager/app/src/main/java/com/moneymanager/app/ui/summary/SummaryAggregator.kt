@@ -47,12 +47,12 @@ object SummaryAggregator {
     }
 
     fun sumByType(txs: List<TransactionEntity>, type: String): Double =
-        txs.filter { it.type == type }.sumOf { it.amount }
+        txs.filter { it.type == type && !it.isSplitChild }.sumOf { it.amount }
 
     /**
      * PieChartEntry list of expense by category, sorted desc.
      * Top (topN-1) categories returned individually; the rest are combined as "Others".
-     * Expects [txs] to already have split-children excluded.
+     * Evaluates split child entries when present to reflect accurate category allocation.
      */
     fun expenseByCategory(
         txs: List<TransactionEntity>,
@@ -61,7 +61,7 @@ object SummaryAggregator {
         othersColor: Color = Color(0xFF90A4AE),
         parseColor: (String?, Long) -> Color
     ): List<PieChartEntry> {
-        val expenseTxs = txs.filter { it.type == "expense" }
+        val expenseTxs = txs.filter { it.type == "expense" && !it.isSplitParent }
         val total = expenseTxs.sumOf { it.amount }
         if (total <= 0.0) return emptyList()
 
@@ -114,7 +114,7 @@ object SummaryAggregator {
         othersColor: Color = Color(0xFF90A4AE),
         parseColor: (String?, Long) -> Color
     ): List<PieChartEntry> {
-        val expenseTxs = txs.filter { it.type == "expense" }
+        val expenseTxs = txs.filter { it.type == "expense" && !it.isSplitChild }
         val total = expenseTxs.sumOf { it.amount }
         if (total <= 0.0) return emptyList()
 
@@ -161,7 +161,7 @@ object SummaryAggregator {
         topN: Int = 5,
         parseColor: (String?) -> Color
     ): List<BudgetUtilizationRow> {
-        val expenseTxs = txs.filter { it.type == "expense" }
+        val expenseTxs = txs.filter { it.type == "expense" && !it.isSplitParent }
         val totalExpense = expenseTxs.sumOf { it.amount }
 
         val allCategoryIds = (expenseTxs.map { it.categoryId } + budgets.map { it.categoryId })
@@ -206,7 +206,7 @@ object SummaryAggregator {
         topN: Int = 10,
         parseColor: (String?, Long) -> Color
     ): List<CategorySpend> {
-        val incomeTxs = txs.filter { it.type == "income" }
+        val incomeTxs = txs.filter { it.type == "income" && !it.isSplitParent }
         val total = incomeTxs.sumOf { it.amount }
         if (total <= 0.0) return emptyList()
 
@@ -267,7 +267,7 @@ object SummaryAggregator {
         othersColor: Color = Color(0xFF90A4AE),
         parseColor: (String?, Long) -> Color
     ): List<PieChartEntry> {
-        val incomeTxs = txs.filter { it.type == "income" }
+        val incomeTxs = txs.filter { it.type == "income" && !it.isSplitParent }
         val total = incomeTxs.sumOf { it.amount }
         if (total <= 0.0) return emptyList()
 
