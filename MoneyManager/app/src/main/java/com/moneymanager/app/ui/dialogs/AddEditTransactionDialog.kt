@@ -3070,10 +3070,49 @@ internal fun FormCategorySearchSheet(
     onCategorySelected: (CategoryEntity) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val filtered = remember(categories, categoryFilter, query) {
-        val byType = categories.filter { it.type == categoryFilter }
-        if (query.isBlank()) byType.sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
-        else byType.filter { it.name.contains(query, ignoreCase = true) }
+    val byType = remember(categories, categoryFilter) {
+        if (categoryFilter == "all") categories else categories.filter { it.type == categoryFilter }
+    }
+
+    val subsByParent = remember(byType) {
+        byType.filter { it.parentId != null }.groupBy { it.parentId!! }
+    }
+
+    val allParents = remember(byType, subsByParent, categoryUsageCounts) {
+        byType.filter { it.parentId == null }.sortedByDescending { cat ->
+            val direct = categoryUsageCounts[cat.id] ?: 0
+            val subCounts = subsByParent[cat.id]?.sumOf { categoryUsageCounts[it.id] ?: 0 } ?: 0
+            direct + subCounts
+        }
+    }
+
+    val parentIds = remember(allParents) { allParents.map { it.id }.toSet() }
+    val orphanSubs = remember(byType, parentIds) {
+        byType.filter { it.parentId != null && !parentIds.contains(it.parentId) }
+    }
+
+    var expandedParentIds by remember(allParents) {
+        mutableStateOf(allParents.map { it.id }.toSet())
+    }
+
+    val (displayParents, displaySubsMap, displayOrphans) = remember(allParents, subsByParent, orphanSubs, query) {
+        if (query.isBlank()) {
+            Triple(allParents, subsByParent, orphanSubs)
+        } else {
+            val matchedParents = mutableListOf<CategoryEntity>()
+            val matchedSubsMap = mutableMapOf<Long, List<CategoryEntity>>()
+            allParents.forEach { parent ->
+                val subs = subsByParent[parent.id] ?: emptyList()
+                val parentMatches = parent.name.contains(query, ignoreCase = true)
+                val matchingSubs = subs.filter { it.name.contains(query, ignoreCase = true) }
+                if (parentMatches || matchingSubs.isNotEmpty()) {
+                    matchedParents.add(parent)
+                    matchedSubsMap[parent.id] = if (parentMatches && matchingSubs.isEmpty()) subs else matchingSubs
+                }
+            }
+            val matchedOrphans = orphanSubs.filter { it.name.contains(query, ignoreCase = true) }
+            Triple(matchedParents, matchedSubsMap, matchedOrphans)
+        }
     }
 
     ModalBottomSheet(
@@ -3129,30 +3168,168 @@ internal fun FormCategorySearchSheet(
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                filtered.forEach { cat ->
-                    val parentCat = if (cat.parentId != null) categories.firstOrNull { it.id == cat.parentId } else null
-                    Surface(
-                        onClick = { onCategorySelected(cat) },
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth()
+                displayParents.forEach { parent ->
+                    val subCategories = displaySubsMap[parent.id] ?: emptyList()
+                    val hasSubCategories = subCategories.isNotEmpty()
+                    val isExpanded = parent.id in expandedParentIds || query.isNotBlank()
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            onClick = { onCategorySelected(parent) },
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            CategoryIcon(emoji = cat.emoji, iconType = cat.iconType, colorIndex = cat.colorIndex, fontSize = 22.sp)
-                            Spacer(Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(cat.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                if (parentCat != null) {
-                                    Text("In ${parentCat.name}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CategoryIcon(
+                                    emoji = parent.emoji,
+                                    iconType = parent.iconType,
+                                    colorIndex = parent.colorIndex,
+                                    fontSize = 22.sp
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        parent.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (hasSubCategories) {
+                                        Text(
+                                            "${subCategories.size} sub-categories",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                                if (hasSubCategories) {
+                                    IconButton(
+                                        onClick = {
+                                            expandedParentIds = if (isExpanded && query.isBlank()) {
+                                                expandedParentIds - parent.id
+                                            } else {
+                                                expandedParentIds + parent.id
+                                            }
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(Modifier.width(4.dp))
+                                }
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = "Select",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        if (isExpanded && hasSubCategories) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 32.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                subCategories.forEach { subCat ->
+                                    Surface(
+                                        onClick = { onCategorySelected(subCat) },
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f),
+                                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            CategoryIcon(
+                                                emoji = subCat.emoji,
+                                                iconType = subCat.iconType,
+                                                colorIndex = subCat.colorIndex,
+                                                fontSize = 18.sp
+                                            )
+                                            Spacer(Modifier.width(10.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    subCat.name,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                            Icon(
+                                                Icons.Default.ChevronRight,
+                                                contentDescription = "Select",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
+                if (displayOrphans.isNotEmpty()) {
+                    Text(
+                        "Other Sub-categories",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    displayOrphans.forEach { subCat ->
+                        Surface(
+                            onClick = { onCategorySelected(subCat) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f),
+                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CategoryIcon(
+                                    emoji = subCat.emoji,
+                                    iconType = subCat.iconType,
+                                    colorIndex = subCat.colorIndex,
+                                    fontSize = 18.sp
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    subCat.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = "Select",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
