@@ -280,6 +280,8 @@ class ExportRepository @Inject constructor(
             obj.put("iconType", account.iconType)
             obj.put("color", account.color)
             obj.put("peerContactId", account.peerContactId)
+            obj.put("isArchived", account.isArchived)
+            obj.put("archivedAt", account.archivedAt)
             obj.put("createdAt", account.createdAt)
             obj.put("updatedAt", account.updatedAt)
             array.put(obj)
@@ -319,6 +321,7 @@ class ExportRepository @Inject constructor(
             obj.put("toAccountId", tx.toAccountId)
             obj.put("emiId", tx.emiId)
             obj.put("emiInstallmentNumber", tx.emiInstallmentNumber)
+            obj.put("postedToBalance", tx.postedToBalance)
             array.put(obj)
         }
         return array
@@ -424,14 +427,22 @@ class ExportRepository @Inject constructor(
             obj.put("categoryId", item.categoryId)
             obj.put("subCategoryId", item.subCategoryId)
             obj.put("goalId", item.goalId)
+            obj.put("peerContactId", item.peerContactId)
+            obj.put("tagIds", item.tagIds)
+            obj.put("description", item.description)
             obj.put("note", item.note)
             obj.put("frequency", item.frequency)
             obj.put("startDate", item.startDate)
             obj.put("nextDate", item.nextDate)
+            obj.put("endDate", item.endDate)
             obj.put("isActive", item.isActive)
             obj.put("reminderEnabled", item.reminderEnabled)
             obj.put("reminderDays", item.reminderDays)
+            obj.put("toAccountId", item.toAccountId)
             obj.put("investmentPlatform", item.investmentPlatform)
+            obj.put("receiptPath", item.receiptPath)
+            obj.put("expectedReturnDate", item.expectedReturnDate)
+            obj.put("splitData", item.splitData)
             obj.put("createdAt", item.createdAt)
             array.put(obj)
         }
@@ -468,16 +479,16 @@ class ExportRepository @Inject constructor(
         
         val sb = StringBuilder()
         // Updated header with all TransactionEntity fields including emi_id and emi_installment_number
-        sb.appendLine("id,account_id,category_id,sub_category_id,goal_id,peer_contact_id,tag_ids,date,amount,type,note,description,receipt_path,recurring_id,split_data,investment_platform,expected_return_date,created_at,is_recurring,is_split_parent,is_split_child,parent_transaction_id,is_transfer,to_account_id,emi_id,emi_installment_number")
-        
+        sb.appendLine("id,account_id,category_id,sub_category_id,goal_id,peer_contact_id,tag_ids,date,amount,type,note,description,receipt_path,recurring_id,split_data,investment_platform,expected_return_date,created_at,is_recurring,is_split_parent,is_split_child,parent_transaction_id,is_transfer,to_account_id,emi_id,emi_installment_number,posted_to_balance")
+
         transactions.forEach { tx ->
             val accountName = accounts[tx.accountId]?.name ?: ""
             val categoryName = categories[tx.categoryId]?.name ?: ""
-            
+
             // Format timestamp fields
             val expectedReturnDateStr = tx.expectedReturnDate?.let { dateFormat.format(Date(it)) } ?: ""
             val createdAtStr = dateFormat.format(Date(tx.createdAt))
-            
+
             sb.appendLine(
                 "${tx.id}," +
                 "${tx.accountId}," +
@@ -504,7 +515,8 @@ class ExportRepository @Inject constructor(
                 "${tx.isTransfer}," +
                 "${tx.toAccountId ?: ""}," +
                 "${tx.emiId ?: ""}," +
-                "${tx.emiInstallmentNumber ?: ""}"
+                "${tx.emiInstallmentNumber ?: ""}," +
+                "${tx.postedToBalance}"
             )
         }
         return sb.toString()
@@ -513,9 +525,13 @@ class ExportRepository @Inject constructor(
     private suspend fun exportAccountsCsv(): String {
         val accounts = accountDao.getAllAccounts().first()
         val sb = StringBuilder()
-        sb.appendLine("name,type,initial_balance,balance,currency,color,emoji,icon_type")
+        sb.appendLine("id,name,type,initial_balance,balance,currency,color,emoji,icon_type,peer_contact_id,is_archived,archived_at,created_at,updated_at")
         accounts.forEach { acc ->
+            val archivedAtStr = acc.archivedAt?.let { dateFormat.format(Date(it)) } ?: ""
+            val createdAtStr = dateFormat.format(Date(acc.createdAt))
+            val updatedAtStr = dateFormat.format(Date(acc.updatedAt))
             sb.appendLine(
+                "${acc.id}," +
                 "\"${acc.name.replace("\"", "\"\"")}\"," +
                 "${acc.type}," +
                 "${acc.initialBalance}," +
@@ -523,7 +539,12 @@ class ExportRepository @Inject constructor(
                 "${acc.currency}," +
                 "${acc.color}," +
                 "${acc.emoji}," +
-                "${acc.iconType}"
+                "${acc.iconType}," +
+                "${acc.peerContactId ?: ""}," +
+                "${acc.isArchived}," +
+                "\"$archivedAtStr\"," +
+                "\"$createdAtStr\"," +
+                "\"$updatedAtStr\""
             )
         }
         return sb.toString()
@@ -579,15 +600,21 @@ class ExportRepository @Inject constructor(
     private suspend fun exportPeersCsv(): String {
         val peers = peerContactDao.getAllPeers().first()
         return buildString {
-            appendLine("displayName,phoneNumber,email,description,totalGiven,totalReceived")
+            appendLine("id,displayName,phoneNumber,email,description,photoUri,totalGiven,totalReceived,createdAt,updatedAt")
             peers.forEach { peer ->
+                val createdAtStr = dateFormat.format(Date(peer.createdAt))
+                val updatedAtStr = dateFormat.format(Date(peer.updatedAt))
                 appendLine(
+                    "${peer.id}," +
                     "\"${peer.displayName.replace("\"", "\"\"")}\"," +
                     "\"${peer.phoneNumber.replace("\"", "\"\"")}\"," +
                     "\"${peer.email.replace("\"", "\"\"")}\"," +
                     "\"${peer.description.replace("\"", "\"\"")}\"," +
+                    "\"${peer.photoUri ?: ""}\"," +
                     "${peer.totalGiven}," +
-                    "${peer.totalReceived}"
+                    "${peer.totalReceived}," +
+                    "\"$createdAtStr\"," +
+                    "\"$updatedAtStr\""
                 )
             }
         }
@@ -596,11 +623,21 @@ class ExportRepository @Inject constructor(
     private suspend fun exportRecurringCsv(): String {
         val recurring = recurringDao.getAllRecurring().first()
         val sb = StringBuilder()
-        sb.appendLine("account_id,type,amount,category_id,sub_category_id,goal_id,note,frequency,start_date,next_date,is_active,reminder_enabled,reminder_days,investment_platform")
+        sb.appendLine("account_id,type,amount,category_id,sub_category_id,goal_id,note,frequency,start_date,next_date,is_active,reminder_enabled,reminder_days,investment_platform,peer_contact_id,tag_ids,description,end_date,to_account_id,receipt_path,expected_return_date,split_data")
         recurring.forEach { item ->
             val startDateStr = dateFormat.format(Date(item.startDate))
             val nextDateStr = dateFormat.format(Date(item.nextDate))
-            sb.appendLine("${item.accountId},${item.type},${item.amount},${item.categoryId ?: ""},${item.subCategoryId ?: ""},${item.goalId ?: ""},\"${item.note.replace("\"", "\"\"")}\",${item.frequency},$startDateStr,$nextDateStr,${item.isActive},${item.reminderEnabled},${item.reminderDays},${item.investmentPlatform ?: ""}")
+            val endDateStr = item.endDate?.let { dateFormat.format(Date(it)) } ?: ""
+            val expectedReturnDateStr = item.expectedReturnDate?.let { dateFormat.format(Date(it)) } ?: ""
+            // splitData is JSON containing its own quotes/commas; base64-encode it so the CSV's
+            // simple quote-toggling parser (parseCsvLine) can't mis-split or corrupt it.
+            val splitDataB64 = item.splitData?.let { java.util.Base64.getEncoder().encodeToString(it.toByteArray(Charsets.UTF_8)) } ?: ""
+            sb.appendLine(
+                "${item.accountId},${item.type},${item.amount},${item.categoryId ?: ""},${item.subCategoryId ?: ""},${item.goalId ?: ""}," +
+                "\"${item.note.replace("\"", "\"\"")}\",${item.frequency},$startDateStr,$nextDateStr,${item.isActive},${item.reminderEnabled},${item.reminderDays},${item.investmentPlatform ?: ""}," +
+                "${item.peerContactId ?: ""},\"${item.tagIds}\",\"${item.description.replace("\"", "\"\"")}\",\"$endDateStr\",${item.toAccountId ?: ""},\"${item.receiptPath ?: ""}\"," +
+                "\"$expectedReturnDateStr\",$splitDataB64"
+            )
         }
         return sb.toString()
     }
@@ -642,10 +679,13 @@ class ExportRepository @Inject constructor(
             appendLine()
             appendLine("# RECURRING")
             appendLine(exportRecurringCsv())
+            appendLine()
+            appendLine("# EMIS")
+            appendLine(exportEmisCsv())
         }
     }
     
-    private fun generateCsvHeader(): String = "id,account_id,category_id,sub_category_id,goal_id,peer_contact_id,tag_ids,date,amount,type,note,description,receipt_path,recurring_id,split_data,investment_platform,expected_return_date,created_at,is_recurring,is_split_parent,is_split_child,parent_transaction_id,is_transfer,to_account_id,emi_id,emi_installment_number"
+    private fun generateCsvHeader(): String = "id,account_id,category_id,sub_category_id,goal_id,peer_contact_id,tag_ids,date,amount,type,note,description,receipt_path,recurring_id,split_data,investment_platform,expected_return_date,created_at,is_recurring,is_split_parent,is_split_child,parent_transaction_id,is_transfer,to_account_id,emi_id,emi_installment_number,posted_to_balance"
     
     private suspend fun generateCsvData(): String {
         val transactions = transactionDao.getAllTransactions().first()
@@ -683,7 +723,8 @@ class ExportRepository @Inject constructor(
                     "${tx.isTransfer}," +
                     "${tx.toAccountId ?: ""}," +
                     "${tx.emiId ?: ""}," +
-                    "${tx.emiInstallmentNumber ?: ""}"
+                    "${tx.emiInstallmentNumber ?: ""}," +
+                    "${tx.postedToBalance}"
                 )
             }
         }
@@ -719,6 +760,8 @@ class ExportRepository @Inject constructor(
                 iconType = obj.optString("iconType", "emoji"),
                 color = obj.optString("color", "#2a6049"),
                 peerContactId = if (obj.has("peerContactId") && !obj.isNull("peerContactId")) obj.getLong("peerContactId") else null,
+                isArchived = obj.optBoolean("isArchived", false),
+                archivedAt = if (obj.has("archivedAt") && !obj.isNull("archivedAt")) obj.getLong("archivedAt") else null,
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
                 updatedAt = obj.optLong("updatedAt", System.currentTimeMillis()),
             )
@@ -758,6 +801,7 @@ class ExportRepository @Inject constructor(
                 expectedReturnDate = if (obj.has("expectedReturnDate") && !obj.isNull("expectedReturnDate")) obj.getLong("expectedReturnDate") else null,
                 emiId = if (obj.has("emiId") && !obj.isNull("emiId")) obj.getLong("emiId") else null,
                 emiInstallmentNumber = if (obj.has("emiInstallmentNumber") && !obj.isNull("emiInstallmentNumber")) obj.getInt("emiInstallmentNumber") else null,
+                postedToBalance = obj.optBoolean("postedToBalance", true),
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
             )
             transactionDao.insertTransaction(transaction)
@@ -875,14 +919,22 @@ class ExportRepository @Inject constructor(
                 categoryId = if (obj.has("categoryId") && !obj.isNull("categoryId")) obj.getLong("categoryId") else null,
                 subCategoryId = if (obj.has("subCategoryId") && !obj.isNull("subCategoryId")) obj.getLong("subCategoryId") else null,
                 goalId = if (obj.has("goalId") && !obj.isNull("goalId")) obj.getLong("goalId") else null,
+                peerContactId = if (obj.has("peerContactId") && !obj.isNull("peerContactId")) obj.getLong("peerContactId") else null,
+                tagIds = obj.optString("tagIds", ""),
+                description = obj.optString("description", ""),
                 note = obj.optString("note", ""),
                 frequency = obj.getString("frequency"),
                 startDate = obj.optLong("startDate", System.currentTimeMillis()),
                 nextDate = obj.getLong("nextDate"),
+                endDate = if (obj.has("endDate") && !obj.isNull("endDate")) obj.getLong("endDate") else null,
                 isActive = obj.optBoolean("isActive", true),
                 reminderEnabled = obj.optBoolean("reminderEnabled", false),
                 reminderDays = obj.optInt("reminderDays", 0),
+                toAccountId = if (obj.has("toAccountId") && !obj.isNull("toAccountId")) obj.getLong("toAccountId") else null,
                 investmentPlatform = if (obj.has("investmentPlatform") && !obj.isNull("investmentPlatform")) obj.getString("investmentPlatform") else null,
+                receiptPath = if (obj.has("receiptPath") && !obj.isNull("receiptPath")) obj.getString("receiptPath") else null,
+                expectedReturnDate = if (obj.has("expectedReturnDate") && !obj.isNull("expectedReturnDate")) obj.getLong("expectedReturnDate") else null,
+                splitData = if (obj.has("splitData") && !obj.isNull("splitData")) obj.getString("splitData") else null,
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
             )
             recurringDao.insertRecurring(item)
@@ -920,10 +972,27 @@ class ExportRepository @Inject constructor(
         var count = 0
         val lines = csv.lines().drop(1)
         val existingNames = peerContactDao.getAllPeers().first().map { it.displayName }.toHashSet()
+        // New format (>= 10 cols) has `id` as the first column; legacy format starts with `displayName`.
+        val isNewFormat = lines.firstOrNull { it.isNotBlank() }?.let { parseCsvLine(it).size >= 10 } ?: false
         for (line in lines) {
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
-            if (parts.size >= 2) {
+            if (isNewFormat && parts.size >= 10) {
+                val displayName = parts[1]
+                if (existingNames.contains(displayName)) continue
+                val peer = com.moneymanager.data.entity.PeerContact(
+                    displayName = displayName,
+                    phoneNumber = parts.getOrNull(2) ?: "",
+                    email = parts.getOrNull(3) ?: "",
+                    description = parts.getOrNull(4) ?: "",
+                    photoUri = parts.getOrNull(5)?.ifBlank { null },
+                    totalGiven = parts.getOrNull(6)?.toDoubleOrNull() ?: 0.0,
+                    totalReceived = parts.getOrNull(7)?.toDoubleOrNull() ?: 0.0,
+                )
+                peerContactDao.insertPeer(peer)
+                existingNames.add(displayName)
+                count++
+            } else if (parts.size >= 2) {
                 val displayName = parts[0]
                 if (existingNames.contains(displayName)) continue
                 val peer = com.moneymanager.data.entity.PeerContact(
@@ -1010,6 +1079,7 @@ class ExportRepository @Inject constructor(
             val toAccountId = toAccountPart?.toLongOrNull() ?: accountsByName[toAccountPart]?.id
             val emiId = parts.getOrNull(24)?.toLongOrNull()
             val emiInstallmentNumber = parts.getOrNull(25)?.toIntOrNull()
+            val postedToBalance = parts.getOrNull(26)?.toBooleanStrictOrNull() ?: true
 
             val date = try {
                 dateFormat.parse(dateStr.trim())?.time ?: System.currentTimeMillis()
@@ -1045,6 +1115,7 @@ class ExportRepository @Inject constructor(
                     toAccountId = toAccountId,
                     emiId = emiId,
                     emiInstallmentNumber = emiInstallmentNumber,
+                    postedToBalance = postedToBalance,
                 ))
             } else {
                 transactionDao.insertTransaction(TransactionEntity(
@@ -1074,6 +1145,7 @@ class ExportRepository @Inject constructor(
                     toAccountId = toAccountId,
                     emiId = emiId,
                     emiInstallmentNumber = emiInstallmentNumber,
+                    postedToBalance = postedToBalance,
                 ))
             }
             count++
@@ -1085,10 +1157,34 @@ class ExportRepository @Inject constructor(
         var count = 0
         val lines = csv.lines().drop(1)
         val existingNames = accountDao.getAllAccounts().first().map { it.name }.toHashSet()
+        // New format (>= 14 cols) has `id` as the first column; legacy format starts with `name`.
+        val isNewFormat = lines.firstOrNull { it.isNotBlank() }?.let { parseCsvLine(it).size >= 14 } ?: false
         for (line in lines) {
             if (line.isBlank()) continue
             val parts = parseCsvLine(line)
-            if (parts.size >= 3) {
+            if (isNewFormat && parts.size >= 14) {
+                val name = parts[1]
+                if (existingNames.contains(name)) continue
+                val archivedAt = parts[11].ifBlank { null }?.let {
+                    try { dateFormat.parse(it)?.time } catch (e: Exception) { null }
+                }
+                val account = AccountEntity(
+                    name = name,
+                    type = parts[2],
+                    initialBalance = parts.getOrNull(3)?.toDoubleOrNull() ?: 0.0,
+                    balance = parts.getOrNull(4)?.toDoubleOrNull() ?: 0.0,
+                    currency = parts.getOrNull(5) ?: "INR",
+                    color = parts.getOrNull(6) ?: "#2a6049",
+                    emoji = parts.getOrNull(7) ?: "🏦",
+                    iconType = parts.getOrNull(8) ?: "emoji",
+                    peerContactId = parts.getOrNull(9)?.toLongOrNull(),
+                    isArchived = parts.getOrNull(10)?.toBooleanStrictOrNull() ?: false,
+                    archivedAt = archivedAt,
+                )
+                accountDao.insertAccount(account)
+                existingNames.add(name)
+                count++
+            } else if (parts.size >= 3) {
                 val name = parts[0]
                 if (existingNames.contains(name)) continue
                 val account = AccountEntity(
@@ -1223,6 +1319,9 @@ class ExportRepository @Inject constructor(
             if (parts.size >= 11) {
                 val startDate = try { dateFormat.parse(parts[8])?.time ?: System.currentTimeMillis() } catch (e: Exception) { System.currentTimeMillis() }
                 val nextDate = try { dateFormat.parse(parts[9])?.time ?: System.currentTimeMillis() } catch (e: Exception) { System.currentTimeMillis() }
+                val endDate = parts.getOrNull(17)?.ifBlank { null }?.let {
+                    try { dateFormat.parse(it)?.time } catch (e: Exception) { null }
+                }
                 val item = RecurringEntity(
                     accountId = parts[0].toLongOrNull() ?: continue,
                     type = parts[1],
@@ -1238,6 +1337,18 @@ class ExportRepository @Inject constructor(
                     reminderEnabled = parts.getOrNull(11)?.toBooleanStrictOrNull() ?: false,
                     reminderDays = parts.getOrNull(12)?.toIntOrNull() ?: 0,
                     investmentPlatform = parts.getOrNull(13)?.ifBlank { null },
+                    peerContactId = parts.getOrNull(14)?.toLongOrNull(),
+                    tagIds = parts.getOrNull(15)?.removeSurrounding("\"") ?: "",
+                    description = parts.getOrNull(16)?.removeSurrounding("\"") ?: "",
+                    endDate = endDate,
+                    toAccountId = parts.getOrNull(18)?.toLongOrNull(),
+                    receiptPath = parts.getOrNull(19)?.removeSurrounding("\"")?.ifBlank { null },
+                    expectedReturnDate = parts.getOrNull(20)?.removeSurrounding("\"")?.ifBlank { null }?.let {
+                        try { dateFormat.parse(it)?.time } catch (e: Exception) { null }
+                    },
+                    splitData = parts.getOrNull(21)?.ifBlank { null }?.let {
+                        try { String(java.util.Base64.getDecoder().decode(it), Charsets.UTF_8) } catch (e: Exception) { null }
+                    },
                 )
                 recurringDao.insertRecurring(item)
                 count++
@@ -1302,6 +1413,7 @@ class ExportRepository @Inject constructor(
         var tagsCount = 0
         var peersCount = 0
         var recurringCount = 0
+        var emisCount = 0
 
         val sections = csv.split(Regex("\n(?=# )"))
         for (section in sections) {
@@ -1321,11 +1433,12 @@ class ExportRepository @Inject constructor(
                 header.startsWith("# TAGS") -> tagsCount = importTagsFromCsv(body)
                 header.startsWith("# PEERS") -> peersCount = importPeersFromCsv(body)
                 header.startsWith("# RECURRING") -> recurringCount = importRecurringFromCsv(body)
+                header.startsWith("# EMIS") -> emisCount = importEmisFromCsv(body)
             }
         }
 
         val totalProcessed = accountsCount + categoriesCount + transactionsCount +
-            budgetsCount + goalsCount + tagsCount + peersCount + recurringCount
+            budgetsCount + goalsCount + tagsCount + peersCount + recurringCount + emisCount
         return ImportResult(
             success = true,
             message = "All data imported: $totalProcessed records processed",
@@ -1337,6 +1450,7 @@ class ExportRepository @Inject constructor(
             tagsImported = tagsCount,
             peersImported = peersCount,
             recurringImported = recurringCount,
+            emisImported = emisCount,
             totalProcessed = totalProcessed,
         )
     }
