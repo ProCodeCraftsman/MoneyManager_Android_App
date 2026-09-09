@@ -14,6 +14,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -78,6 +80,45 @@ internal fun showReviewBanner(draft: TransactionDraft?): Boolean = draft?.needsR
 
 internal fun fieldIsLowConfidence(fieldName: String, draft: TransactionDraft?): Boolean =
     draft?.confidence?.get(fieldName) == "low"
+
+internal fun getNextCircularTypeId(
+    currentTypeId: String,
+    swipeDirection: Int,
+    types: List<FormTypeConfig> = TransactionFormConfig.allTypes
+): String {
+    if (types.isEmpty()) return currentTypeId
+    val currentIndex = types.indexOfFirst { it.id == currentTypeId }.let { if (it < 0) 0 else it }
+    val count = types.size
+    val targetIndex = (currentIndex + swipeDirection % count + count) % count
+    return types[targetIndex].id
+}
+
+internal fun Modifier.circularTypeSwipeable(
+    selectedType: String,
+    onTypeSelected: (String) -> Unit
+): Modifier = this.pointerInput(selectedType) {
+    var totalDragX = 0f
+    val swipeThresholdPx = 40.dp.toPx()
+
+    detectHorizontalDragGestures(
+        onDragStart = { totalDragX = 0f },
+        onDragEnd = {
+            if (totalDragX < -swipeThresholdPx) {
+                val nextType = getNextCircularTypeId(selectedType, 1)
+                onTypeSelected(nextType)
+            } else if (totalDragX > swipeThresholdPx) {
+                val prevType = getNextCircularTypeId(selectedType, -1)
+                onTypeSelected(prevType)
+            }
+            totalDragX = 0f
+        },
+        onDragCancel = { totalDragX = 0f },
+        onHorizontalDrag = { change, dragAmount ->
+            change.consume()
+            totalDragX += dragAmount
+        }
+    )
+}
 
 data class SplitRowData(
     val localId: Int,
@@ -616,6 +657,7 @@ fun AddEditTransactionDialog(
 
                 // 1. Amount, Date, Account Card
                 FormAmountDateAccountCard(
+                    modifier = Modifier.circularTypeSwipeable(type, ::onTypeSelected),
                     amount = amount,
                     currency = currency,
                     selectedDate = selectedDate,
@@ -987,6 +1029,7 @@ private fun DialogTopBar(
 
 @Composable
 private fun FormAmountDateAccountCard(
+    modifier: Modifier = Modifier,
     amount: String,
     currency: String,
     selectedDate: Long,
@@ -1006,7 +1049,7 @@ private fun FormAmountDateAccountCard(
     onExpectedReturnDateClick: () -> Unit,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
@@ -3427,15 +3470,20 @@ internal fun FormReceiptPreviewDialog(
 // ═══════════════════════════════════════════════════════════════
 
 @Composable
-internal fun TransactionTypeHeader(selectedType: String, onTypeSelected: (String) -> Unit) {
+internal fun TransactionTypeHeader(
+    selectedType: String,
+    onTypeSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val types = TransactionFormConfig.allTypes
     val categoryColors = LocalCategoryColors.current
     val colorScheme = MaterialTheme.colorScheme
 
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .circularTypeSwipeable(selectedType, onTypeSelected),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
