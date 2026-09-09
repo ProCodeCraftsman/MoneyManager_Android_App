@@ -53,6 +53,7 @@ import com.moneymanager.app.ui.components.SplitRowCard
 import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.FileHelper
+import com.moneymanager.domain.transaction.SplitTransactionFactory
 import com.moneymanager.domain.ai.TransactionDraft
 import com.moneymanager.app.ui.util.accountTypeIcon
 import com.moneymanager.app.ui.util.evaluateExpression
@@ -388,24 +389,13 @@ fun AddEditTransactionDialog(
     }
 
     fun buildSplitChildren(parentId: Long): List<TransactionEntity> {
-        return splitRows.mapNotNull { row ->
-            val rowAmt = row.amount.toDoubleOrNull() ?: return@mapNotNull null
-            if (rowAmt <= 0) return@mapNotNull null
-            TransactionEntity(
-                accountId = selectedAccountId!!,
-                type = type,
-                amount = rowAmt,
-                categoryId = row.categoryId,
-                subCategoryId = row.subCategoryId,
-                tagIds = "",
-                date = selectedDate,
-                note = row.description,
-                description = row.description,
-                isSplitChild = true,
-                isTransfer = type == "transfer",
-                parentTransactionId = parentId
-            )
-        }
+        return SplitTransactionFactory.buildSplitChildren(
+            parentId = parentId,
+            accountId = selectedAccountId!!,
+            type = type,
+            date = selectedDate,
+            rows = splitRows,
+        )
     }
 
     fun handleSave() {
@@ -484,6 +474,10 @@ fun AddEditTransactionDialog(
             }
             initialDraft.date?.let { selectedDate = it }
             initialDraft.receiptPath?.let { receiptData = it }
+            initialDraft.goalId?.let { selectedGoalId = it }
+            initialDraft.investmentPlatform?.let { selectedPlatform = it }
+            initialDraft.toAccountId?.let { selectedToAccountId = it }
+            initialDraft.expectedReturnDate?.let { expectedReturnDate = it }
 
             aiSuggestedFields = buildSet {
                 if (initialDraft.typeId != null) add("type")
@@ -495,6 +489,10 @@ fun AddEditTransactionDialog(
                 if (initialDraft.description != null || initialDraft.note != null) add("note")
                 if (initialDraft.date != null) add("date")
                 if (initialDraft.receiptPath != null) add("receipt")
+                if (initialDraft.goalId != null) add("goal")
+                if (initialDraft.investmentPlatform != null) add("platform")
+                if (initialDraft.toAccountId != null) add("toAccount")
+                if (initialDraft.expectedReturnDate != null) add("returnDate")
             }
         }
     }
