@@ -128,7 +128,14 @@ fun TransactionDetailSheet(
                 Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(28.dp))
             },
             title = { Text("Delete Transaction", fontWeight = FontWeight.Bold) },
-            text = { Text("This will permanently delete this transaction and adjust your account balance. This cannot be undone.") },
+            text = {
+                Text(
+                    if (transaction.isSplitParent)
+                        "This will permanently delete this split transaction and all ${splitChildren.size} of its items, and adjust your account balance. This cannot be undone."
+                    else
+                        "This will permanently delete this transaction and adjust your account balance. This cannot be undone."
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
