@@ -15,16 +15,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.dialogs.SplitRowData
+import com.moneymanager.app.ui.dialogs.TransactionFormConfig
 import com.moneymanager.data.entity.CategoryEntity
 import java.util.Locale
-import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,14 +39,19 @@ fun SplitRowCard(
     currencySymbol: String = "₹",
 ) {
     var showSubDropdown by remember { mutableStateOf(false) }
-    val parentCategories = remember(allCategories, type) {
-        allCategories.filter { it.parentId == null && (it.type == type || (type == "savings" && it.type == "expense")) }
+    val categoryFilter = remember(type) {
+        TransactionFormConfig.resolveCategoryType(type)
     }
-    val selectedParent = remember(row.categoryId, allCategories) {
-        allCategories.find { it.id == row.categoryId }
+    val parentCategories = remember(allCategories, categoryFilter) {
+        allCategories.filter { it.parentId == null && it.type == categoryFilter }
     }
-    val subCategories = remember(selectedParent, allCategories) {
-        selectedParent?.let { parent -> allCategories.filter { it.parentId == parent.id } } ?: emptyList()
+    val selectedParent = remember(row.categoryId, allCategories, categoryFilter) {
+        allCategories.find { it.id == row.categoryId && it.type == categoryFilter }
+    }
+    val subCategories = remember(selectedParent, allCategories, categoryFilter) {
+        selectedParent?.let { parent ->
+            allCategories.filter { it.parentId == parent.id && it.type == categoryFilter }
+        } ?: emptyList()
     }
 
     Surface(
@@ -179,7 +183,9 @@ fun SplitRowCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                val selectedSub = allCategories.find { it.id == row.subCategoryId }
+                                val selectedSub = remember(row.subCategoryId, subCategories) {
+                                    subCategories.find { it.id == row.subCategoryId }
+                                }
                                 Text(
                                     text = selectedSub?.name ?: "Sub-category (Opt)",
                                     style = MaterialTheme.typography.bodySmall,

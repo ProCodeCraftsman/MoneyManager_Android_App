@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -126,7 +127,7 @@ data class SplitRowData(
     val subCategoryId: Long? = null,
     val description: String = "",
     val amount: String = "",
-)
+) : java.io.Serializable
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -215,10 +216,12 @@ fun AddEditTransactionDialog(
                             if (cat?.parentId != null) cat.parentId to cid else cid to null
                         } ?: (null to null)
                     }
-                    SplitRowData(index, pId, sId, child.note, child.amount.toString())
+                    val itemDesc = child.description.ifBlank { child.note }
+                    SplitRowData(index, pId, sId, itemDesc, child.amount.toString())
                 }
             } else {
-                val selectedCat = categories.firstOrNull { it.id == selectedCategoryId }
+                val categoryFilter = TransactionFormConfig.resolveCategoryType(type)
+                val selectedCat = categories.firstOrNull { it.id == selectedCategoryId && it.type == categoryFilter }
                 val initialParentId = selectedCat?.parentId ?: selectedCat?.id
                 val initialSubId = if (selectedCat?.parentId != null) selectedCat.id else null
                 listOf(
@@ -231,13 +234,16 @@ fun AddEditTransactionDialog(
     var splitIdCounter by rememberSaveable { mutableIntStateOf(2) }
 
     fun updateSplitRowsFromSelection() {
+        val categoryFilter = TransactionFormConfig.resolveCategoryType(type)
         if (splitRows.all { it.categoryId == null }) {
-            val selectedCat = categories.firstOrNull { it.id == selectedCategoryId }
+            val selectedCat = categories.firstOrNull { it.id == selectedCategoryId && it.type == categoryFilter }
             val pId = selectedCat?.parentId ?: selectedCat?.id
             val sId = if (selectedCat?.parentId != null) selectedCat.id else null
+            val desc0 = splitRows.firstOrNull()?.description?.ifBlank { description } ?: description
+            val amt0 = splitRows.firstOrNull()?.amount?.ifBlank { amount } ?: amount
             splitRows = listOf(
-                SplitRowData(0, pId, sId, description, amount),
-                SplitRowData(1)
+                SplitRowData(0, pId, sId, desc0, amt0),
+                SplitRowData(1, description = splitRows.getOrNull(1)?.description ?: "", amount = splitRows.getOrNull(1)?.amount ?: "")
             )
         }
     }
@@ -345,6 +351,7 @@ fun AddEditTransactionDialog(
         selectedPlatform = null
         expectedReturnDate = null
         splitEnabled = false
+        isEmiEnabled = false
         val validIds = when (newType) {
             "expense" -> accounts.filter { it.type != "savings" }
             "savings" -> accounts.filter { it.type == "savings" }
@@ -490,7 +497,8 @@ fun AddEditTransactionDialog(
                         if (cat?.parentId != null) cat.parentId to cid else cid to null
                     } ?: (null to null)
                 }
-                SplitRowData(index, pId, sId, child.note, child.amount.toString())
+                val itemDesc = child.description.ifBlank { child.note }
+                SplitRowData(index, pId, sId, itemDesc, child.amount.toString())
             }
         }
     }
@@ -852,6 +860,7 @@ fun AddEditTransactionDialog(
                 imageAttachmentsEnabled = imageAttachmentsEnabled,
                 onEmiToggle = { enabled ->
                     isEmiEnabled = enabled
+                    showSpecialFeaturesSheet = false
                     if (enabled) showEmiDialog = true
                 },
                 onNoteChange = { description = it },
@@ -861,7 +870,12 @@ fun AddEditTransactionDialog(
                 onAddReceipt = { filePicker.launch("image/*") },
                 onRemoveReceipt = { receiptData = null },
                 onPreviewReceipt = { showReceiptPreview = true },
-                onOpenSplit = { updateSplitRowsFromSelection(); showSplitDialog = true },
+                onOpenSplit = {
+                    splitEnabled = true
+                    updateSplitRowsFromSelection()
+                    showSpecialFeaturesSheet = false
+                    showSplitDialog = true
+                },
                 onOpenGoal = { showGoalDialog = true },
                 onOpenPeer = { showPeerDialog = true },
                 onOpenReturnDate = { showExpectedReturnDatePicker = true },
@@ -1380,7 +1394,10 @@ private fun FormCategorySection(
                     hasValue = isEmiEnabled,
                     accentColor = accentColor,
                     accentContainer = accentContainer,
-                    onClick = { onTabSelected("emi") }
+                    onClick = {
+                        onTabSelected("emi")
+                        onEmiToggle(true)
+                    }
                 )
             }
 
@@ -1579,56 +1596,7 @@ private fun FormCategorySection(
                 }
             }
 
-            "emi" -> {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.3f))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Enable EMI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Switch(checked = isEmiEnabled, onCheckedChange = onEmiToggle)
-                        }
-                        if (isEmiEnabled) {
-                            Text("Tenure (months):", style = MaterialTheme.typography.labelSmall)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                listOf("3", "6", "9", "12", "18", "24").forEach { tenure ->
-                                    val isSelected = emiTenure == tenure
-                                    Surface(
-                                        onClick = { onTenureChange(tenure) },
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = if (isSelected) accentColor else MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(
-                                            "${tenure}m",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            textAlign = TextAlign.Center,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.padding(vertical = 8.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+
 
             "receipt" -> {
                 Surface(
@@ -1874,7 +1842,10 @@ private fun SpecialFeaturesBottomSheetContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)),
+                onClick = {
+                    onEmiToggle(true)
+                }
             ) {
                 Row(
                     modifier = Modifier
@@ -1910,21 +1881,19 @@ private fun SpecialFeaturesBottomSheetContent(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                if (isEmiEnabled) "Split into easy monthly installments ($emiTenure mos)" else "Split into easy monthly installments",
+                                if (isEmiEnabled) "Configured ($emiTenure mos)" else "Convert into monthly installments",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isEmiEnabled) accentColor else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
 
-                    Switch(
-                        checked = isEmiEnabled,
-                        onCheckedChange = { onEmiToggle(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = accentColor
-                        )
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = "Configure EMI",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -2869,57 +2838,36 @@ internal fun SecondarySplitSheet(
             }
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(14.dp),
+                color = if (abs(splitRemaining) < 0.01) accentContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                border = BorderStroke(0.5.dp, if (abs(splitRemaining) < 0.01) accentColor else MaterialTheme.colorScheme.error)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text("Enable Split Transaction", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text("Divide into multiple categories & amounts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                    }
-                    Switch(checked = splitEnabled, onCheckedChange = onToggleSplitEnabled, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = accentColor))
+                    Text(
+                        "Allocated: ${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, splitTotal)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        if (abs(splitRemaining) < 0.01) "Fully Balanced ✓"
+                        else "Unallocated: ${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, splitRemaining)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (abs(splitRemaining) < 0.01) accentColor else MaterialTheme.colorScheme.error
+                    )
                 }
             }
 
-            if (splitEnabled) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (abs(splitRemaining) < 0.01) accentContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                    border = BorderStroke(0.5.dp, if (abs(splitRemaining) < 0.01) accentColor else MaterialTheme.colorScheme.error)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Allocated: ${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, splitTotal)}",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            if (abs(splitRemaining) < 0.01) "Fully Balanced ✓"
-                            else "Unallocated: ${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, splitRemaining)}",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (abs(splitRemaining) < 0.01) accentColor else MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-
-                var openDropdownIndex by remember { mutableStateOf<Int?>(null) }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    splitRows.forEachIndexed { index, row ->
+            var openDropdownIndex by remember { mutableStateOf<Int?>(null) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                splitRows.forEachIndexed { index, row ->
+                    key(row.localId) {
                         SplitRowCard(
                             row = row,
                             allCategories = categories,
@@ -2935,28 +2883,48 @@ internal fun SecondarySplitSheet(
                         )
                     }
                 }
-
-                OutlinedButton(
-                    onClick = onAddRow,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, accentColor)
-                ) {
-                    Icon(Icons.Default.Add, null, tint = accentColor)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Add Split Category", color = accentColor, fontWeight = FontWeight.Bold)
-                }
             }
 
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
+            OutlinedButton(
+                onClick = onAddRow,
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+                border = BorderStroke(1.dp, accentColor)
             ) {
-                Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Icon(Icons.Default.Add, null, tint = accentColor)
+                Spacer(Modifier.width(6.dp))
+                Text("Add Split Category", color = accentColor, fontWeight = FontWeight.Bold)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        onToggleSplitEnabled(false)
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Disable Split", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+                ) {
+                    Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -3020,10 +2988,82 @@ internal fun SecondaryEmiSheet(
                 }
             }
 
+            Text("Select Tenure (Months)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                quickTenures.forEach { t ->
+                    val isSelected = emiTenure == t
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onTenureChange(t) },
+                        label = { Text("$t Mos", style = MaterialTheme.typography.labelMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = accentColor.copy(alpha = 0.2f),
+                            selectedLabelColor = accentColor,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            labelColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = isSelected,
+                            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                            selectedBorderColor = accentColor
+                        )
+                    )
+                }
+            }
+
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                 border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("No Cost EMI", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Checkbox(checked = isNoCostEmi, onCheckedChange = onNoCostChange)
+                }
+            }
+
+            if (!isNoCostEmi) {
+                OutlinedTextField(
+                    value = emiInterestRate,
+                    onValueChange = onRateChange,
+                    label = { Text("Interest Rate (% p.a.)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+            }
+
+            OutlinedTextField(
+                value = emiProcessingFee,
+                onValueChange = onFeeChange,
+                label = { Text("Processing Fee (${CurrencyUtils.getCurrencySymbol(currency)})") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+
+            val tenureInt = emiTenure.toIntOrNull() ?: 6
+            val feeDouble = emiProcessingFee.toDoubleOrNull() ?: 0.0
+            val estEmi = if (tenureInt > 0 && mainAmount > 0) (mainAmount + feeDouble) / tenureInt else 0.0
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = accentColor.copy(alpha = 0.12f),
+                border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.3f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -3033,120 +3073,45 @@ internal fun SecondaryEmiSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text("Pay via EMI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text("Convert transaction into monthly installments", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-                    }
-                    Switch(checked = isEmiEnabled, onCheckedChange = onEmiEnabledChange, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = accentColor))
-                }
-            }
-
-            if (isEmiEnabled) {
-                Text("Select Tenure (Months)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    quickTenures.forEach { t ->
-                        val isSelected = emiTenure == t
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { onTenureChange(t) },
-                            label = { Text("$t Mos", style = MaterialTheme.typography.labelMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                            shape = RoundedCornerShape(16.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = accentColor.copy(alpha = 0.2f),
-                                selectedLabelColor = accentColor,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                                labelColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = isSelected,
-                                borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                                selectedBorderColor = accentColor
-                            )
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("No Cost EMI", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        Checkbox(checked = isNoCostEmi, onCheckedChange = onNoCostChange)
-                    }
-                }
-
-                if (!isNoCostEmi) {
-                    OutlinedTextField(
-                        value = emiInterestRate,
-                        onValueChange = onRateChange,
-                        label = { Text("Interest Rate (% p.a.)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
+                    Text("Est. Monthly EMI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, estEmi)} / mo",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor
                     )
                 }
-
-                OutlinedTextField(
-                    value = emiProcessingFee,
-                    onValueChange = onFeeChange,
-                    label = { Text("Processing Fee (${CurrencyUtils.getCurrencySymbol(currency)})") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-
-                val tenureInt = emiTenure.toIntOrNull() ?: 6
-                val feeDouble = emiProcessingFee.toDoubleOrNull() ?: 0.0
-                val estEmi = if (tenureInt > 0 && mainAmount > 0) (mainAmount + feeDouble) / tenureInt else 0.0
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = accentColor.copy(alpha = 0.12f),
-                    border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Est. Monthly EMI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "${CurrencyUtils.getCurrencySymbol(currency)} ${"%.2f".format(Locale.US, estEmi)} / mo",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = accentColor
-                        )
-                    }
-                }
             }
 
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = {
+                        onEmiEnabledChange(false)
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Disable EMI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White)
+                ) {
+                    Text("Done", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(Modifier.height(16.dp))
