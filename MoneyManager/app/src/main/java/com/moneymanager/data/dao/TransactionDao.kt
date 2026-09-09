@@ -217,4 +217,7 @@ interface TransactionDao {
 
     @Query("SELECT MAX(createdAt) FROM transactions")
     suspend fun getLatestTimestamp(): Long?
+
+    @Query("SELECT * FROM transactions WHERE emiId IS NOT NULL AND postedToBalance = 0 AND date <= :date")
+    suspend fun getDueUnpostedEmiInstallments(date: Long): List<TransactionEntity>
 }
