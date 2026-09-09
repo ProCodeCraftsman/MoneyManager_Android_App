@@ -46,5 +46,8 @@ data class RecurringEntity(
     val toAccountId: Long? = null,
     val investmentPlatform: String? = null,
     val receiptPath: String? = null,
+    val expectedReturnDate: Long? = null,
+    /** JSON-encoded list of split rows (see [com.moneymanager.domain.transaction.SplitTransactionFactory]); null when not a split template. */
+    val splitData: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

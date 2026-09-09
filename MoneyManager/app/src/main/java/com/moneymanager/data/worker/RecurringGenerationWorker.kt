@@ -10,6 +10,7 @@ import com.moneymanager.data.dao.RecurringDao
 import com.moneymanager.data.dao.TransactionDao
 import com.moneymanager.data.entity.RecurringEntity
 import com.moneymanager.data.entity.TransactionEntity
+import com.moneymanager.domain.transaction.SplitTransactionFactory
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.Calendar
@@ -64,6 +65,7 @@ class RecurringGenerationWorker @AssistedInject constructor(
     }
 
     private suspend fun createTransactionFromRecurring(recurring: RecurringEntity) {
+        val hasSplit = !recurring.splitData.isNullOrBlank()
         val transaction = TransactionEntity(
             accountId = recurring.accountId,
             type = recurring.type,
@@ -79,13 +81,26 @@ class RecurringGenerationWorker @AssistedInject constructor(
             receiptPath = recurring.receiptPath,
             isRecurring = true,
             recurringId = recurring.id,
+            isSplitParent = hasSplit,
             isTransfer = recurring.type == "transfer" || recurring.type == "savings",
             toAccountId = recurring.toAccountId,
             investmentPlatform = recurring.investmentPlatform,
+            expectedReturnDate = recurring.expectedReturnDate,
             createdAt = System.currentTimeMillis()
         )
-        transactionDao.insertTransaction(transaction)
-        
+        val parentId = transactionDao.insertTransaction(transaction)
+
+        if (hasSplit) {
+            val children = SplitTransactionFactory.buildSplitChildrenFromTemplate(
+                parentId = parentId,
+                accountId = recurring.accountId,
+                type = recurring.type,
+                date = recurring.nextDate,
+                splitData = recurring.splitData,
+            )
+            children.forEach { transactionDao.insertTransaction(it) }
+        }
+
         // Update source account balance
         val account = accountDao.getAccountById(recurring.accountId)
         if (account != null) {
