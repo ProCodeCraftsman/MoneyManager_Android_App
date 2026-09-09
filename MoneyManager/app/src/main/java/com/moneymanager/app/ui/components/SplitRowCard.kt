@@ -1,23 +1,18 @@
 package com.moneymanager.app.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.dialogs.SplitRowData
@@ -66,7 +61,7 @@ fun SplitRowCard(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Category & Sub-Category Selection Chips
+            // Category & Sub-Category Selection
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -78,56 +73,38 @@ fun SplitRowCard(
                     onExpandedChange = { onToggleDropdown() },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Surface(
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onToggleDropdown() },
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                if (selectedParent != null) {
-                                    CategoryIcon(
-                                        emoji = selectedParent.emoji,
-                                        iconType = selectedParent.iconType,
-                                        colorIndex = selectedParent.colorIndex,
-                                        fontSize = 16.sp
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                }
-                                Text(
-                                    text = selectedParent?.name ?: "Select Category",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (selectedParent != null) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (selectedParent != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                    OutlinedTextField(
+                        value = selectedParent?.name ?: "Select Category",
+                        onValueChange = {},
+                        readOnly = true,
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        leadingIcon = selectedParent?.let { parent ->
+                            {
+                                CategoryIcon(
+                                    emoji = parent.emoji,
+                                    iconType = parent.iconType,
+                                    colorIndex = parent.colorIndex,
+                                    fontSize = 16.sp
                                 )
                             }
-                            Icon(
-                                Icons.Default.ArrowDropDown,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
+                        },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showDropdown) },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+                    )
 
                     ExposedDropdownMenu(
                         expanded = showDropdown,
-                        onDismissRequest = onToggleDropdown,
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        onDismissRequest = onToggleDropdown
                     ) {
                         DropdownMenuItem(
                             text = { Text("None", style = MaterialTheme.typography.bodyMedium) },
@@ -168,45 +145,31 @@ fun SplitRowCard(
                         onExpandedChange = { showSubDropdown = it },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Surface(
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { showSubDropdown = !showSubDropdown },
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                val selectedSub = remember(row.subCategoryId, subCategories) {
-                                    subCategories.find { it.id == row.subCategoryId }
-                                }
-                                Text(
-                                    text = selectedSub?.name ?: "Sub-category (Opt)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (selectedSub != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Icon(
-                                    Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                        val selectedSub = remember(row.subCategoryId, subCategories) {
+                            subCategories.find { it.id == row.subCategoryId }
                         }
+                        OutlinedTextField(
+                            value = selectedSub?.name ?: "Sub-category (Opt)",
+                            onValueChange = {},
+                            readOnly = true,
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSubDropdown) },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                            )
+                        )
 
                         ExposedDropdownMenu(
                             expanded = showSubDropdown,
-                            onDismissRequest = { showSubDropdown = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                            onDismissRequest = { showSubDropdown = false }
                         ) {
                             DropdownMenuItem(
                                 text = { Text("None", style = MaterialTheme.typography.bodyMedium) },
