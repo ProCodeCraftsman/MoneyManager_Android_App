@@ -56,6 +56,8 @@ data class TransactionEntity(
     val expectedReturnDate: Long? = null,
     val emiId: Long? = null,
     val emiInstallmentNumber: Int? = null,
+    /** For EMI installments: whether this row's amount has been applied to the account balance yet. Always true for non-EMI transactions. */
+    val postedToBalance: Boolean = true,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     companion object {

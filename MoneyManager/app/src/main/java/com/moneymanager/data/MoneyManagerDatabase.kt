@@ -239,6 +239,21 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
     }
 }
 
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE recurring ADD COLUMN expectedReturnDate INTEGER")
+        db.execSQL("ALTER TABLE recurring ADD COLUMN splitData TEXT")
+    }
+}
+
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Default 1 (true): existing transactions' balance effects are already reflected in
+        // current account balances, so only newly-created unposted EMI installments start at 0.
+        db.execSQL("ALTER TABLE transactions ADD COLUMN postedToBalance INTEGER NOT NULL DEFAULT 1")
+    }
+}
+
 private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()
 
 @Database(
@@ -255,7 +270,7 @@ private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isE
         MerchantCategoryMemoryEntity::class,
         EmiEntity::class,
     ],
-    version = 15,
+    version = 17,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

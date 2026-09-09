@@ -167,7 +167,10 @@ class AddTransactionViewModel @Inject constructor(
                     note = if (baseTx.note.isBlank()) "EMI ($i/$tenure)" else "${baseTx.note} (EMI $i/$tenure)",
                     isRecurring = true,
                     emiId = emiId,
-                    emiInstallmentNumber = i
+                    emiInstallmentNumber = i,
+                    // Only the 1st installment is applied to the balance now; the rest are posted
+                    // by EmiPostingWorker as their due dates arrive.
+                    postedToBalance = i == 1
                 )
                 transactionRepository.insertTransaction(installmentTx)
 

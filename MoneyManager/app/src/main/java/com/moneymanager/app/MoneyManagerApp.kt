@@ -6,6 +6,8 @@ import androidx.hilt.work.HiltWorkerFactory
 import com.moneymanager.app.ui.util.AppLockManager
 import com.moneymanager.data.ai.DeviceCapabilityManager
 import com.moneymanager.data.backup.BackupScheduler
+import com.moneymanager.data.worker.EmiPostingScheduler
+import com.moneymanager.data.worker.RecurringScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +21,8 @@ class MoneyManagerApp : Application(), Configuration.Provider {
     @Inject lateinit var deviceCapabilityManager: DeviceCapabilityManager
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var backupScheduler: BackupScheduler
+    @Inject lateinit var recurringScheduler: RecurringScheduler
+    @Inject lateinit var emiPostingScheduler: EmiPostingScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -31,6 +35,8 @@ class MoneyManagerApp : Application(), Configuration.Provider {
         CoroutineScope(Dispatchers.IO).launch {
             deviceCapabilityManager.checkAndCacheAvailability()
             backupScheduler.initialize()
+            recurringScheduler.schedule()
+            emiPostingScheduler.schedule()
         }
     }
 }
