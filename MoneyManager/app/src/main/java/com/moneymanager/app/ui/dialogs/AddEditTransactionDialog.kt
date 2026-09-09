@@ -194,7 +194,11 @@ fun AddEditTransactionDialog(
             }
         )
     }
-    var splitIdCounter by rememberSaveable { mutableIntStateOf(2) }
+    var splitIdCounter by rememberSaveable {
+        mutableIntStateOf(
+            if (transaction?.isSplitParent == true && splitChildren.isNotEmpty()) splitChildren.size else 2
+        )
+    }
 
     fun updateSplitRowsFromSelection() {
         val categoryFilter = TransactionFormConfig.resolveCategoryType(type)
@@ -357,11 +361,12 @@ fun AddEditTransactionDialog(
         val amt = amount.toDoubleOrNull() ?: return null
         if (amt <= 0 || selectedAccountId == null) return null
         val selectedCat = categories.firstOrNull { it.id == selectedCategoryId }
+        val isSplit = splitEnabled && TransactionFeature.SPLIT in features
         val effectiveCategoryId =
-            if (TransactionFeature.CATEGORY in features) (selectedCat?.parentId ?: selectedCat?.id)
+            if (TransactionFeature.CATEGORY in features && !isSplit) (selectedCat?.parentId ?: selectedCat?.id)
             else null
         val effectiveSubCategoryId =
-            if (TransactionFeature.CATEGORY in features) (if (selectedCat?.parentId != null) selectedCat.id else null)
+            if (TransactionFeature.CATEGORY in features && !isSplit) (if (selectedCat?.parentId != null) selectedCat.id else null)
             else null
         return TransactionEntity(
             id = transaction?.id ?: 0,
@@ -381,7 +386,7 @@ fun AddEditTransactionDialog(
             receiptPath = receiptData,
             isRecurring = isRecurring,
             recurringId = transaction?.recurringId,
-            isSplitParent = splitEnabled && TransactionFeature.SPLIT in features,
+            isSplitParent = isSplit,
             isTransfer = type == "transfer" || type == "savings",
             toAccountId = if (type == "transfer" || type == "savings") selectedToAccountId else null,
             createdAt = transaction?.createdAt ?: System.currentTimeMillis()
@@ -452,6 +457,7 @@ fun AddEditTransactionDialog(
                 val itemDesc = child.description.ifBlank { child.note }
                 SplitRowData(index, pId, sId, itemDesc, child.amount.toString())
             }
+            splitIdCounter = splitChildren.size
         }
     }
 
