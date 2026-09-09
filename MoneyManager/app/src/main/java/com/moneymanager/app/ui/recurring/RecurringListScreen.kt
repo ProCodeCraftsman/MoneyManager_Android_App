@@ -20,13 +20,11 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.data.entity.RecurringEntity
 import kotlinx.coroutines.launch
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -104,11 +102,13 @@ fun RecurringListScreen(
                     items(uiState.recurringList) { recurring ->
                         val category = uiState.categories.find { it.id == recurring.categoryId }
                         val account = uiState.accounts.find { it.id == recurring.accountId }
+                        val toAccount = uiState.accounts.find { it.id == recurring.toAccountId }
                         
                         RecurringRow(
                             recurring = recurring,
                             category = category,
                             account = account,
+                            toAccount = toAccount,
                             currencyFormat = currencyFormat,
                             dateFormat = dateFormat,
                             onToggleActive = {
@@ -162,6 +162,7 @@ private fun RecurringRow(
     recurring: RecurringEntity,
     category: com.moneymanager.data.entity.CategoryEntity?,
     account: com.moneymanager.data.entity.AccountEntity?,
+    toAccount: com.moneymanager.data.entity.AccountEntity? = null,
     currencyFormat: NumberFormat,
     dateFormat: SimpleDateFormat,
     onToggleActive: () -> Unit,
@@ -230,6 +231,10 @@ private fun RecurringRow(
                         if (account != null) {
                             append(" • ")
                             append(account.name)
+                            if (toAccount != null && (recurring.type == "transfer" || recurring.type == "savings")) {
+                                append(" → ")
+                                append(toAccount.name)
+                            }
                         }
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -242,9 +247,11 @@ private fun RecurringRow(
                     text = currencyFormat.format(recurring.amount),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (recurring.type == "income") MaterialTheme.colorScheme.primary
-                            else if (recurring.type == "savings") MaterialTheme.colorScheme.tertiary
-                            else MaterialTheme.colorScheme.error
+                    color = when (recurring.type) {
+                        "income" -> MaterialTheme.colorScheme.primary
+                        "savings" -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.error
+                    }
                 )
                 Text(
                     text = "Next: ${dateFormat.format(Date(recurring.nextDate))}",

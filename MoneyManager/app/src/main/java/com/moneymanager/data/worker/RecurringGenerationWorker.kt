@@ -2,8 +2,10 @@ package com.moneymanager.data.worker
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
+import androidx.room.withTransaction
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.moneymanager.data.MoneyManagerDatabase
 import com.moneymanager.data.dao.AccountDao
 import com.moneymanager.data.dao.GoalDao
 import com.moneymanager.data.dao.RecurringDao
@@ -19,48 +21,66 @@ import java.util.Calendar
 class RecurringGenerationWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
+    private val database: MoneyManagerDatabase,
     private val recurringDao: RecurringDao,
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
     private val goalDao: GoalDao,
+    private val locks: GenerationLocks,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        // The one-time launch trigger and the 12h periodic job run as separate WorkManager
+        // unique-work chains and can fire concurrently. This lock keeps only one of them
+        // actually processing the due list at a time within this app process; the other
+        // just no-ops (the due list it would have seen is already being handled).
+        if (!locks.recurringGeneration.tryLock()) {
+            return Result.success()
+        }
         return try {
             val currentTime = System.currentTimeMillis()
             val dueRecurring = recurringDao.getDueRecurring(currentTime)
 
             for (recurring in dueRecurring) {
-                var currentNextDate = recurring.nextDate
-                var isActive = recurring.isActive
+                var current = recurring
+                var persisted = false
 
-                // Catch-up loop to process all past-due occurrences up to currentTime
-                while (currentNextDate <= currentTime && isActive) {
-                    if (recurring.endDate != null && currentNextDate > recurring.endDate) {
-                        isActive = false
+                // Catch-up loop to process all past-due occurrences up to currentTime.
+                // Each occurrence's transaction generation and its nextDate advancement are
+                // committed together in one DB transaction, so a crash between occurrences
+                // can't leave nextDate stale and cause a retry to regenerate that occurrence.
+                while (current.isActive && current.nextDate <= currentTime) {
+                    if (current.endDate != null && current.nextDate > current.endDate) {
+                        current = current.copy(isActive = false)
                         break
                     }
 
-                    val occurrence = recurring.copy(nextDate = currentNextDate)
-                    createTransactionFromRecurring(occurrence)
+                    val nextDate = calculateNextDate(current.nextDate, current.frequency)
+                    val stillActive = !(current.endDate != null && nextDate > current.endDate)
+                    val occurrence = current
 
-                    currentNextDate = calculateNextDate(currentNextDate, recurring.frequency)
-
-                    if (recurring.endDate != null && currentNextDate > recurring.endDate) {
-                        isActive = false
+                    database.withTransaction {
+                        createTransactionFromRecurring(occurrence)
+                        recurringDao.updateRecurring(occurrence.copy(nextDate = nextDate, isActive = stillActive))
                     }
+
+                    current = current.copy(nextDate = nextDate, isActive = stillActive)
+                    persisted = true
                 }
 
-                val updatedRecurring = recurring.copy(
-                    nextDate = currentNextDate,
-                    isActive = isActive
-                )
-                recurringDao.updateRecurring(updatedRecurring)
+                // Only reached when the loop body never ran, e.g. endDate already passed
+                // before the first occurrence — otherwise the last iteration's
+                // withTransaction already persisted the final state.
+                if (!persisted && current.isActive != recurring.isActive) {
+                    recurringDao.updateRecurring(current)
+                }
             }
 
             Result.success()
         } catch (e: Exception) {
             Result.retry()
+        } finally {
+            locks.recurringGeneration.unlock()
         }
     }
 

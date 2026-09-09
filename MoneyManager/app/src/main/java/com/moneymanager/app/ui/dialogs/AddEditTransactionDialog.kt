@@ -389,7 +389,10 @@ fun AddEditTransactionDialog(
             isSplitParent = isSplit,
             isTransfer = type == "transfer" || type == "savings",
             toAccountId = if (type == "transfer" || type == "savings") selectedToAccountId else null,
-            createdAt = transaction?.createdAt ?: System.currentTimeMillis()
+            createdAt = transaction?.createdAt ?: System.currentTimeMillis(),
+            emiId = transaction?.emiId,
+            emiInstallmentNumber = transaction?.emiInstallmentNumber,
+            postedToBalance = transaction?.postedToBalance ?: true
         )
     }
 
@@ -829,6 +832,7 @@ fun AddEditTransactionDialog(
                 selectedPeerId = selectedPeerId,
                 peers = peers,
                 expectedReturnDate = expectedReturnDate,
+                selectedPlatform = selectedPlatform,
                 accentColor = accentColor,
                 imageAttachmentsEnabled = imageAttachmentsEnabled,
                 onEmiToggle = { enabled ->
@@ -853,6 +857,7 @@ fun AddEditTransactionDialog(
                 onOpenPeer = { showPeerDialog = true },
                 onOpenReturnDate = { showExpectedReturnDatePicker = true },
                 onOpenTags = { showTagsDialog = true },
+                onOpenPlatform = { showPlatformDialog = true },
                 onDismiss = { showSpecialFeaturesSheet = false }
             )
         }

@@ -220,4 +220,13 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE emiId IS NOT NULL AND postedToBalance = 0 AND date <= :date")
     suspend fun getDueUnpostedEmiInstallments(date: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE emiId = :emiId ORDER BY emiInstallmentNumber ASC")
+    fun getTransactionsByEmi(emiId: Long): Flow<List<TransactionEntity>>
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE emiId = :emiId AND postedToBalance = 0")
+    suspend fun getUnpostedInstallmentCountByEmi(emiId: Long): Int
+
+    @Query("DELETE FROM transactions WHERE emiId = :emiId AND postedToBalance = 0")
+    suspend fun deleteUnpostedInstallmentsByEmi(emiId: Long)
 }

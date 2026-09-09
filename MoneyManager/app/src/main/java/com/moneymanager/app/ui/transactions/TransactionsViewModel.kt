@@ -317,76 +317,21 @@ class TransactionsViewModel @Inject constructor(
         processingFee: Double
     ) {
         viewModelScope.launch {
-            val totalAmount = baseTx.amount
-            val tenure = tenureMonths.coerceAtLeast(1)
-
-            val monthlyAmount = if (annualInterestRate > 0 && !isNoCost) {
-                val r = annualInterestRate / (12.0 * 100.0)
-                val pmt = totalAmount * r * Math.pow(1.0 + r, tenure.toDouble()) / (Math.pow(1.0 + r, tenure.toDouble()) - 1.0)
-                val gst = (pmt * r) * 0.18
-                Math.round((pmt + gst) * 100.0) / 100.0
-            } else {
-                Math.round((totalAmount / tenure) * 100.0) / 100.0
-            }
-
-            val emi = com.moneymanager.data.entity.EmiEntity(
-                title = baseTx.note.ifBlank { "EMI Purchase" },
-                accountId = baseTx.accountId,
-                categoryId = baseTx.categoryId,
-                totalAmount = totalAmount,
-                tenureMonths = tenure,
-                monthlyAmount = monthlyAmount,
-                annualInterestRate = annualInterestRate,
-                isNoCost = isNoCost,
-                processingFee = processingFee,
-                startDate = baseTx.date,
-                status = "ACTIVE"
+            val emi = com.moneymanager.domain.transaction.EmiTransactionFactory.buildEmi(
+                baseTx, tenureMonths, annualInterestRate, isNoCost, processingFee
             )
             val emiId = emiDao.insertEmi(emi)
 
-            if (processingFee > 0) {
-                val feeTx = baseTx.copy(
-                    amount = processingFee,
-                    note = if (baseTx.note.isBlank()) "EMI Processing Fee" else "EMI Processing Fee - ${baseTx.note}",
-                    isRecurring = false,
-                    emiId = emiId
-                )
+            com.moneymanager.domain.transaction.EmiTransactionFactory.buildFeeTransaction(baseTx, processingFee, emiId)?.let { feeTx ->
                 transactionRepository.insertTransaction(feeTx)
                 accountRepository.updateAccountBalance(baseTx.accountId, -processingFee)
             }
 
-            val calendar = java.util.Calendar.getInstance().apply {
-                timeInMillis = baseTx.date
-            }
-
-            var runningTotal = 0.0
-            for (i in 1..tenure) {
-                val installmentDate = calendar.timeInMillis
-                val currentAmount = if (i == tenure) {
-                    Math.round((totalAmount - runningTotal) * 100.0) / 100.0
-                } else {
-                    monthlyAmount
-                }
-                runningTotal += currentAmount
-
-                val installmentTx = baseTx.copy(
-                    amount = currentAmount,
-                    date = installmentDate,
-                    note = if (baseTx.note.isBlank()) "EMI ($i/$tenure)" else "${baseTx.note} (EMI $i/$tenure)",
-                    isRecurring = true,
-                    emiId = emiId,
-                    emiInstallmentNumber = i,
-                    // Only the 1st installment is applied to the balance now; the rest are posted
-                    // by EmiPostingWorker as their due dates arrive.
-                    postedToBalance = i == 1
-                )
+            com.moneymanager.domain.transaction.EmiTransactionFactory.buildInstallments(baseTx, emi, emiId).forEach { installmentTx ->
                 transactionRepository.insertTransaction(installmentTx)
-
-                if (i == 1) {
-                    accountRepository.updateAccountBalance(baseTx.accountId, -currentAmount)
+                if (installmentTx.emiInstallmentNumber == 1) {
+                    accountRepository.updateAccountBalance(baseTx.accountId, -installmentTx.amount)
                 }
-
-                calendar.add(java.util.Calendar.MONTH, 1)
             }
         }
     }
@@ -490,8 +435,10 @@ class TransactionsViewModel @Inject constructor(
                     updatePeerBalance(new, reverse = false)
                 }
             } else {
-                adjustBalance(old, reverse = true)
-                updatePeerBalance(old, reverse = true)
+                if (old.postedToBalance) {
+                    adjustBalance(old, reverse = true)
+                    updatePeerBalance(old, reverse = true)
+                }
 
                 // Delete old receipt file if it changed
                 if (old.receiptPath != null && old.receiptPath != new.receiptPath) {
@@ -533,8 +480,10 @@ class TransactionsViewModel @Inject constructor(
                     }
                 }
 
-                    adjustBalance(updatedParent, reverse = false)
-                    updatePeerBalance(updatedParent, reverse = false)
+                    if (updatedParent.postedToBalance) {
+                        adjustBalance(updatedParent, reverse = false)
+                        updatePeerBalance(updatedParent, reverse = false)
+                    }
                 }
             }
         }
@@ -563,8 +512,10 @@ class TransactionsViewModel @Inject constructor(
                 siblings.forEach { sibling ->
                     transactionRepository.deleteTransaction(sibling)
                 }
-            } else if (!transaction.isSplitChild) {
+            } else if (!transaction.isSplitChild && transaction.postedToBalance) {
                 // Split children do not adjust balance; their parent does.
+                // Not-yet-due EMI installments (postedToBalance == false) never
+                // touched the balance, so deleting them must not reverse anything.
                 adjustBalance(transaction, reverse = true)
                 updatePeerBalance(transaction, reverse = true)
             }
@@ -580,8 +531,10 @@ class TransactionsViewModel @Inject constructor(
                 if (remaining.isEmpty()) {
                     transactionRepository.getTransactionById(parentId)?.let { parent ->
                         FileHelper.deleteReceiptsForTransaction(parent)
-                        adjustBalance(parent, reverse = true)
-                        updatePeerBalance(parent, reverse = true)
+                        if (parent.postedToBalance) {
+                            adjustBalance(parent, reverse = true)
+                            updatePeerBalance(parent, reverse = true)
+                        }
                         transactionRepository.deleteTransaction(parent)
                     }
                 }

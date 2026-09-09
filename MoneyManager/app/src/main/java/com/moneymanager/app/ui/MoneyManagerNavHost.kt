@@ -46,6 +46,9 @@ import com.moneymanager.app.ui.budgets.BudgetsScreen
 import com.moneymanager.app.ui.budgets.BudgetsViewModel
 import com.moneymanager.app.ui.categories.CategoriesScreen
 import com.moneymanager.app.ui.categories.CategoriesViewModel
+import com.moneymanager.app.ui.emi.EmiDetailScreen
+import com.moneymanager.app.ui.emi.EmiListScreen
+import com.moneymanager.app.ui.emi.EmiViewModel
 import com.moneymanager.app.ui.goals.GoalsScreen
 import com.moneymanager.app.ui.goals.GoalsViewModel
 import com.moneymanager.app.ui.peerlist.PeerListScreen
@@ -105,6 +108,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object Transfer : Screen("transfer", "Transfer", Icons.Default.SwapHoriz)
     data object Recurring : Screen("recurring", "Recurring", Icons.Default.Repeat)
     data object RecurringForm : Screen("recurring_form?recurringId={recurringId}", "Recurring Form", null)
+    data object EmiList : Screen("emi_list", "EMIs", null)
+    data object EmiDetail : Screen("emi_detail/{emiId}", "EMI Detail", null) {
+        fun createRoute(emiId: Long) = "emi_detail/$emiId"
+    }
     data object Peers : Screen("peers", "Peers", Icons.Default.People)
     data object BorrowLend : Screen("borrow_lend", "Borrow/Lend", null)
     data object AiDraftSms : Screen("ai_draft_sms", "AI Draft from SMS", null)
@@ -287,6 +294,7 @@ fun MoneyManagerNavHost(
                         onNavigateToBudgets = { navController.navigate(Screen.Budgets.route) },
                         onNavigateToGoals = { navController.navigate(Screen.Goals.route) },
                         onNavigateToRecurring = { navController.navigate(Screen.Recurring.route) },
+                        onNavigateToEmi = { navController.navigate(Screen.EmiList.route) },
                         onNavigateToAiHistory = { navController.navigate(Screen.AiHistory.route) },
                         onNavigateToAiModels = { navController.navigate(Screen.AiModels.route) }
                     )
@@ -341,6 +349,24 @@ fun MoneyManagerNavHost(
                     RecurringFormScreen(
                         viewModel = hiltViewModel(),
                         recurringId = recurringId,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Screen.EmiList.route) {
+                    EmiListScreen(
+                        viewModel = hiltViewModel(),
+                        onNavigateBack = { navController.popBackStack() },
+                        onEmiClick = { emiId -> navController.navigate(Screen.EmiDetail.createRoute(emiId)) }
+                    )
+                }
+                composable(
+                    route = Screen.EmiDetail.route,
+                    arguments = listOf(navArgument("emiId") { type = NavType.LongType })
+                ) { backStackEntry ->
+                    val emiId = backStackEntry.arguments?.getLong("emiId") ?: 0L
+                    EmiDetailScreen(
+                        viewModel = hiltViewModel(),
+                        emiId = emiId,
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }

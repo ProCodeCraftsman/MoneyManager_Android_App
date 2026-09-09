@@ -2,9 +2,12 @@ package com.moneymanager.data.worker
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
+import androidx.room.withTransaction
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.moneymanager.data.MoneyManagerDatabase
 import com.moneymanager.data.dao.AccountDao
+import com.moneymanager.data.dao.EmiDao
 import com.moneymanager.data.dao.TransactionDao
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -23,11 +26,19 @@ import dagger.assisted.AssistedInject
 class EmiPostingWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
+    private val database: MoneyManagerDatabase,
     private val transactionDao: TransactionDao,
     private val accountDao: AccountDao,
+    private val emiDao: EmiDao,
+    private val locks: GenerationLocks,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        // See GenerationLocks: this worker can be triggered both by its own periodic chain
+        // and (once due) a one-time launch trigger; only one should process the due list.
+        if (!locks.emiPosting.tryLock()) {
+            return Result.success()
+        }
         return try {
             val due = transactionDao.getDueUnpostedEmiInstallments(System.currentTimeMillis())
             for (installment in due) {
@@ -37,14 +48,30 @@ class EmiPostingWorker @AssistedInject constructor(
                     "borrow" -> installment.amount
                     else -> -installment.amount
                 }
-                accountDao.updateAccount(
-                    account.copy(balance = account.balance + delta, updatedAt = System.currentTimeMillis())
-                )
-                transactionDao.updateTransaction(installment.copy(postedToBalance = true))
+
+                // Balance update + postedToBalance flag write happen together, so a crash
+                // between them can't cause a retry to double-apply this installment's delta.
+                database.withTransaction {
+                    accountDao.updateAccount(
+                        account.copy(balance = account.balance + delta, updatedAt = System.currentTimeMillis())
+                    )
+                    transactionDao.updateTransaction(installment.copy(postedToBalance = true))
+
+                    val emiId = installment.emiId
+                    if (emiId != null && transactionDao.getUnpostedInstallmentCountByEmi(emiId) == 0) {
+                        emiDao.getEmiById(emiId)?.let { emi ->
+                            if (emi.status == "ACTIVE") {
+                                emiDao.updateEmi(emi.copy(status = "COMPLETED"))
+                            }
+                        }
+                    }
+                }
             }
             Result.success()
         } catch (e: Exception) {
             Result.retry()
+        } finally {
+            locks.emiPosting.unlock()
         }
     }
 
