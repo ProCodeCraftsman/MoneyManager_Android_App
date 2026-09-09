@@ -571,13 +571,18 @@ class TransactionsViewModel @Inject constructor(
 
             transactionRepository.deleteTransaction(transaction)
 
-            // If a split child was deleted, check if parent should be "un-split"
+            // If that was the last remaining split child, the parent has nothing left to
+            // represent - remove it too instead of leaving an orphaned, uncategorized
+            // transaction behind for the original total.
             if (transaction.isSplitChild && transaction.parentTransactionId != null) {
                 val parentId = transaction.parentTransactionId
                 val remaining = transactionRepository.getSplitChildren(parentId).first()
                 if (remaining.isEmpty()) {
                     transactionRepository.getTransactionById(parentId)?.let { parent ->
-                        transactionRepository.updateTransaction(parent.copy(isSplitParent = false))
+                        FileHelper.deleteReceiptsForTransaction(parent)
+                        adjustBalance(parent, reverse = true)
+                        updatePeerBalance(parent, reverse = true)
+                        transactionRepository.deleteTransaction(parent)
                     }
                 }
             }
