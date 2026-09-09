@@ -273,6 +273,7 @@ fun AddEditTransactionDialog(
     var showCategorySearch by rememberSaveable { mutableStateOf(false) }
     var showDiscardConfirmation by rememberSaveable { mutableStateOf(false) }
     var showSpecialFeaturesSheet by rememberSaveable { mutableStateOf(false) }
+    var activeInlineFeature by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Secondary Option Dialog Toggles
     var showNoteDialog by rememberSaveable { mutableStateOf(false) }
@@ -729,6 +730,41 @@ fun AddEditTransactionDialog(
                         hasActiveSpecialFeatures = hasActiveSpecialFeatures,
                         accentColor = accentColor,
                         accentContainer = accentContainer,
+                        features = features,
+                        transactionType = type,
+                        note = description,
+                        onNoteChange = { description = it },
+                        selectedTagIds = selectedTagIds,
+                        tags = tags,
+                        onToggleTag = { tagId ->
+                            if (tagId in selectedTagIds) selectedTagIds -= tagId
+                            else selectedTagIds += tagId
+                        },
+                        isEmiEnabled = isEmiEnabled,
+                        onEmiToggle = { isEmiEnabled = it },
+                        emiTenure = emiTenure,
+                        onTenureChange = { emiTenure = it },
+                        receiptData = receiptData,
+                        imageAttachmentsEnabled = imageAttachmentsEnabled,
+                        onAddReceipt = {
+                            if (imageAttachmentsEnabled) {
+                                filePicker.launch("image/*")
+                            }
+                        },
+                        onPreviewReceipt = { showReceiptPreview = true },
+                        splitEnabled = splitEnabled,
+                        onOpenSplit = { showSplitDialog = true },
+                        selectedGoalId = selectedGoalId,
+                        goals = goals,
+                        onOpenGoal = { showGoalDialog = true },
+                        selectedPeerId = selectedPeerId,
+                        peers = peers,
+                        onOpenPeer = { showPeerDialog = true },
+                        expectedReturnDate = expectedReturnDate,
+                        onOpenReturnDate = { showExpectedReturnDatePicker = true },
+                        activeInlineFeature = activeInlineFeature,
+                        onInlineFeatureChange = { activeInlineFeature = it },
+                        onOpenTagsManager = { showTagsDialog = true },
                         onCategoryClick = { cat ->
                             aiSuggestedFields -= "category"
                             if (cat.id == selectedCategoryId) {
@@ -1218,6 +1254,34 @@ private fun FormCategorySection(
     hasActiveSpecialFeatures: Boolean,
     accentColor: Color,
     accentContainer: Color,
+    features: Set<TransactionFeature>,
+    transactionType: String,
+    note: String,
+    onNoteChange: (String) -> Unit,
+    selectedTagIds: Set<Long>,
+    tags: List<TagEntity>,
+    onToggleTag: (Long) -> Unit,
+    isEmiEnabled: Boolean,
+    onEmiToggle: (Boolean) -> Unit,
+    emiTenure: String,
+    onTenureChange: (String) -> Unit,
+    receiptData: String?,
+    imageAttachmentsEnabled: Boolean,
+    onAddReceipt: () -> Unit,
+    onPreviewReceipt: () -> Unit,
+    splitEnabled: Boolean,
+    onOpenSplit: () -> Unit,
+    selectedGoalId: Long?,
+    goals: List<GoalEntity>,
+    onOpenGoal: () -> Unit,
+    selectedPeerId: Long?,
+    peers: List<PeerContact>,
+    onOpenPeer: () -> Unit,
+    expectedReturnDate: Long?,
+    onOpenReturnDate: () -> Unit,
+    activeInlineFeature: String?,
+    onInlineFeatureChange: (String?) -> Unit,
+    onOpenTagsManager: () -> Unit,
     onCategoryClick: (CategoryEntity) -> Unit,
     onBackClick: () -> Unit,
     onMoreClick: () -> Unit,
@@ -1230,7 +1294,7 @@ private fun FormCategorySection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Category",
+                "Category & Quick Options",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -1247,41 +1311,6 @@ private fun FormCategorySection(
                         Text("Back", style = MaterialTheme.typography.labelSmall, color = accentColor)
                     }
                 }
-
-                Surface(
-                    onClick = onOpenSpecialFeatures,
-                    shape = RoundedCornerShape(12.dp),
-                    color = accentColor.copy(alpha = 0.12f),
-                    border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.3f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (hasActiveSpecialFeatures) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(accentColor, CircleShape)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                        }
-                        Icon(
-                            Icons.Default.Tune,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            "Special Features >",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = accentColor,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
             }
         }
 
@@ -1293,9 +1322,50 @@ private fun FormCategorySection(
             categoryUsageCounts = categoryUsageCounts,
             accentColor = accentColor,
             accentContainer = accentContainer,
+            features = features,
+            transactionType = transactionType,
+            note = note,
+            selectedTagIds = selectedTagIds,
+            isEmiEnabled = isEmiEnabled,
+            emiTenure = emiTenure,
+            receiptData = receiptData,
+            imageAttachmentsEnabled = imageAttachmentsEnabled,
+            splitEnabled = splitEnabled,
+            selectedGoalId = selectedGoalId,
+            goals = goals,
+            selectedPeerId = selectedPeerId,
+            peers = peers,
+            expectedReturnDate = expectedReturnDate,
+            activeInlineFeature = activeInlineFeature,
+            onInlineFeatureChange = onInlineFeatureChange,
             onCategoryClick = onCategoryClick,
-            onMoreClick = onMoreClick
+            onMoreClick = onMoreClick,
+            onAddReceipt = onAddReceipt,
+            onPreviewReceipt = onPreviewReceipt,
+            onOpenSplit = onOpenSplit,
+            onOpenGoal = onOpenGoal,
+            onOpenPeer = onOpenPeer,
+            onOpenReturnDate = onOpenReturnDate
         )
+
+        if (activeInlineFeature != null) {
+            InlineFeatureExpandedBox(
+                activeFeature = activeInlineFeature,
+                features = features,
+                note = note,
+                onNoteChange = onNoteChange,
+                selectedTagIds = selectedTagIds,
+                tags = tags,
+                onToggleTag = onToggleTag,
+                isEmiEnabled = isEmiEnabled,
+                onEmiToggle = onEmiToggle,
+                emiTenure = emiTenure,
+                onTenureChange = onTenureChange,
+                accentColor = accentColor,
+                onClose = { onInlineFeatureChange(null) },
+                onOpenTagsManager = onOpenTagsManager
+            )
+        }
     }
 }
 
@@ -1308,8 +1378,30 @@ internal fun CategoryCarousel(
     accentColor: Color = MaterialTheme.colorScheme.primary,
     accentContainer: Color = MaterialTheme.colorScheme.primaryContainer,
     categoryUsageCounts: Map<Long, Int> = emptyMap(),
+    features: Set<TransactionFeature> = emptySet(),
+    transactionType: String = "",
+    note: String = "",
+    selectedTagIds: Set<Long> = emptySet(),
+    isEmiEnabled: Boolean = false,
+    emiTenure: String = "3",
+    receiptData: String? = null,
+    imageAttachmentsEnabled: Boolean = true,
+    splitEnabled: Boolean = false,
+    selectedGoalId: Long? = null,
+    goals: List<GoalEntity> = emptyList(),
+    selectedPeerId: Long? = null,
+    peers: List<PeerContact> = emptyList(),
+    expectedReturnDate: Long? = null,
+    activeInlineFeature: String? = null,
+    onInlineFeatureChange: (String?) -> Unit = {},
     onCategoryClick: (CategoryEntity) -> Unit,
     onMoreClick: () -> Unit,
+    onAddReceipt: () -> Unit = {},
+    onPreviewReceipt: () -> Unit = {},
+    onOpenSplit: () -> Unit = {},
+    onOpenGoal: () -> Unit = {},
+    onOpenPeer: () -> Unit = {},
+    onOpenReturnDate: () -> Unit = {}
 ) {
     val filtered = remember(categories, type) { categories.filter { it.type == type } }
     val sortedParents = remember(filtered, categoryUsageCounts) {
@@ -1415,6 +1507,358 @@ internal fun CategoryCarousel(
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            // Vertical divider between categories and feature chips
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 2.dp)
+                    .height(36.dp)
+                    .width(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            )
+
+            // 1. Note Chip
+            if (TransactionFeature.NOTE in features) {
+                FeatureChipItem(
+                    icon = Icons.AutoMirrored.Filled.Notes,
+                    label = if (note.isNotBlank()) "Note ✓" else "Note",
+                    isActive = note.isNotBlank() || activeInlineFeature == "note",
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = { onInlineFeatureChange(if (activeInlineFeature == "note") null else "note") }
+                )
+            }
+
+            // 2. Tags Chip
+            if (TransactionFeature.TAGS in features) {
+                FeatureChipItem(
+                    icon = Icons.Default.LocalOffer,
+                    label = if (selectedTagIds.isNotEmpty()) "Tags (${selectedTagIds.size})" else "Tags",
+                    isActive = selectedTagIds.isNotEmpty() || activeInlineFeature == "tags",
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = { onInlineFeatureChange(if (activeInlineFeature == "tags") null else "tags") }
+                )
+            }
+
+            // 3. Pay via EMI Chip (Expense only)
+            if (transactionType == "expense") {
+                FeatureChipItem(
+                    icon = Icons.Default.CreditCard,
+                    label = if (isEmiEnabled) "EMI (${emiTenure}m)" else "Pay EMI",
+                    isActive = isEmiEnabled || activeInlineFeature == "emi",
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = { onInlineFeatureChange(if (activeInlineFeature == "emi") null else "emi") }
+                )
+            }
+
+            // 4. Receipt Chip
+            if (imageAttachmentsEnabled && TransactionFeature.RECEIPT in features) {
+                FeatureChipItem(
+                    icon = Icons.Default.Receipt,
+                    label = if (receiptData != null) "Receipt ✓" else "Receipt",
+                    isActive = receiptData != null,
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = {
+                        if (receiptData != null) onPreviewReceipt()
+                        else onAddReceipt()
+                    }
+                )
+            }
+
+            // 5. Split Chip
+            if (TransactionFeature.SPLIT in features) {
+                FeatureChipItem(
+                    icon = Icons.Default.CallSplit,
+                    label = if (splitEnabled) "Split ✓" else "Split",
+                    isActive = splitEnabled,
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = onOpenSplit
+                )
+            }
+
+            // 6. Goal Chip
+            if (TransactionFeature.GOAL in features) {
+                val goalName = goals.firstOrNull { it.id == selectedGoalId }?.name
+                FeatureChipItem(
+                    icon = Icons.Default.Flag,
+                    label = goalName ?: "Goal",
+                    isActive = selectedGoalId != null,
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = onOpenGoal
+                )
+            }
+
+            // 7. Person Chip
+            if (TransactionFeature.PEER in features) {
+                val peerName = peers.firstOrNull { it.id == selectedPeerId }?.effectiveDisplayName
+                FeatureChipItem(
+                    icon = Icons.Default.Person,
+                    label = peerName ?: "Person",
+                    isActive = selectedPeerId != null,
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = onOpenPeer
+                )
+            }
+
+            // 8. Return Date Chip
+            if (TransactionFeature.RETURN_DATE in features) {
+                FeatureChipItem(
+                    icon = Icons.Default.CalendarToday,
+                    label = if (expectedReturnDate != null) "Return ✓" else "Return Date",
+                    isActive = expectedReturnDate != null,
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = onOpenReturnDate
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeatureChipItem(
+    icon: ImageVector,
+    label: String,
+    isActive: Boolean,
+    accentColor: Color,
+    accentContainer: Color,
+    onClick: () -> Unit
+) {
+    val itemBg by animateColorAsState(
+        if (isActive) accentContainer.copy(alpha = 0.35f)
+        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        animationSpec = tween(200),
+        label = "featureChipBg"
+    )
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(64.dp)
+            .clickable { onClick() }
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = itemBg,
+            modifier = Modifier.size(52.dp),
+            border = if (isActive) BorderStroke(1.5.dp, accentColor) else null,
+            shadowElevation = if (isActive) 2.dp else 0.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = label,
+                    tint = if (isActive) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            fontSize = 10.sp,
+            color = if (isActive) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+private fun InlineFeatureExpandedBox(
+    activeFeature: String,
+    features: Set<TransactionFeature>,
+    note: String,
+    onNoteChange: (String) -> Unit,
+    selectedTagIds: Set<Long>,
+    tags: List<TagEntity>,
+    onToggleTag: (Long) -> Unit,
+    isEmiEnabled: Boolean,
+    onEmiToggle: (Boolean) -> Unit,
+    emiTenure: String,
+    onTenureChange: (String) -> Unit,
+    accentColor: Color,
+    onClose: () -> Unit,
+    onOpenTagsManager: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(0.5.dp, accentColor.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val (title, icon) = when (activeFeature) {
+                    "note" -> "Note & Description" to Icons.AutoMirrored.Filled.Notes
+                    "tags" -> "Tags & Labels" to Icons.Default.LocalOffer
+                    "emi" -> "Pay via EMI" to Icons.Default.CreditCard
+                    else -> "Feature" to Icons.Default.Tune
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, null, tint = accentColor, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (activeFeature == "tags") {
+                        TextButton(
+                            onClick = onOpenTagsManager,
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                        ) {
+                            Text("Manage Tags >", style = MaterialTheme.typography.labelSmall, color = accentColor, fontSize = 11.sp)
+                        }
+                    }
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
+            when (activeFeature) {
+                "note" -> {
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = onNoteChange,
+                        placeholder = {
+                            Text(
+                                "Add receipt note or comment...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accentColor,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        maxLines = 3
+                    )
+                }
+
+                "tags" -> {
+                    if (tags.isEmpty()) {
+                        Text(
+                            "No tags created yet. Tap Manage Tags to add.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            tags.forEach { tag ->
+                                val isSelected = tag.id in selectedTagIds
+                                Surface(
+                                    onClick = { onToggleTag(tag.id) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) accentColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(0.5.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        "#${tag.name}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "emi" -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Enable EMI for this transaction",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Switch(
+                            checked = isEmiEnabled,
+                            onCheckedChange = onEmiToggle,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = accentColor
+                            )
+                        )
+                    }
+                    if (isEmiEnabled) {
+                        Text(
+                            "Tenure (months):",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("3", "6", "9", "12", "18", "24").forEach { tenure ->
+                                val isSelected = emiTenure == tenure
+                                Surface(
+                                    onClick = { onTenureChange(tenure) },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) accentColor else MaterialTheme.colorScheme.surface,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        "${tenure}m",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
