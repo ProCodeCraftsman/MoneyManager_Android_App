@@ -52,6 +52,7 @@ fun SettingsScreen(
     onNavigateToBudgets: () -> Unit,
     onNavigateToGoals: () -> Unit,
     onNavigateToRecurring: () -> Unit,
+    onNavigateToEmi: () -> Unit = {},
     onNavigateToAiHistory: () -> Unit = {},
     onNavigateToAiModels: () -> Unit = {},
 ) {
@@ -256,6 +257,22 @@ fun SettingsScreen(
                             )
                         },
                         onClick = onNavigateToRecurring
+                    )
+                }
+
+                item {
+                    SettingsRow(
+                        icon = Icons.Default.CreditCard,
+                        title = "EMIs",
+                        subtitle = "View installment schedules, foreclose a loan",
+                        trailing = {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        onClick = onNavigateToEmi
                     )
                 }
 

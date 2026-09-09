@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -25,7 +25,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.moneymanager.app.ui.components.SplitRowCard
@@ -35,13 +34,9 @@ import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.RecurringEntity
 import com.moneymanager.domain.transaction.SplitTransactionFactory
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-import javax.inject.Inject
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,7 +44,7 @@ import kotlin.math.abs
 fun RecurringFormScreen(
     viewModel: RecurringViewModel,
     recurringId: Long? = null,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
@@ -68,7 +63,7 @@ fun RecurringFormScreen(
     var selectedPlatform by remember { mutableStateOf("") }
     var selectedGoalId by remember { mutableStateOf<Long?>(null) }
     var selectedFrequency by remember { mutableStateOf("monthly") }
-    var startDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var startDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var endDate by remember { mutableStateOf<Long?>(null) }
     var reminderEnabled by remember { mutableStateOf(false) }
     var reminderDays by remember { mutableStateOf("0") }
@@ -80,22 +75,44 @@ fun RecurringFormScreen(
     // ── Split state ──
     var splitEnabled by remember { mutableStateOf(false) }
     var splitRows by remember { mutableStateOf(listOf(SplitRowData(0), SplitRowData(1))) }
-    var splitIdCounter by remember { mutableStateOf(2) }
+    var splitIdCounter by remember { mutableIntStateOf(2) }
     var openSplitDropdownIndex by remember { mutableStateOf<Int?>(null) }
     val splitTotal = remember(splitRows) { splitRows.sumOf { it.amount.toDoubleOrNull() ?: 0.0 } }
     val splitRemaining = remember(splitTotal, amount) { (amount.toDoubleOrNull() ?: 0.0) - splitTotal }
-    val splitAllowedForType = selectedType == "expense" || selectedType == "income" || selectedType == "savings"
+    val splitAllowedForType = (selectedType == "expense" || selectedType == "income" || selectedType == "savings")
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     val isEditing = recurringId != null
 
     var isDataLoaded by rememberSaveable(recurringId) { mutableStateOf(false) }
 
-    // Filter accounts based on type
+    // Filter source accounts based on transaction type (savings & expense use liquid/non-savings accounts)
     val filteredAccounts = remember(selectedType, uiState.accounts) {
         when (selectedType) {
             "expense", "savings" -> uiState.accounts.filter { it.type != "savings" }
             else -> uiState.accounts
+        }
+    }
+
+    // Filter investment accounts for savings destination
+    val investmentAccounts = remember(uiState.accounts) {
+        uiState.accounts.filter { it.type == "savings" }
+    }
+
+    // Popular platform presets
+    val platformPresets = remember {
+        listOf("Zerodha", "Groww", "Upstox", "Angel One", "Kuvera", "Paytm Money", "INDmoney", "Other")
+    }
+
+    // Default account selection when state loads or type changes
+    LaunchedEffect(filteredAccounts, investmentAccounts, selectedType, uiState.accounts) {
+        if (selectedAccount == null && filteredAccounts.isNotEmpty()) {
+            selectedAccount = filteredAccounts.firstOrNull()
+        }
+        if (selectedType == "savings" && selectedToAccount == null) {
+            selectedToAccount = investmentAccounts.firstOrNull { it.id != selectedAccount?.id } ?: investmentAccounts.firstOrNull()
+        } else if (selectedType == "transfer" && selectedToAccount == null) {
+            selectedToAccount = uiState.accounts.firstOrNull { it.id != selectedAccount?.id }
         }
     }
 
@@ -113,9 +130,9 @@ fun RecurringFormScreen(
                 description = recurring.description
                 note = recurring.note
                 selectedPeerId = recurring.peerContactId
-                selectedTagIds = if (recurring.tagIds.isNotEmpty())
+                selectedTagIds = if (recurring.tagIds.isNotEmpty()) {
                     recurring.tagIds.split(",").mapNotNull { it.trim().toLongOrNull() }.toSet()
-                    else emptySet()
+                } else emptySet()
                 selectedPlatform = recurring.investmentPlatform ?: ""
                 selectedFrequency = recurring.frequency
                 startDate = recurring.nextDate
@@ -152,7 +169,7 @@ fun RecurringFormScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -186,18 +203,47 @@ fun RecurringFormScreen(
                     FilterChip(
                         selected = selectedType == type,
                         onClick = {
-                            selectedType = type
-                            selectedCategory = null
-                            selectedSubCategory = null
-                            if (type != "transfer") selectedToAccount = null
-                            if (type != "lend" && type != "borrow") selectedPeerId = null
+                            if (selectedType != type) {
+                                selectedType = type
+                                selectedCategory = null
+                                selectedSubCategory = null
+
+                                // Re-validate source account for new type
+                                val validSource = when (type) {
+                                    "expense", "savings" -> uiState.accounts.filter { it.type != "savings" }
+                                    else -> uiState.accounts
+                                }
+                                if (selectedAccount != null && selectedAccount!! !in validSource) {
+                                    selectedAccount = validSource.firstOrNull()
+                                } else if (selectedAccount == null) {
+                                    selectedAccount = validSource.firstOrNull()
+                                }
+
+                                // Setup destination account
+                                if (type == "savings") {
+                                    selectedToAccount = investmentAccounts.firstOrNull { it.id != selectedAccount?.id } ?: investmentAccounts.firstOrNull()
+                                } else if (type == "transfer") {
+                                    selectedToAccount = uiState.accounts.firstOrNull { it.id != selectedAccount?.id }
+                                } else {
+                                    selectedToAccount = null
+                                }
+
+                                if (type != "lend" && type != "borrow") selectedPeerId = null
+                                if (type != "savings") {
+                                    selectedGoalId = null
+                                    selectedPlatform = ""
+                                }
+                                if (type != "expense" && type != "income" && type != "savings") {
+                                    splitEnabled = false
+                                }
+                            }
                         },
                         label = { Text(type.replaceFirstChar { it.uppercase() }) }
                     )
                 }
             }
 
-            // Account dropdown
+            // Source Account dropdown
             var accountExpanded by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = accountExpanded,
@@ -207,7 +253,12 @@ fun RecurringFormScreen(
                     value = selectedAccount?.name ?: "Select Account",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Account") },
+                    label = {
+                        Text(
+                            if (selectedType == "transfer" || selectedType == "savings") "From Account"
+                            else "Account"
+                        )
+                    },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountExpanded) },
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -223,24 +274,34 @@ fun RecurringFormScreen(
                             onClick = {
                                 selectedAccount = account
                                 accountExpanded = false
+                                if (selectedToAccount?.id == account.id) {
+                                    if (selectedType == "savings") {
+                                        selectedToAccount = investmentAccounts.firstOrNull { it.id != account.id }
+                                    } else if (selectedType == "transfer") {
+                                        selectedToAccount = uiState.accounts.firstOrNull { it.id != account.id }
+                                    }
+                                }
                             }
                         )
                     }
                 }
             }
 
-            // Transfer To Account
-            if (selectedType == "transfer") {
+            // Destination Account / Investment Account
+            if (selectedType == "transfer" || selectedType == "savings") {
+                val isSavings = selectedType == "savings"
                 var toAccountExpanded by remember { mutableStateOf(false) }
+                val targetToAccounts = if (isSavings) investmentAccounts else uiState.accounts.filter { it.id != selectedAccount?.id }
+
                 ExposedDropdownMenuBox(
                     expanded = toAccountExpanded,
                     onExpandedChange = { toAccountExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedToAccount?.name ?: "Select Destination Account",
+                        value = selectedToAccount?.name ?: if (isSavings) "Select Investment Account" else "Select Destination Account",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("To Account") },
+                        label = { Text(if (isSavings) "Investment Account" else "To Account") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toAccountExpanded) },
                         modifier = Modifier
                             .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -250,14 +311,22 @@ fun RecurringFormScreen(
                         expanded = toAccountExpanded,
                         onDismissRequest = { toAccountExpanded = false }
                     ) {
-                        uiState.accounts.filter { it.id != selectedAccount?.id }.forEach { account ->
+                        if (isSavings && targetToAccounts.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text(account.name) },
-                                onClick = {
-                                    selectedToAccount = account
-                                    toAccountExpanded = false
-                                }
+                                text = { Text("No investment accounts found (type = savings)", color = MaterialTheme.colorScheme.outline) },
+                                onClick = { toAccountExpanded = false },
+                                enabled = false
                             )
+                        } else {
+                            targetToAccounts.forEach { account ->
+                                DropdownMenuItem(
+                                    text = { Text(account.name) },
+                                    onClick = {
+                                        selectedToAccount = account
+                                        toAccountExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -509,16 +578,37 @@ fun RecurringFormScreen(
 
             // Investment Platform (Savings)
             if (selectedType == "savings") {
-                OutlinedTextField(
-                    value = selectedPlatform,
-                    onValueChange = { selectedPlatform = it },
-                    label = { Text("Investment Platform") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = selectedPlatform,
+                        onValueChange = { selectedPlatform = it },
+                        label = { Text("Investment Platform (Optional)") },
+                        placeholder = { Text("e.g. Zerodha, Groww, Kuvera...") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "Popular Platforms",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        platformPresets.forEach { preset ->
+                            val isSelected = selectedPlatform.equals(preset, ignoreCase = true)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedPlatform = if (isSelected) "" else preset },
+                                label = { Text(preset, style = MaterialTheme.typography.labelSmall) }
+                            )
+                        }
+                    }
+                }
             }
 
-            // Goal
-            if (uiState.goals.isNotEmpty()) {
+            // Goal (Savings only)
+            if (selectedType == "savings" && uiState.goals.isNotEmpty()) {
                 var goalExpanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(
                     expanded = goalExpanded,
@@ -719,6 +809,15 @@ fun RecurringFormScreen(
                         return@Button
                     }
 
+                    if (selectedType == "savings" && selectedToAccount == null) {
+                        Toast.makeText(context, "Please select an investment account", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    if (selectedType == "transfer" && selectedToAccount == null) {
+                        Toast.makeText(context, "Please select a destination account", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
                     val useSplit = splitAllowedForType && splitEnabled
                     var splitDataToSave: String? = null
                     if (useSplit) {
@@ -755,6 +854,7 @@ fun RecurringFormScreen(
                             goalId = selectedGoalId,
                             investmentPlatform = selectedPlatform.ifEmpty { null },
                             frequency = selectedFrequency,
+                            startDate = startDate,
                             nextDate = startDate,
                             endDate = endDate,
                             isActive = existingRecurring?.isActive ?: true,

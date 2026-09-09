@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.moneymanager.data.worker.EmiPostingWorker
 import com.moneymanager.data.worker.RecurringGenerationWorker
 import com.moneymanager.app.ui.MoneyManagerNavHost
 import com.moneymanager.app.ui.theme.MoneyManagerTheme
@@ -54,6 +55,15 @@ class MainActivity : FragmentActivity() {
             "RecurringGeneration",
             ExistingWorkPolicy.KEEP,
             workRequest
+        )
+
+        // Also post any EMI installments that came due while the app wasn't running, so the
+        // balance reflects them immediately instead of waiting for the 12h periodic job.
+        val emiPostingRequest = OneTimeWorkRequestBuilder<EmiPostingWorker>().build()
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            "EmiPosting",
+            ExistingWorkPolicy.KEEP,
+            emiPostingRequest
         )
 
         setContent {

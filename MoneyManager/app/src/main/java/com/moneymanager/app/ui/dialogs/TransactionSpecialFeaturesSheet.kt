@@ -86,6 +86,7 @@ internal fun SpecialFeaturesBottomSheetContent(
     selectedPeerId: Long?,
     peers: List<PeerContact>,
     expectedReturnDate: Long?,
+    selectedPlatform: String? = null,
     accentColor: Color,
     imageAttachmentsEnabled: Boolean,
     onEmiToggle: (Boolean) -> Unit,
@@ -99,6 +100,7 @@ internal fun SpecialFeaturesBottomSheetContent(
     onOpenPeer: () -> Unit,
     onOpenReturnDate: () -> Unit,
     onOpenTags: () -> Unit,
+    onOpenPlatform: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     Column(
@@ -511,6 +513,16 @@ internal fun SpecialFeaturesBottomSheetContent(
                 subtitle = returnDateStr ?: "Not set >",
                 accentColor = accentColor,
                 onClick = onOpenReturnDate
+            )
+        }
+
+        if (TransactionFeature.PLATFORM in features) {
+            ExtraOptionTile(
+                icon = Icons.Default.Storefront,
+                title = "Investment Platform",
+                subtitle = selectedPlatform ?: "Select platform >",
+                accentColor = accentColor,
+                onClick = onOpenPlatform
             )
         }
 

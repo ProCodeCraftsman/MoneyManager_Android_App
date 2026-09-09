@@ -34,7 +34,7 @@ object TransactionFormConfig {
         FormTypeConfig("income", "Income", "Income", Icons.AutoMirrored.Filled.TrendingUp,
             setOf(TransactionFeature.CATEGORY, TransactionFeature.SPLIT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
         FormTypeConfig("savings", "Savings", "Savings", Icons.Default.Savings,
-            setOf(TransactionFeature.CATEGORY, TransactionFeature.TO_ACCOUNT, TransactionFeature.SPLIT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT, TransactionFeature.GOAL),
+            setOf(TransactionFeature.CATEGORY, TransactionFeature.TO_ACCOUNT, TransactionFeature.SPLIT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT, TransactionFeature.GOAL, TransactionFeature.PLATFORM),
             ),
         FormTypeConfig("transfer", "Transfer", "Transfer", Icons.Default.SwapHoriz,
             setOf(TransactionFeature.TO_ACCOUNT, TransactionFeature.TAGS, TransactionFeature.NOTE, TransactionFeature.RECEIPT)),
