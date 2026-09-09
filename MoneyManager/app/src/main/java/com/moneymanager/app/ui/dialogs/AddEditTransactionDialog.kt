@@ -1321,31 +1321,23 @@ internal fun CategoryCarousel(
         }
     }
 
-    val displayCats = remember(sortedParents, expandedCategoryId, selectedCategoryId, filtered) {
+    val displayCats = remember(sortedParents, expandedCategoryId, filtered) {
         if (expandedCategoryId != null) {
             val subs = filtered.filter { it.parentId == expandedCategoryId }
                 .sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
             val parent = sortedParents.firstOrNull { it.id == expandedCategoryId }
             if (parent != null) listOf(parent) + subs else subs
         } else {
-            val top4 = sortedParents.take(4).toMutableList()
-            if (selectedCategoryId != null && top4.none { it.id == selectedCategoryId }) {
-                val selectedCat = filtered.firstOrNull { it.id == selectedCategoryId }
-                if (selectedCat != null) {
-                    val catToAdd = if (selectedCat.parentId != null) filtered.firstOrNull { it.id == selectedCat.parentId } ?: selectedCat else selectedCat
-                    if (top4.size == 4) top4[3] = catToAdd
-                    else top4.add(catToAdd)
-                }
-            }
-            top4
+            sortedParents
         }
     }
 
     Row(
         Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         displayCats.forEach { cat ->
@@ -3174,7 +3166,7 @@ internal fun FormCategorySearchSheet(
     }
 
     var expandedParentIds by remember(allParents) {
-        mutableStateOf(allParents.map { it.id }.toSet())
+        mutableStateOf(emptySet<Long>())
     }
 
     val (displayParents, displaySubsMap, displayOrphans) = remember(allParents, subsByParent, orphanSubs, query) {
@@ -3311,14 +3303,7 @@ internal fun FormCategorySearchSheet(
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                    Spacer(Modifier.width(4.dp))
                                 }
-                                Icon(
-                                    Icons.Default.ChevronRight,
-                                    contentDescription = "Select",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
                             }
                         }
 
@@ -3357,12 +3342,6 @@ internal fun FormCategorySearchSheet(
                                                     fontWeight = FontWeight.Medium
                                                 )
                                             }
-                                            Icon(
-                                                Icons.Default.ChevronRight,
-                                                contentDescription = "Select",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                                modifier = Modifier.size(18.dp)
-                                            )
                                         }
                                     }
                                 }
@@ -3404,12 +3383,6 @@ internal fun FormCategorySearchSheet(
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.weight(1f)
-                                )
-                                Icon(
-                                    Icons.Default.ChevronRight,
-                                    contentDescription = "Select",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
