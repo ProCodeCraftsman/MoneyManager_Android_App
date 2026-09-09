@@ -2,12 +2,14 @@ package com.moneymanager.data.backup
 
 import android.content.Context
 import com.moneymanager.data.repository.ExportRepository
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.mockito.Mock
+import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
 import java.io.File
 import java.time.LocalDateTime
@@ -25,18 +27,63 @@ class LocalBackupManagerTest {
     @Mock
     lateinit var mockExportRepository: ExportRepository
 
+    @Mock
+    lateinit var mockDeviceBackupKeyStore: DeviceBackupKeyStore
+
+    private val encryptionHelper = EncryptionHelper()
+
     private lateinit var localBackupManager: LocalBackupManager
     private val formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)
 
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
-        localBackupManager = LocalBackupManager(mockContext, mockExportRepository)
+        `when`(mockDeviceBackupKeyStore.getOrCreatePassphrase()).thenReturn("test-device-passphrase")
+        localBackupManager = LocalBackupManager(mockContext, mockExportRepository, encryptionHelper, mockDeviceBackupKeyStore)
+    }
+
+    @Test
+    fun `restoreLocalBackup decrypts current enc format`() = runBlocking {
+        val dir = tempFolder.newFolder("backups")
+        val plainJson = """{"accounts":[]}"""
+        val encrypted = encryptionHelper.encrypt(plainJson.toByteArray(), "test-device-passphrase")
+        val file = File(dir, "backup_20260101_120000.enc")
+        file.writeBytes(encrypted)
+
+        `when`(mockExportRepository.importFromJsonBytes(plainJson.toByteArray())).thenReturn(
+            com.moneymanager.data.repository.ImportResult(success = true, message = "ok")
+        )
+
+        val result = localBackupManager.restoreLocalBackup(file)
+        assertTrue(result.success)
+    }
+
+    @Test
+    fun `restoreLocalBackup still reads legacy plaintext json backups`() = runBlocking {
+        val dir = tempFolder.newFolder("backups")
+        val plainJson = """{"accounts":[]}"""
+        val file = File(dir, "backup_20230101_120000.json")
+        file.writeText(plainJson)
+
+        `when`(mockExportRepository.importFromJsonBytes(plainJson.toByteArray())).thenReturn(
+            com.moneymanager.data.repository.ImportResult(success = true, message = "ok")
+        )
+
+        val result = localBackupManager.restoreLocalBackup(file)
+        assertTrue(result.success)
     }
 
     @Test
     fun `parseDateFromFileName correctly parses valid filename`() {
         val fileName = "backup_20231027_120000.json"
+        val expected = LocalDateTime.of(2023, 10, 27, 12, 0, 0)
+        val result = localBackupManager.parseDateFromFileName(fileName)
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `parseDateFromFileName correctly parses valid enc filename`() {
+        val fileName = "backup_20231027_120000.enc"
         val expected = LocalDateTime.of(2023, 10, 27, 12, 0, 0)
         val result = localBackupManager.parseDateFromFileName(fileName)
         assertEquals(expected, result)

@@ -24,13 +24,16 @@ data class LocalBackupItem(
 @Singleton
 class LocalBackupManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val exportRepository: ExportRepository
+    private val exportRepository: ExportRepository,
+    private val encryptionHelper: EncryptionHelper,
+    private val deviceBackupKeyStore: DeviceBackupKeyStore,
 ) {
     private val fileNameFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss", Locale.ROOT)
 
     /**
-     * Performs a local JSON backup.
-     * Saves the file to the app's external files directory under 'backups'.
+     * Performs a local encrypted backup.
+     * Saves the file to the app's external files directory under 'backups', encrypted with a
+     * random per-device passphrase (see [DeviceBackupKeyStore]) so it isn't plaintext at rest.
      * Keeps at least 10 recent backups, and deletes others older than 30 days.
      */
     suspend fun performLocalBackup(): Result<File> = withContext(Dispatchers.IO) {
@@ -40,13 +43,14 @@ class LocalBackupManager @Inject constructor(
                 backupDir.mkdirs()
             }
 
-            // 1. Export data to JSON
+            // 1. Export data to JSON and encrypt it with the device-local passphrase
             val jsonBytes = exportRepository.exportToJsonBytes()
+            val encrypted = encryptionHelper.encrypt(jsonBytes, deviceBackupKeyStore.getOrCreatePassphrase())
             val timestamp = LocalDateTime.now().format(fileNameFormatter)
-            val fileName = "backup_${timestamp}.json"
+            val fileName = "backup_${timestamp}.enc"
             val backupFile = File(backupDir, fileName)
-            
-            backupFile.writeBytes(jsonBytes)
+
+            backupFile.writeBytes(encrypted)
 
             // 2. Cleanup old backups
             cleanupOldBackups(backupDir)
@@ -62,7 +66,7 @@ class LocalBackupManager @Inject constructor(
         if (!backupDir.exists()) return@withContext emptyList()
 
         val files = backupDir.listFiles { file ->
-            file.isFile && file.name.startsWith("backup_") && file.name.endsWith(".json")
+            file.isFile && file.name.startsWith("backup_") && (file.name.endsWith(".enc") || file.name.endsWith(".json"))
         } ?: return@withContext emptyList()
 
         val dateFormatter = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
@@ -79,9 +83,19 @@ class LocalBackupManager @Inject constructor(
         }.sortedByDescending { it.timestamp }
     }
 
+    /**
+     * Restores a local backup file. Transparently handles both the current encrypted (`.enc`)
+     * format and legacy plaintext (`.json`) backups written before local-backup encryption was
+     * added, so existing users' backup history keeps working.
+     */
     suspend fun restoreLocalBackup(file: File): ImportResult = withContext(Dispatchers.IO) {
         val bytes = file.readBytes()
-        exportRepository.importFromJsonBytes(bytes)
+        val jsonBytes = if (file.name.endsWith(".enc")) {
+            encryptionHelper.decrypt(bytes, deviceBackupKeyStore.getOrCreatePassphrase())
+        } else {
+            bytes
+        }
+        exportRepository.importFromJsonBytes(jsonBytes)
     }
 
     suspend fun deleteLocalBackup(file: File): Boolean = withContext(Dispatchers.IO) {
@@ -94,8 +108,8 @@ class LocalBackupManager @Inject constructor(
         val retentionDays = 30L
         val now = LocalDateTime.now()
 
-        val files = directory.listFiles { file -> 
-            file.isFile && file.name.startsWith("backup_") && file.name.endsWith(".json") 
+        val files = directory.listFiles { file ->
+            file.isFile && file.name.startsWith("backup_") && (file.name.endsWith(".enc") || file.name.endsWith(".json"))
         } ?: return
 
         // Parse date from filename and sort by date descending (newest first)
@@ -120,8 +134,8 @@ class LocalBackupManager @Inject constructor(
     @androidx.annotation.VisibleForTesting(otherwise = androidx.annotation.VisibleForTesting.PRIVATE)
     internal fun parseDateFromFileName(fileName: String): LocalDateTime? {
         return try {
-            // Expected format: backup_yyyyMMdd_HHmmss.json
-            val dateString = fileName.substringAfter("backup_").substringBefore(".json")
+            // Expected format: backup_yyyyMMdd_HHmmss.enc (or legacy .json)
+            val dateString = fileName.substringAfter("backup_").substringBeforeLast(".")
             LocalDateTime.parse(dateString, fileNameFormatter)
         } catch (e: Exception) {
             // Malformed filenames are skipped from deletion

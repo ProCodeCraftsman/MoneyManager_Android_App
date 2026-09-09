@@ -158,6 +158,9 @@ dependencies {
     // .await() extension for Google Task<T> in coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
 
+    // Keystore-backed encrypted storage for the local-backup device passphrase
+    implementation("androidx.security:security-crypto:1.1.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
