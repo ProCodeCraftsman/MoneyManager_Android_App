@@ -749,7 +749,10 @@ fun AddEditTransactionDialog(
                             else selectedTagIds += tagId
                         },
                         isEmiEnabled = isEmiEnabled,
-                        onEmiToggle = { isEmiEnabled = it },
+                        onEmiToggle = { enabled ->
+                            isEmiEnabled = enabled
+                            if (enabled) showEmiDialog = true
+                        },
                         emiTenure = emiTenure,
                         onTenureChange = { emiTenure = it },
                         receiptData = receiptData,
