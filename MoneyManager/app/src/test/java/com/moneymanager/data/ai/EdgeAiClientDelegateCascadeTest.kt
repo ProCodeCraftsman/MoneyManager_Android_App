@@ -33,6 +33,7 @@ class EdgeAiClientDelegateCascadeTest {
         )
         runBlocking {
             whenever(mockModelManager.selectModelForDevice()).thenReturn(entry)
+            whenever(mockModelManager.getUserSelectedModel()).thenReturn(entry)
             whenever(mockModelManager.isModelDownloaded()).thenReturn(true)
         }
         whenever(mockModelManager.getModelFile(any())).thenReturn(java.io.File("/tmp/test.task"))

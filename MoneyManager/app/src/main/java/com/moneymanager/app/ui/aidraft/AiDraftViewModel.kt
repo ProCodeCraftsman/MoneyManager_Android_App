@@ -14,11 +14,13 @@ import com.moneymanager.domain.ai.AccountEntry
 import com.moneymanager.domain.ai.CategoryEntry
 import com.moneymanager.domain.ai.GenerateDraftFromImageUseCase
 import com.moneymanager.domain.ai.GenerateDraftFromTextUseCase
+import com.moneymanager.domain.ai.GoalEntry
 import com.moneymanager.domain.ai.PeerEntry
 import com.moneymanager.domain.ai.PromptContextBuilder
 import com.moneymanager.domain.ai.TagEntry
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.CategoryRepository
+import com.moneymanager.domain.repository.GoalRepository
 import com.moneymanager.domain.repository.PeerContactRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,6 +49,7 @@ class AiDraftViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val peerContactRepository: PeerContactRepository,
     private val transactionRepository: TransactionRepository,
+    private val goalRepository: GoalRepository,
     private val modelManager: LiteRtModelManager,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -221,6 +224,7 @@ class AiDraftViewModel @Inject constructor(
             val peers = peerContactRepository.getAllPeers().first()
             val transactions = transactionRepository.getAllTransactions().first()
             val tags = categoryRepository.getAllTags().first()
+            val goals = goalRepository.getAllGoals().first()
 
             val categoryUsageCounts = transactions
                 .filter { it.categoryId != null && !it.isSplitChild }
@@ -231,13 +235,15 @@ class AiDraftViewModel @Inject constructor(
             val accountEntries = accounts.map { AccountEntry(id = it.id, name = it.name, type = it.type) }
             val peerEntries = peers.map { PeerEntry(id = it.id, name = it.displayName) }
             val tagEntries = tags.map { TagEntry(id = it.id, name = it.name) }
+            val goalEntries = goals.filter { !it.isCompleted }.map { GoalEntry(id = it.id, name = it.name) }
 
             promptContextBuilder.build(
                 categories = categoryEntries,
                 categoryUsageCounts = categoryUsageCounts,
                 accounts = accountEntries,
                 peers = peerEntries,
-                tags = tagEntries
+                tags = tagEntries,
+                goals = goalEntries
             ).also { cachedPromptContext = it }
         }
     }
