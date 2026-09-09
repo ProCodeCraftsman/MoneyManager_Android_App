@@ -31,13 +31,17 @@ object PromptBuilder {
         appendLine("Output ONLY a valid JSON object. No markdown, no explanation, no extra text.")
         appendLine()
         appendLine("JSON schema:")
-        appendLine("""{"typeId":"expense|income|transfer","categoryName":"string","accountName":"string","peerContactName":"string or null","description":"string or null"}""")
+        appendLine("""{"typeId":"expense|income|transfer|savings|lend|borrow","categoryName":"string","accountName":"string","peerContactName":"string or null","description":"string or null","goalName":"string or null","investmentPlatform":"string or null","toAccountName":"string or null","expectedReturnDate":"YYYY-MM-DD or null"}""")
         appendLine()
         appendLine("Rules:")
-        appendLine("- typeId MUST be exactly: expense, income, or transfer.")
+        appendLine("- typeId MUST be exactly one of: expense, income, transfer, savings, lend, borrow.")
         appendLine("- Use the exact category and account names from your tools or the lists below.")
-        appendLine("- peerContactName: only for transactions involving a named person. Use null otherwise.")
+        appendLine("- peerContactName: only for lend/borrow, when a named person is involved. Use null otherwise.")
         appendLine("- description: short merchant or purpose summary (max 40 chars). Use null if unclear.")
+        appendLine("- goalName: only for typeId=savings when the text mentions a savings goal by name. Use null otherwise.")
+        appendLine("- investmentPlatform: only for typeId=savings (e.g. a mutual fund or investment app name). Use null otherwise.")
+        appendLine("- toAccountName: only for typeId=transfer or typeId=savings, the destination account. Use null if not mentioned.")
+        appendLine("- expectedReturnDate: only for typeId=lend or typeId=borrow, when a due/return date is mentioned. Use null otherwise.")
         appendLine()
         appendLine("If tools are available, follow this order:")
         appendLine("1. Call getMerchantCategory(merchant) to check past category for this merchant.")
@@ -63,6 +67,9 @@ object PromptBuilder {
         }
         if (context.peers.isNotEmpty()) {
             appendLine("Available peers: ${context.peers.take(10).joinToString(", ") { it.name }}")
+        }
+        if (context.goals.isNotEmpty()) {
+            appendLine("Available savings goals: ${context.goals.take(10).joinToString(", ") { it.name }}")
         }
     }.trimEnd()
 
@@ -104,13 +111,14 @@ object PromptBuilder {
         appendLine("Output ONLY a valid JSON object. No markdown, no explanation, no extra text.")
         appendLine()
         appendLine("JSON schema:")
-        appendLine("""{"typeId":"expense|income|transfer","amount":0.00,"categoryName":"string","accountName":"string","peerContactName":"string or null","description":"string or null","date":"YYYY-MM-DD or null","confidence":{"amount":"high|medium|low","typeId":"high|medium|low","date":"high|medium|low","merchant":"high|medium|low"},"needs_review":false,"flags":[]}""")
+        appendLine("""{"typeId":"expense|income|transfer|savings","amount":0.00,"categoryName":"string","accountName":"string","peerContactName":"string or null","description":"string or null","date":"YYYY-MM-DD or null","goalName":"string or null","investmentPlatform":"string or null","toAccountName":"string or null","confidence":{"amount":"high|medium|low","typeId":"high|medium|low","date":"high|medium|low","merchant":"high|medium|low"},"needs_review":false,"flags":[]}""")
         appendLine()
         appendLine("Field rules:")
-        appendLine("- typeId: receipts are usually expense. Use income only for cashback/refund receipts.")
+        appendLine("- typeId: receipts are usually expense. Use income only for cashback/refund receipts. Use savings only for a visible deposit/investment slip.")
         appendLine("- amount: use TOTAL or GRAND TOTAL — never subtotal or a single line item price.")
         appendLine("- date: extract from receipt header. Use null if not readable.")
         appendLine("- description: short merchant or purpose summary (max 40 chars). Use null if unclear.")
+        appendLine("- goalName / investmentPlatform / toAccountName: only for typeId=savings, and only when clearly printed on the receipt. Use null otherwise.")
         appendLine("- confidence: rate each field high/medium/low based on how clearly it appears in the image.")
         appendLine("- needs_review: set true if ANY of amount, typeId, or date confidence is low.")
         appendLine("- flags: list uncertainty reasons, e.g. [\"blurry_image\", \"partial_receipt\", \"multiple_items\", \"amount_unclear\"].")

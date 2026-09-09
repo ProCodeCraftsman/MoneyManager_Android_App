@@ -9,7 +9,8 @@ class PromptContextBuilder @Inject constructor() {
         categoryUsageCounts: Map<Long, Int>,
         accounts: List<AccountEntry>,
         peers: List<PeerEntry>,
-        tags: List<TagEntry>
+        tags: List<TagEntry>,
+        goals: List<GoalEntry> = emptyList(),
     ): PromptContext {
         val top20 = categories
             .sortedByDescending { categoryUsageCounts[it.id] ?: 0 }
@@ -20,7 +21,8 @@ class PromptContextBuilder @Inject constructor() {
             allCategories = categories,
             accounts = accounts,
             peers = peers,
-            tags = tags
+            tags = tags,
+            goals = goals
         )
     }
 }

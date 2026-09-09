@@ -2,6 +2,7 @@ package com.moneymanager.data.ai
 
 import com.moneymanager.domain.ai.AccountEntry
 import com.moneymanager.domain.ai.CategoryEntry
+import com.moneymanager.domain.ai.GoalEntry
 import com.moneymanager.domain.ai.PeerEntry
 import com.moneymanager.domain.ai.PromptContext
 import com.moneymanager.domain.ai.TransactionDraft
@@ -70,12 +71,18 @@ object DraftParser {
             .firstOrNull { it.name.equals(draft.accountName, ignoreCase = true) }?.id
         val peerContactId = draft.peerContactId ?: context.peers
             .firstOrNull { it.name.equals(draft.peerContactName, ignoreCase = true) }?.id
+        val goalId = draft.goalId ?: context.goals
+            .firstOrNull { it.name.equals(draft.goalName, ignoreCase = true) }?.id
+        val toAccountId = draft.toAccountId ?: context.accounts
+            .firstOrNull { it.name.equals(draft.toAccountName, ignoreCase = true) }?.id
 
         return draft.copy(
             typeId = normalizedTypeId,
             categoryId = categoryId,
             accountId = accountId,
             peerContactId = peerContactId,
+            goalId = goalId,
+            toAccountId = toAccountId,
         )
     }
 

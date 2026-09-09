@@ -6,12 +6,12 @@ object DraftValidator {
 
     data class Result(val valid: Boolean, val issues: List<String>)
 
-    private val validTypes = setOf("expense", "income", "transfer")
+    private val validTypes = setOf("expense", "income", "transfer", "savings", "lend", "borrow")
 
     fun validate(draft: TransactionDraft): Result {
         val issues = buildList {
             if (draft.typeId != null && draft.typeId.lowercase() !in validTypes)
-                add("typeId '${draft.typeId}' is invalid; must be expense, income, or transfer")
+                add("typeId '${draft.typeId}' is invalid; must be one of $validTypes")
             if (draft.amount != null && draft.amount <= 0)
                 add("amount ${draft.amount} must be positive")
         }

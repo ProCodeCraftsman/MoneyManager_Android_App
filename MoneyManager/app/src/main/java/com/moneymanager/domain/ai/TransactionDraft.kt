@@ -23,6 +23,13 @@ data class TransactionDraft(
     val sourceSender: String? = null,
     val receiptPath: String? = null,
     val merchantHint: String? = null,
+    // Savings/transfer/lend-borrow fields — only populated for typeId in {savings, transfer, lend, borrow}
+    val goalId: Long? = null,
+    val goalName: String? = null,
+    val investmentPlatform: String? = null,
+    val toAccountId: Long? = null,
+    val toAccountName: String? = null,
+    val expectedReturnDate: Long? = null,
     // Vision / confidence metadata — populated by ask-image path, empty for text path
     val confidence: Map<String, String> = emptyMap(),
     val needsReview: Boolean = false,
