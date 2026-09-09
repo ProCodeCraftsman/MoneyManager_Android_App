@@ -730,7 +730,11 @@ fun AddEditTransactionDialog(
                         },
                         onPreviewReceipt = { showReceiptPreview = true },
                         splitEnabled = splitEnabled,
-                        onOpenSplit = { showSplitDialog = true },
+                        onOpenSplit = {
+                            splitEnabled = true
+                            updateSplitRowsFromSelection()
+                            showSplitDialog = true
+                        },
                         selectedGoalId = selectedGoalId,
                         goals = goals,
                         onOpenGoal = { showGoalDialog = true },
