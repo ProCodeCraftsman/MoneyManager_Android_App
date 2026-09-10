@@ -140,7 +140,7 @@ fun TransactionRow(
             val title: String
             val subtitle: String?
             
-            if (isTransfer) {
+            if (transaction.type == "transfer") {
                 val fromName = account?.name ?: "Account"
                 val toName = toAccount?.name ?: "Account"
                 title = "Transfer"

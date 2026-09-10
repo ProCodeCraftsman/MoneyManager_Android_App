@@ -453,14 +453,6 @@ fun RecurringFormScreen(
                 }
             }
 
-            // Description
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
             // Note
             OutlinedTextField(
                 value = note,

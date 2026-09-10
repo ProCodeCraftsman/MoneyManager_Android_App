@@ -356,7 +356,6 @@ class ExportRepository @Inject constructor(
             obj.put("categoryId", budget.categoryId)
             obj.put("amount", budget.amount)
             obj.put("month", budget.month)
-            obj.put("isSavingsTarget", budget.isSavingsTarget)
             obj.put("createdAt", budget.createdAt)
             array.put(obj)
         }
@@ -572,9 +571,9 @@ class ExportRepository @Inject constructor(
     private suspend fun exportBudgetsCsv(): String {
         val budgets = budgetDao.getAllBudgets().first()
         val sb = StringBuilder()
-        sb.appendLine("category_id,amount,month,is_savings_target")
+        sb.appendLine("category_id,amount,month")
         budgets.forEach { budget ->
-            sb.appendLine("${budget.categoryId},${budget.amount},${budget.month},${budget.isSavingsTarget}")
+            sb.appendLine("${budget.categoryId},${budget.amount},${budget.month}")
         }
         return sb.toString()
     }
@@ -841,7 +840,6 @@ class ExportRepository @Inject constructor(
                 categoryId = obj.getLong("categoryId"),
                 amount = obj.getDouble("amount"),
                 month = obj.optString("month", "2024-01"),
-                isSavingsTarget = obj.optBoolean("isSavingsTarget", false),
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
             )
             budgetDao.insertBudget(budget)
@@ -1271,7 +1269,6 @@ class ExportRepository @Inject constructor(
                     categoryId = categoryId,
                     amount = parts[1].toDoubleOrNull() ?: 0.0,
                     month = month,
-                    isSavingsTarget = parts.getOrNull(3)?.toBooleanStrictOrNull() ?: false,
                 )
                 budgetDao.insertBudget(budget)
                 existingKeys.add(key)

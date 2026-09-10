@@ -254,6 +254,34 @@ val MIGRATION_16_17 = object : Migration(16, 17) {
     }
 }
 
+val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Drop unused isSavingsTarget column (never read/written by app logic; SQLite has no
+        // native DROP COLUMN prior to 3.35, so recreate the table without it).
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `budgets_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `categoryId` INTEGER NOT NULL,
+                `amount` REAL NOT NULL,
+                `month` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            INSERT INTO `budgets_new` (id, categoryId, amount, month, createdAt)
+            SELECT id, categoryId, amount, month, createdAt FROM budgets
+        """.trimIndent())
+
+        db.execSQL("DROP TABLE budgets")
+        db.execSQL("ALTER TABLE budgets_new RENAME TO budgets")
+
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_categoryId` ON `budgets` (`categoryId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_month` ON `budgets` (`month`)")
+    }
+}
+
 private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()
 
 @Database(
@@ -270,7 +298,7 @@ private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isE
         MerchantCategoryMemoryEntity::class,
         EmiEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {

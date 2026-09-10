@@ -82,7 +82,7 @@ fun TransactionDetailSheet(
     val expenseColor = categoryColors.expense
 
     val title = when {
-        transaction.isTransfer || transaction.type == "transfer" -> "Transfer"
+        transaction.type == "transfer" -> "Transfer"
         transaction.description.isNotBlank() -> transaction.description
         transaction.isSplitParent -> "Split Transaction"
         category != null -> category.name
