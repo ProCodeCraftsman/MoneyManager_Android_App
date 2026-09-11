@@ -299,7 +299,7 @@ private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isE
         EmiEntity::class,
     ],
     version = 18,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
