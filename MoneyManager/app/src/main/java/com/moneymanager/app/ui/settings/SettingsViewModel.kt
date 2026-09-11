@@ -17,10 +17,6 @@ import com.moneymanager.data.repository.ExportType
 import com.moneymanager.data.repository.ExportResult
 import com.moneymanager.data.repository.ImportResult
 import com.moneymanager.data.security.SecurityManager
-import com.moneymanager.data.sync.AuthManager
-import com.moneymanager.data.sync.AuthState
-import com.moneymanager.data.sync.FirebaseSyncManager
-import com.moneymanager.data.sync.SyncStatus
 import com.moneymanager.domain.repository.TransactionRepository
 import com.moneymanager.domain.repository.CategoryRepository
 import com.moneymanager.app.ui.util.FileHelper
@@ -43,8 +39,6 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val preferencesManager: PreferencesManager,
-    private val authManager: AuthManager,
-    private val syncManager: FirebaseSyncManager,
     private val exportRepository: ExportRepository,
     private val securityManager: SecurityManager,
     private val transactionRepository: TransactionRepository,
@@ -123,8 +117,6 @@ class SettingsViewModel @Inject constructor(
         preferencesManager.autoLockMinutes,
         preferencesManager.lastSyncTime,
         preferencesManager.imageAttachmentsEnabled,
-        authManager.authState,
-        syncManager.getSyncState(),
         importResult,
         exportResult,
         driveBackupUiState,
@@ -140,19 +132,15 @@ class SettingsViewModel @Inject constructor(
         val autoLockMinutes = values[7] as Int
         val lastSyncTime = values[8] as Long?
         val attachmentsEnabled = values[9] as Boolean
-        val authState = values[10] as AuthState
-        val syncState = values[11] as com.moneymanager.data.sync.SyncState
-        val impResult = values[12] as ImportResult?
-        val expResult = values[13] as ExportResult?
-        val driveBackup = values[14] as DriveBackupUiState
+        val impResult = values[10] as ImportResult?
+        val expResult = values[11] as ExportResult?
+        val driveBackup = values[12] as DriveBackupUiState
         @Suppress("UNCHECKED_CAST")
-        val localBackupsList = values[15] as List<com.moneymanager.data.backup.LocalBackupItem>
+        val localBackupsList = values[13] as List<com.moneymanager.data.backup.LocalBackupItem>
 
         val systemDarkMode = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         val effectiveDarkMode = if (hasUserSetTheme) storedDarkMode else systemDarkMode
 
-        val isSignedIn = authState is AuthState.SignedIn
-        val user = (authState as? AuthState.SignedIn)?.user
         SettingsUiState(
             selectedTheme = selectedTheme,
             darkMode = effectiveDarkMode,
@@ -162,11 +150,6 @@ class SettingsViewModel @Inject constructor(
             pinHash = pinHash,
             biometricEnabled = biometricEnabled,
             autoLockMinutes = autoLockMinutes,
-            isSignedIn = isSignedIn,
-            userEmail = user?.email,
-            userName = user?.displayName,
-            userPhone = user?.phoneNumber,
-            syncStatus = syncState.status,
             lastSyncTime = lastSyncTime,
             importResult = impResult,
             exportResult = expResult,
@@ -244,12 +227,6 @@ class SettingsViewModel @Inject constructor(
             preferencesManager.setPinEnabled(true)
             preferencesManager.resetWrongAttempts()
         }
-    }
-
-    fun signOut() { authManager.signOut() }
-
-    fun triggerSync() {
-        viewModelScope.launch { syncManager.sync() }
     }
 
     fun exportToCsv(type: ExportType, uri: Uri) {
