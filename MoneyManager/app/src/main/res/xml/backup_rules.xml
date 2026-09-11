@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Legacy (API < 31) counterpart to data_extraction_rules.xml - same
+    reasoning: keep the unencrypted live database out of Android's
+    OS-level auto-backup.
+-->
+<full-backup-content>
+    <exclude domain="database" path="moneymanager.db" />
+    <exclude domain="database" path="moneymanager.db-wal" />
+    <exclude domain="database" path="moneymanager.db-shm" />
+</full-backup-content>

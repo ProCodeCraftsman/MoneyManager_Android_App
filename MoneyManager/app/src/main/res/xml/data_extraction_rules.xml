@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The app already offers its own encrypted backup (local + Drive, see
+    DeviceBackupKeyStore/EncryptionHelper). Excluding the live database here
+    stops Android's OS-level auto-backup/device-transfer from lifting an
+    unencrypted copy of every transaction/balance off the device.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="moneymanager.db" />
+        <exclude domain="database" path="moneymanager.db-wal" />
+        <exclude domain="database" path="moneymanager.db-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="moneymanager.db" />
+        <exclude domain="database" path="moneymanager.db-wal" />
+        <exclude domain="database" path="moneymanager.db-shm" />
+    </device-transfer>
+</data-extraction-rules>
