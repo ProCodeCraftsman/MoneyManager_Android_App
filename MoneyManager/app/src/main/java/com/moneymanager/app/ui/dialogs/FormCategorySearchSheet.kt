@@ -50,6 +50,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.components.NumericKeypad
 import com.moneymanager.app.ui.components.SplitRowCard
+import com.moneymanager.app.ui.theme.AlphaTokens
 import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.FileHelper
@@ -188,7 +189,7 @@ internal fun FormCategorySearchSheet(
                             onClick = { onCategorySelected(parent) },
                             shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(

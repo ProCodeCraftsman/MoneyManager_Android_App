@@ -2,6 +2,8 @@ package com.moneymanager.di
 
 import android.content.Context
 import androidx.room.Room
+import com.moneymanager.data.DatabaseEncryptionMigrator
+import com.moneymanager.data.DeviceDbKeyStore
 import com.moneymanager.data.MIGRATION_2_3
 import com.moneymanager.data.MIGRATION_5_6
 import com.moneymanager.data.MIGRATION_6_7
@@ -23,7 +25,10 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import net.sqlcipher.database.SupportFactory
 import javax.inject.Singleton
+
+private const val DB_FILE_NAME = "moneymanager.db"
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -31,14 +36,21 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): MoneyManagerDatabase {
+    fun provideDatabase(
+        @ApplicationContext context: Context,
+        deviceDbKeyStore: DeviceDbKeyStore,
+    ): MoneyManagerDatabase {
+        val passphrase = deviceDbKeyStore.getOrCreatePassphrase()
+        DatabaseEncryptionMigrator.migrateToEncryptedIfNeeded(context, DB_FILE_NAME, passphrase)
+
         return Room.databaseBuilder(
             context,
             MoneyManagerDatabase::class.java,
-            "moneymanager.db"
+            DB_FILE_NAME
         )
             .addMigrations(MIGRATION_2_3, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
             .fallbackToDestructiveMigration(dropAllTables = true)
+            .openHelperFactory(SupportFactory(passphrase.toByteArray()))
             .build()
     }
 

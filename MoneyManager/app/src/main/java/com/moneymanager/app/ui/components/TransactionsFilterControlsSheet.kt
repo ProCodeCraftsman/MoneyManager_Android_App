@@ -297,15 +297,15 @@ fun TransactionsFilterControlsSheet(
                     onClick = onResetAll,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Reset All", color = Color.Red)
+                    Text("Reset All", color = MaterialTheme.colorScheme.error)
                 }
                 Button(
                     onClick = { onApply(); onDismiss() },
                     modifier = Modifier.weight(2f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Apply Filters", color = Color.White)
+                    Text("Apply Filters", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }

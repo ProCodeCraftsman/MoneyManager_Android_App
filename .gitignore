@@ -36,6 +36,7 @@ java_*.hprof
 # Keystore
 *.jks
 *.keystore
+keystore.properties
 
 # Local config
 local.properties
@@ -69,3 +70,4 @@ vendor/
 coverage/
 .cache/
 tmp/
+phone_db_backups/

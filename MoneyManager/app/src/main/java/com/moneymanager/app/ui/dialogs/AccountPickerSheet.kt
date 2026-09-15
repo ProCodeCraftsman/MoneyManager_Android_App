@@ -50,6 +50,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.components.NumericKeypad
 import com.moneymanager.app.ui.components.SplitRowCard
+import com.moneymanager.app.ui.theme.AlphaTokens
 import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.FileHelper
@@ -147,11 +148,11 @@ internal fun AccountPickerSheet(
                     Surface(
                         onClick = { onAccountSelected(acc) },
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) accentContainer.copy(alpha = 0.25f)
+                        color = if (isSelected) accentContainer.copy(alpha = AlphaTokens.hairline)
                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                         border = BorderStroke(
                             width = if (isSelected) 1.5.dp else 0.5.dp,
-                            color = if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                            color = if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     ) {

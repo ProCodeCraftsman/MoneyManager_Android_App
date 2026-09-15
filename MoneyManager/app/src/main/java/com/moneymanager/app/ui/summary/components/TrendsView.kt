@@ -25,10 +25,24 @@ import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.summary.TrendDataPoint
 import com.moneymanager.app.ui.summary.TrendTimeFilter
 import com.moneymanager.app.ui.summary.TrendType
+import com.moneymanager.app.ui.theme.AlphaTokens
+import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
+
+@Composable
+private fun trendColor(type: TrendType): Color {
+    val categoryColors = LocalCategoryColors.current
+    return when (type) {
+        TrendType.INCOME -> categoryColors.income
+        TrendType.EXPENSE -> categoryColors.expense
+        TrendType.LENDING -> categoryColors.lending
+        TrendType.SAVINGS -> categoryColors.savings
+        TrendType.OVERALL -> MaterialTheme.colorScheme.primary
+    }
+}
 
 @Composable
 fun TrendsView(
@@ -83,14 +97,8 @@ fun TrendCard(
     onMetricClick: () -> Unit,
     allDataPoints: Map<TrendType, List<TrendDataPoint>> = emptyMap()
 ) {
-    val typeColor = when (type) {
-        TrendType.INCOME -> Color(0xFF42A5F5)
-        TrendType.EXPENSE -> Color(0xFFEF5350)
-        TrendType.LENDING -> Color(0xFFAB47BC)
-        TrendType.SAVINGS -> Color(0xFF66BB6A)
-        TrendType.OVERALL -> MaterialTheme.colorScheme.primary
-    }
-    
+    val typeColor = trendColor(type)
+
     var visibleTypes by remember(type) { 
         mutableStateOf(if (type == TrendType.OVERALL) TrendType.entries.filter { it != TrendType.OVERALL }.toSet() else setOf(type)) 
     }
@@ -277,9 +285,12 @@ fun TrendGraph(
     
     val textMeasurer = rememberTextMeasurer()
     val textStyle = MaterialTheme.typography.labelSmall.copy(
-        fontSize = 8.sp, 
+        fontSize = 8.sp,
         fontWeight = FontWeight.Bold
     )
+    val overlayColors = TrendType.entries.associateWith { trendColor(it) }
+    val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline)
+    val pointHaloColor = MaterialTheme.colorScheme.surface
 
     val currentIndex = dataPoints.indexOfFirst { it.timestamp == currentMonthStart }.coerceAtLeast(0)
     
@@ -369,7 +380,7 @@ fun TrendGraph(
                     for (i in 0..gridLines) {
                         val y = height - (height / gridLines * i)
                         drawLine(
-                            color = Color.Gray.copy(alpha = 0.1f),
+                            color = gridLineColor,
                             start = Offset(0f, y),
                             end = Offset(width, y),
                             strokeWidth = 1.dp.toPx()
@@ -379,20 +390,15 @@ fun TrendGraph(
                     if (type == TrendType.OVERALL) {
                         TrendType.entries.filter { it != TrendType.OVERALL }.forEach { t ->
                             if (visibleTypes.contains(t)) {
-                                val tColor = when (t) {
-                                    TrendType.INCOME -> Color(0xFF42A5F5)
-                                    TrendType.EXPENSE -> Color(0xFFEF5350)
-                                    TrendType.LENDING -> Color(0xFFAB47BC)
-                                    TrendType.SAVINGS -> Color(0xFF66BB6A)
-                                    else -> Color.Gray
-                                }
+                                val tColor = overlayColors[t] ?: color
                                 val points = allDataPoints[t] ?: emptyList()
                                 if (points.size > 1) {
                                     drawTrendLine(
-                                        points = points, 
-                                        color = tColor, 
-                                        maxAmount = maxAmount, 
-                                        stepX = stepX, 
+                                        points = points,
+                                        color = tColor,
+                                        haloColor = pointHaloColor,
+                                        maxAmount = maxAmount,
+                                        stepX = stepX,
                                         height = height,
                                         textMeasurer = textMeasurer,
                                         textStyle = textStyle.copy(color = tColor),
@@ -404,10 +410,11 @@ fun TrendGraph(
                         }
                     } else {
                         drawTrendLine(
-                            points = dataPoints, 
-                            color = color, 
-                            maxAmount = maxAmount, 
-                            stepX = stepX, 
+                            points = dataPoints,
+                            color = color,
+                            haloColor = pointHaloColor,
+                            maxAmount = maxAmount,
+                            stepX = stepX,
                             height = height,
                             textMeasurer = textMeasurer,
                             textStyle = textStyle.copy(color = color),
@@ -440,6 +447,7 @@ fun TrendGraph(
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrendLine(
     points: List<TrendDataPoint>,
     color: Color,
+    haloColor: Color,
     maxAmount: Double,
     stepX: Float,
     height: Float,
@@ -498,7 +506,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrendLine(
         val y = height - (abs(point.amount).toFloat() / maxAmount.toFloat() * height)
         
         drawCircle(
-            color = Color.White,
+            color = haloColor,
             radius = 3.dp.toPx(),
             center = Offset(x, y)
         )
@@ -540,10 +548,10 @@ fun TrendLegend(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         val types = listOf(
-            TrendType.INCOME to Color(0xFF42A5F5),
-            TrendType.EXPENSE to Color(0xFFEF5350),
-            TrendType.LENDING to Color(0xFFAB47BC),
-            TrendType.SAVINGS to Color(0xFF66BB6A)
+            TrendType.INCOME to trendColor(TrendType.INCOME),
+            TrendType.EXPENSE to trendColor(TrendType.EXPENSE),
+            TrendType.LENDING to trendColor(TrendType.LENDING),
+            TrendType.SAVINGS to trendColor(TrendType.SAVINGS)
         )
 
         types.forEach { (type, color) ->

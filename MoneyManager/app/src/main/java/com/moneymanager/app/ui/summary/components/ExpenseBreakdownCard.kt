@@ -17,8 +17,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.components.PieChartEntry
+import com.moneymanager.app.ui.theme.CategoryPalettes
+import com.moneymanager.app.ui.theme.LocalAppTheme
+import com.moneymanager.app.ui.theme.LocalIsDarkMode
 import com.moneymanager.app.ui.util.CurrencyUtils
 import java.util.Locale
+
+@Composable
+private fun resolveEntryColor(colorIndex: Int?): Color {
+    val theme = LocalAppTheme.current
+    val isDarkMode = LocalIsDarkMode.current
+    return CategoryPalettes.getColorOrNull(theme, isDarkMode, colorIndex)
+        ?: MaterialTheme.colorScheme.outline
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,13 +124,14 @@ fun ExpenseBreakdownCard(
                         contentAlignment = Alignment.Center
                     ) {
                         val total = entries.sumOf { it.value }.toFloat()
-                        
+                        val arcColors = entries.map { resolveEntryColor(it.colorIndex) }
+
                         Canvas(modifier = Modifier.fillMaxSize()) {
                             var startAngle = -90f
-                            entries.forEach { entry ->
+                            entries.forEachIndexed { index, entry ->
                                 val sweepAngle = (entry.value / total * 360f).toFloat()
                                 drawArc(
-                                    color = entry.color,
+                                    color = arcColors[index],
                                     startAngle = startAngle,
                                     sweepAngle = sweepAngle,
                                     useCenter = false,
@@ -159,7 +171,6 @@ fun ExpenseBreakdownCard(
                             LegendItem(
                                 entry = PieChartEntry(
                                     value = otherValue,
-                                    color = Color.LightGray,
                                     label = "Others",
                                     percentage = otherPercent.toDouble()
                                 ),
@@ -185,7 +196,7 @@ private fun LegendItem(
     ) {
         Surface(
             shape = CircleShape,
-            color = entry.color,
+            color = resolveEntryColor(entry.colorIndex),
             modifier = Modifier.size(8.dp)
         ) {}
         

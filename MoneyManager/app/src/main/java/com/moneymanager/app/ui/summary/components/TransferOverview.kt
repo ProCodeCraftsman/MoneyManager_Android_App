@@ -9,14 +9,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.summary.AccountTransferInfo
+import com.moneymanager.app.ui.theme.CategoryPalettes
+import com.moneymanager.app.ui.theme.LocalAppTheme
+import com.moneymanager.app.ui.theme.LocalIsDarkMode
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.accountTypeIcon
-import com.moneymanager.app.ui.util.parseColor
 
 @Composable
 fun TransferSummaryCard(
@@ -176,6 +177,7 @@ private fun AccountTransferRow(
     account: AccountTransferInfo,
     currencyFormat: java.text.NumberFormat
 ) {
+    val accountColor = CategoryPalettes.getColor(LocalAppTheme.current, LocalIsDarkMode.current, account.colorIndex)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -184,14 +186,14 @@ private fun AccountTransferRow(
         // Account icon (fixed based on account type)
         Surface(
             shape = CircleShape,
-            color = parseColor(account.color).copy(alpha = 0.1f),
+            color = accountColor.copy(alpha = 0.1f),
             modifier = Modifier.size(35.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = accountTypeIcon(account.rawType),
                     contentDescription = null,
-                    tint = parseColor(account.color),
+                    tint = accountColor,
                     modifier = Modifier.size(18.dp)
                 )
             }

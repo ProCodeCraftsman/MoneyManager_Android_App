@@ -37,7 +37,6 @@ data class CategorySpend(
     val name: String,
     val amount: Double,
     val percentOfTotal: Float,   // 0..100
-    val color: androidx.compose.ui.graphics.Color,
     val emoji: String = "📁",
     val iconType: String = "emoji",
     val colorIndex: Int = 0
@@ -50,7 +49,6 @@ data class BudgetUtilizationRow(
     val spent: Double,
     val utilizationPercent: Float, // 0..>100 allowed (overrun)
     val percentOfTotalExpense: Float = 0f,
-    val color: androidx.compose.ui.graphics.Color,
     val emoji: String = "📁",
     val iconType: String = "emoji",
     val colorIndex: Int = 0
@@ -76,7 +74,6 @@ data class AccountTransferInfo(
     val outAmount: Double,
     val emoji: String,
     val iconType: String = "emoji",
-    val color: String,
     val colorIndex: Int = 0
 )
 
@@ -89,7 +86,6 @@ data class SavingsGoalRow(
     val progressPercent: Float,
     val emoji: String,
     val iconType: String = "emoji",
-    val color: androidx.compose.ui.graphics.Color,
     val colorIndex: Int = 0
 )
 
@@ -101,7 +97,6 @@ data class SavingsAccountRow(
     val type: String = "savings",
     val emoji: String,
     val iconType: String = "emoji",
-    val color: String,
     val colorIndex: Int = 0
 )
 

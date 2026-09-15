@@ -128,7 +128,7 @@ internal fun TransactionTypeHeader(
         types.forEach { item ->
             val isSelected = selectedType == item.id
             val typeAccent = when (item.id) {
-                "expense"  -> Color(0xFFE53935)
+                "expense"  -> categoryColors.expense
                 "income"   -> colorScheme.primary
                 "savings"  -> colorScheme.tertiary
                 "transfer" -> colorScheme.secondary

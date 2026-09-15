@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.moneymanager.app.ui.constants.TimeFilter
 import com.moneymanager.app.ui.summary.SummaryUiState
+import com.moneymanager.app.ui.theme.AlphaTokens
 
 @Composable
 fun SummaryHeader(
@@ -56,7 +57,7 @@ fun SummaryHeader(
                     imageVector = Icons.Default.ChevronLeft,
                     contentDescription = "Previous Period",
                     tint = if (isNavigable) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = AlphaTokens.disabled),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -80,7 +81,7 @@ fun SummaryHeader(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Next Period",
                     tint = if (isNavigable) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = AlphaTokens.disabled),
                     modifier = Modifier.size(20.dp)
                 )
             }

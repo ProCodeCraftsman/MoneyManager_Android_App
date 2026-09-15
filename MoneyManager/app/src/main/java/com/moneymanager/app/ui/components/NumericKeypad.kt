@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.moneymanager.app.ui.theme.AlphaTokens
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -196,7 +197,7 @@ fun NumericKeypad(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = resolvedAccent,
                         contentColor = Color.White,
-                        disabledContainerColor = resolvedAccent.copy(alpha = 0.38f),
+                        disabledContainerColor = resolvedAccent.copy(alpha = AlphaTokens.disabled),
                         disabledContentColor = Color.White.copy(alpha = 0.6f)
                     )
                 ) {

@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.moneymanager.app.ui.settings.DriveBackupUiState
 import com.moneymanager.app.ui.settings.DriveOpStatus
+import com.moneymanager.app.ui.theme.AlphaTokens
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -221,7 +222,7 @@ private fun DriveActionRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val iconTint = if (enabled) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = AlphaTokens.disabled)
             Icon(
                 icon, contentDescription = null,
                 modifier = Modifier.padding(end = 16.dp).size(24.dp),
@@ -232,13 +233,13 @@ private fun DriveActionRow(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (enabled) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = AlphaTokens.disabled)
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.let {
-                        if (enabled) it else it.copy(alpha = 0.38f)
+                        if (enabled) it else it.copy(alpha = AlphaTokens.disabled)
                     }
                 )
             }
@@ -249,7 +250,7 @@ private fun DriveActionRow(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
                     tint = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = AlphaTokens.disabled)
                 )
             }
         }
@@ -275,20 +276,20 @@ private fun DriveToggleRow(
             icon, contentDescription = null,
             modifier = Modifier.padding(end = 16.dp).size(24.dp),
             tint = if (enabled) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = AlphaTokens.disabled)
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (enabled) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = AlphaTokens.disabled)
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.let {
-                    if (enabled) it else it.copy(alpha = 0.38f)
+                    if (enabled) it else it.copy(alpha = AlphaTokens.disabled)
                 }
             )
         }

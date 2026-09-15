@@ -1,6 +1,7 @@
 package com.moneymanager.data.backup
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class EncryptionHelperTest {
@@ -8,24 +9,32 @@ class EncryptionHelperTest {
     private val encryptionHelper = EncryptionHelper()
 
     @Test
-    fun `getEffectivePassphrase returns googleId-derived key when googleId is present`() {
-        val googleId = "user123"
-        val expected = "mm_u_user123_v1"
-        val result = encryptionHelper.getEffectivePassphrase(googleId)
-        assertEquals(expected, result)
+    fun `decrypt reverses encrypt with the same passphrase`() {
+        val data = "some plaintext backup content".toByteArray()
+        val encrypted = encryptionHelper.encrypt(data, "correct passphrase")
+
+        val decrypted = encryptionHelper.decrypt(encrypted, "correct passphrase")
+
+        assertArrayEquals(data, decrypted)
     }
 
     @Test
-    fun `getEffectivePassphrase returns default internal key when googleId is null`() {
-        val expected = "moneymanager_default_v1_secure_fallback"
-        val result = encryptionHelper.getEffectivePassphrase(null)
-        assertEquals(expected, result)
+    fun `decrypt fails with the wrong passphrase`() {
+        val data = "some plaintext backup content".toByteArray()
+        val encrypted = encryptionHelper.encrypt(data, "correct passphrase")
+
+        assertThrows(Exception::class.java) {
+            encryptionHelper.decrypt(encrypted, "wrong passphrase")
+        }
     }
 
     @Test
-    fun `getEffectivePassphrase returns default internal key when googleId is empty`() {
-        val expected = "moneymanager_default_v1_secure_fallback"
-        val result = encryptionHelper.getEffectivePassphrase("")
-        assertEquals(expected, result)
+    fun `encrypt output differs each call due to random salt and IV`() {
+        val data = "some plaintext backup content".toByteArray()
+
+        val first = encryptionHelper.encrypt(data, "same passphrase")
+        val second = encryptionHelper.encrypt(data, "same passphrase")
+
+        assert(!first.contentEquals(second))
     }
 }

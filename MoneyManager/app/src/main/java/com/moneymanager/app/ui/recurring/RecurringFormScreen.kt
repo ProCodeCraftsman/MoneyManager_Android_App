@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.moneymanager.app.ui.recurring
 
 import android.net.Uri

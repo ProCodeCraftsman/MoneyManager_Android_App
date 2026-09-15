@@ -1,6 +1,5 @@
 package com.moneymanager.app.ui.summary
 
-import androidx.compose.ui.graphics.Color
 import com.moneymanager.app.ui.components.PieChartEntry
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.BudgetEntity
@@ -57,9 +56,7 @@ object SummaryAggregator {
     fun expenseByCategory(
         txs: List<TransactionEntity>,
         categories: List<CategoryEntity>,
-        topN: Int = 6,
-        othersColor: Color = Color(0xFF90A4AE),
-        parseColor: (String?, Long) -> Color
+        topN: Int = 6
     ): List<PieChartEntry> {
         val expenseTxs = txs.filter { it.type == "expense" && !it.isSplitParent }
         val total = expenseTxs.sumOf { it.amount }
@@ -84,7 +81,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = category?.name ?: "Uncategorized",
                     value = amount,
-                    color = parseColor(category?.color, rootCategoryId ?: 0L),
+                    colorIndex = category?.colorIndex,
                     percentage = amount / total * 100.0
                 )
             }
@@ -100,7 +97,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = "Others",
                     value = othersAmount,
-                    color = othersColor,
+                    colorIndex = null,
                     percentage = othersPercent
                 )
             )
@@ -110,9 +107,7 @@ object SummaryAggregator {
     fun expenseByAccount(
         txs: List<TransactionEntity>,
         accounts: List<AccountEntity>,
-        topN: Int = 6,
-        othersColor: Color = Color(0xFF90A4AE),
-        parseColor: (String?, Long) -> Color
+        topN: Int = 6
     ): List<PieChartEntry> {
         val expenseTxs = txs.filter { it.type == "expense" && !it.isSplitChild }
         val total = expenseTxs.sumOf { it.amount }
@@ -126,7 +121,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = account?.name ?: "Unknown Account",
                     value = amount,
-                    color = parseColor(account?.color, accountId),
+                    colorIndex = (accountId % 40).toInt(),
                     percentage = amount / total * 100.0
                 )
             }
@@ -142,7 +137,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = "Others",
                     value = othersAmount,
-                    color = othersColor,
+                    colorIndex = null,
                     percentage = othersPercent
                 )
             )
@@ -158,8 +153,7 @@ object SummaryAggregator {
         txs: List<TransactionEntity>,
         budgets: List<BudgetEntity>,
         categories: List<CategoryEntity>,
-        topN: Int = 5,
-        parseColor: (String?) -> Color
+        topN: Int = 5
     ): List<BudgetUtilizationRow> {
         val expenseTxs = txs.filter { it.type == "expense" && !it.isSplitParent }
         val totalExpense = expenseTxs.sumOf { it.amount }
@@ -187,7 +181,6 @@ object SummaryAggregator {
                 spent = spent,
                 utilizationPercent = utilization,
                 percentOfTotalExpense = percentOfTotal,
-                color = parseColor(category?.color),
                 emoji = category?.emoji ?: "📁",
                 iconType = category?.iconType ?: "emoji",
                 colorIndex = category?.colorIndex ?: 0
@@ -203,8 +196,7 @@ object SummaryAggregator {
     fun incomeByCategory(
         txs: List<TransactionEntity>,
         categories: List<CategoryEntity>,
-        topN: Int = 10,
-        parseColor: (String?, Long) -> Color
+        topN: Int = 10
     ): List<CategorySpend> {
         val incomeTxs = txs.filter { it.type == "income" && !it.isSplitParent }
         val total = incomeTxs.sumOf { it.amount }
@@ -220,7 +212,6 @@ object SummaryAggregator {
                     name = category?.name ?: "Uncategorized",
                     amount = amount,
                     percentOfTotal = (amount / total * 100.0).toFloat(),
-                    color = parseColor(category?.color, categoryId ?: 0L),
                     emoji = category?.emoji ?: "💰",
                     iconType = category?.iconType ?: "emoji",
                     colorIndex = category?.colorIndex ?: 0
@@ -233,8 +224,7 @@ object SummaryAggregator {
     fun savingsByCategorySpend(
         txs: List<TransactionEntity>,
         categories: List<CategoryEntity>,
-        topN: Int = 10,
-        parseColor: (String?, Long) -> Color
+        topN: Int = 10
     ): List<CategorySpend> {
         val savingsTxs = txs.filter { it.type == "savings" }
         val total = savingsTxs.sumOf { it.amount }
@@ -250,7 +240,6 @@ object SummaryAggregator {
                     name = category?.name ?: "Uncategorized",
                     amount = amount,
                     percentOfTotal = (amount / total * 100.0).toFloat(),
-                    color = parseColor(category?.color, categoryId ?: 0L),
                     emoji = category?.emoji ?: "💰",
                     iconType = category?.iconType ?: "emoji",
                     colorIndex = category?.colorIndex ?: 0
@@ -263,9 +252,7 @@ object SummaryAggregator {
     fun incomeByCategoryPie(
         txs: List<TransactionEntity>,
         categories: List<CategoryEntity>,
-        topN: Int = 6,
-        othersColor: Color = Color(0xFF90A4AE),
-        parseColor: (String?, Long) -> Color
+        topN: Int = 6
     ): List<PieChartEntry> {
         val incomeTxs = txs.filter { it.type == "income" && !it.isSplitParent }
         val total = incomeTxs.sumOf { it.amount }
@@ -290,7 +277,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = category?.name ?: "Uncategorized",
                     value = amount,
-                    color = parseColor(category?.color, rootCategoryId ?: 0L),
+                    colorIndex = category?.colorIndex,
                     percentage = amount / total * 100.0
                 )
             }
@@ -306,7 +293,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = "Others",
                     value = othersAmount,
-                    color = othersColor,
+                    colorIndex = null,
                     percentage = othersPercent
                 )
             )
@@ -316,9 +303,7 @@ object SummaryAggregator {
     fun incomeByAccount(
         txs: List<TransactionEntity>,
         accounts: List<AccountEntity>,
-        topN: Int = 6,
-        othersColor: Color = Color(0xFF90A4AE),
-        parseColor: (String?, Long) -> Color
+        topN: Int = 6
     ): List<PieChartEntry> {
         val incomeTxs = txs.filter { it.type == "income" }
         val total = incomeTxs.sumOf { it.amount }
@@ -332,7 +317,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = account?.name ?: "Unknown Account",
                     value = amount,
-                    color = parseColor(account?.color, accountId),
+                    colorIndex = (accountId % 40).toInt(),
                     percentage = amount / total * 100.0
                 )
             }
@@ -348,7 +333,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = "Others",
                     value = othersAmount,
-                    color = othersColor,
+                    colorIndex = null,
                     percentage = othersPercent
                 )
             )
@@ -421,7 +406,6 @@ object SummaryAggregator {
                 outAmount = outAmount,
                 emoji = account.emoji,
                 iconType = account.iconType,
-                color = account.color,
                 colorIndex = (account.id % 40).toInt()
             )
         }.sortedByDescending { it.transferCount }
@@ -440,7 +424,6 @@ object SummaryAggregator {
                     type = account.type,
                     emoji = account.emoji,
                     iconType = account.iconType,
-                    color = account.color,
                     colorIndex = (account.id % 40).toInt()
                 )
             }.sortedByDescending { it.balance }
@@ -459,8 +442,7 @@ object SummaryAggregator {
 
     fun savingsGoals(
         goals: List<com.moneymanager.data.entity.GoalEntity>,
-        linkedAmounts: Map<Long, Double> = emptyMap(),
-        parseColor: (String?, Long) -> Color
+        linkedAmounts: Map<Long, Double> = emptyMap()
     ): List<SavingsGoalRow> {
         return goals.map { goal ->
             val linked = linkedAmounts[goal.id] ?: 0.0
@@ -475,7 +457,6 @@ object SummaryAggregator {
                 progressPercent = progress,
                 emoji = goal.emoji,
                 iconType = goal.iconType,
-                color = parseColor(null, goal.id),
                 colorIndex = (goal.id % 40).toInt()
             )
         }.sortedByDescending { it.progressPercent }
@@ -484,9 +465,7 @@ object SummaryAggregator {
     fun savingsByCategory(
         txs: List<TransactionEntity>,
         categories: List<CategoryEntity>,
-        topN: Int = 6,
-        othersColor: Color = Color(0xFF90A4AE),
-        parseColor: (String?, Long) -> Color
+        topN: Int = 6
     ): List<PieChartEntry> {
         val savingsTxs = txs.filter { it.type == "savings" }
         val total = savingsTxs.sumOf { it.amount }
@@ -510,7 +489,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = category?.name ?: "Uncategorized",
                     value = amount,
-                    color = parseColor(category?.color, rootCategoryId ?: 0L),
+                    colorIndex = category?.colorIndex,
                     percentage = amount / total * 100.0
                 )
             }
@@ -526,7 +505,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = "Others",
                     value = othersAmount,
-                    color = othersColor,
+                    colorIndex = null,
                     percentage = othersPercent
                 )
             )
@@ -536,9 +515,7 @@ object SummaryAggregator {
     fun savingsByAccount(
         txs: List<TransactionEntity>,
         accounts: List<AccountEntity>,
-        topN: Int = 6,
-        othersColor: Color = Color(0xFF90A4AE),
-        parseColor: (String?, Long) -> Color
+        topN: Int = 6
     ): List<PieChartEntry> {
         val savingsTxs = txs.filter { it.type == "savings" }
         val total = savingsTxs.sumOf { it.amount }
@@ -552,7 +529,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = account?.name ?: "Unknown Account",
                     value = amount,
-                    color = parseColor(account?.color, accountId),
+                    colorIndex = (accountId % 40).toInt(),
                     percentage = amount / total * 100.0
                 )
             }
@@ -568,7 +545,7 @@ object SummaryAggregator {
                 PieChartEntry(
                     label = "Others",
                     value = othersAmount,
-                    color = othersColor,
+                    colorIndex = null,
                     percentage = othersPercent
                 )
             )

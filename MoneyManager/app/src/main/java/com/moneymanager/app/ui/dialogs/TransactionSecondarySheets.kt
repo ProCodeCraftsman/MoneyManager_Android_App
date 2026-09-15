@@ -50,6 +50,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.components.NumericKeypad
 import com.moneymanager.app.ui.components.SplitRowCard
+import com.moneymanager.app.ui.theme.AlphaTokens
 import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.FileHelper
@@ -642,7 +643,7 @@ internal fun SecondaryEmiSheet(
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -793,8 +794,8 @@ internal fun SecondaryGoalSheet(
             Surface(
                 onClick = { onGoalSelected(null) },
                 shape = RoundedCornerShape(16.dp),
-                color = if (isNoneSelected) accentContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                border = BorderStroke(if (isNoneSelected) 1.5.dp else 0.5.dp, if (isNoneSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                color = if (isNoneSelected) accentContainer.copy(alpha = AlphaTokens.hairline) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(if (isNoneSelected) 1.5.dp else 0.5.dp, if (isNoneSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -814,8 +815,8 @@ internal fun SecondaryGoalSheet(
                 Surface(
                     onClick = { onGoalSelected(goal.id) },
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) accentContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    color = if (isSelected) accentContainer.copy(alpha = AlphaTokens.hairline) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -1028,8 +1029,8 @@ internal fun SecondaryPeerSheet(
             Surface(
                 onClick = { onPeerSelected(null) },
                 shape = RoundedCornerShape(16.dp),
-                color = if (isNoneSelected) accentContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                border = BorderStroke(if (isNoneSelected) 1.5.dp else 0.5.dp, if (isNoneSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                color = if (isNoneSelected) accentContainer.copy(alpha = AlphaTokens.hairline) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(if (isNoneSelected) 1.5.dp else 0.5.dp, if (isNoneSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -1049,8 +1050,8 @@ internal fun SecondaryPeerSheet(
                 Surface(
                     onClick = { onPeerSelected(peer.id) },
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) accentContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    color = if (isSelected) accentContainer.copy(alpha = AlphaTokens.hairline) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(

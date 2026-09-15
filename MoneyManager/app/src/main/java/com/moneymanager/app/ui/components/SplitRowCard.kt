@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.dialogs.SplitRowData
 import com.moneymanager.app.ui.dialogs.TransactionFormConfig
+import com.moneymanager.app.ui.theme.AlphaTokens
 import com.moneymanager.data.entity.CategoryEntity
 import java.util.Locale
 
@@ -53,7 +54,7 @@ fun SplitRowCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = AlphaTokens.hairline))
     ) {
         Column(
             modifier = Modifier

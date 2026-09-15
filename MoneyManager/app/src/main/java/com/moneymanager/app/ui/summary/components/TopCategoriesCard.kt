@@ -17,6 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.summary.BudgetUtilizationRow
+import com.moneymanager.app.ui.theme.CategoryPalettes
+import com.moneymanager.app.ui.theme.LocalAppTheme
+import com.moneymanager.app.ui.theme.LocalIsDarkMode
 import com.moneymanager.app.ui.util.CurrencyUtils
 import java.util.Locale
 
@@ -96,6 +99,7 @@ private fun BudgetCategoryRow(
     row: BudgetUtilizationRow,
     currencyFormat: java.text.NumberFormat
 ) {
+    val categoryColor = CategoryPalettes.getColor(LocalAppTheme.current, LocalIsDarkMode.current, row.colorIndex)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -105,7 +109,7 @@ private fun BudgetCategoryRow(
         // Since BudgetUtilizationRow doesn't have emoji, I'll use a generic icon or assume it's added
         Surface(
             shape = CircleShape,
-            color = row.color.copy(alpha = 0.1f),
+            color = categoryColor.copy(alpha = 0.1f),
             modifier = Modifier.size(35.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -155,7 +159,7 @@ private fun BudgetCategoryRow(
                             .fillMaxWidth()
                             .height(6.dp)
                             .padding(horizontal = 4.dp),
-                        color = row.color,
+                        color = categoryColor,
                         trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                     )
@@ -174,7 +178,7 @@ private fun BudgetCategoryRow(
                         Text(
                             text = String.format(Locale.getDefault(), "%.0f%% used", row.utilizationPercent),
                             style = MaterialTheme.typography.labelSmall,
-                            color = row.color
+                            color = categoryColor
                         )
                     }
                 }

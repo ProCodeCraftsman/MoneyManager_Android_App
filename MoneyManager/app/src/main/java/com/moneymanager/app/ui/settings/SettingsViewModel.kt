@@ -9,6 +9,7 @@ import com.moneymanager.data.backup.BackupPreferences
 import com.moneymanager.data.backup.BackupScheduler
 import com.moneymanager.data.backup.DriveAuthManager
 import com.moneymanager.data.backup.DriveAuthState
+import com.moneymanager.data.backup.DriveBackupKeyManager
 import com.moneymanager.data.backup.DriveBackupManager
 import com.moneymanager.data.backup.EncryptionHelper
 import com.moneymanager.data.preferences.PreferencesManager
@@ -44,6 +45,7 @@ class SettingsViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val driveAuthManager: DriveAuthManager,
     private val driveBackupManager: DriveBackupManager,
+    private val driveBackupKeyManager: DriveBackupKeyManager,
     private val encryptionHelper: EncryptionHelper,
     private val backupPreferences: BackupPreferences,
     private val backupScheduler: BackupScheduler,
@@ -291,13 +293,12 @@ class SettingsViewModel @Inject constructor(
 
     fun backupToDrive() {
         val accessToken = driveAuthManager.accessToken ?: return
-        val googleId = (driveAuthManager.authState.value as? DriveAuthState.SignedIn)?.email
         viewModelScope.launch {
             driveBackupOpStatus.value = DriveOpStatus.InProgress
             try {
+                val passphrase = driveBackupKeyManager.getOrCreatePassphrase(accessToken).getOrThrow()
                 val jsonBytes = exportRepository.exportToJsonBytes()
-                val effectivePassphrase = encryptionHelper.getEffectivePassphrase(googleId)
-                val encrypted = encryptionHelper.encrypt(jsonBytes, effectivePassphrase)
+                val encrypted = encryptionHelper.encrypt(jsonBytes, passphrase)
                 driveBackupManager.uploadBackup(encrypted, accessToken).fold(
                     onSuccess = { fileId ->
                         driveBackupManager.deleteOldBackups(fileId, accessToken)
@@ -316,7 +317,6 @@ class SettingsViewModel @Inject constructor(
 
     fun checkForDriveBackup() {
         val accessToken = driveAuthManager.accessToken ?: return
-        val googleId = (driveAuthManager.authState.value as? DriveAuthState.SignedIn)?.email
         viewModelScope.launch {
             driveRestoreOpStatus.value = DriveOpStatus.InProgress
             foundDriveBackupFile.value = null
@@ -329,8 +329,8 @@ class SettingsViewModel @Inject constructor(
                         driveBackupManager.downloadBackup(file.id, accessToken)
                             .onSuccess { bytes ->
                                 try {
-                                    val effectivePassphrase = encryptionHelper.getEffectivePassphrase(googleId)
-                                    val jsonBytes = encryptionHelper.decrypt(bytes, effectivePassphrase)
+                                    val passphrase = driveBackupKeyManager.getOrCreatePassphrase(accessToken).getOrThrow()
+                                    val jsonBytes = encryptionHelper.decrypt(bytes, passphrase)
                                     val backupTimestamp = exportRepository.getLatestTimestampFromBackup(jsonBytes)
                                     val dbTimestamp = exportRepository.getLatestTimestampFromDb()
                                     hasRestoreConflict.value = dbTimestamp > backupTimestamp
@@ -355,15 +355,14 @@ class SettingsViewModel @Inject constructor(
     fun restoreFromDrive() {
         val accessToken = driveAuthManager.accessToken ?: return
         val fileId = foundDriveBackupFile.value?.id ?: return
-        val googleId = (driveAuthManager.authState.value as? DriveAuthState.SignedIn)?.email
-        
+
         viewModelScope.launch {
             driveRestoreOpStatus.value = DriveOpStatus.InProgress
             try {
                 driveBackupManager.downloadBackup(fileId, accessToken).fold(
                     onSuccess = { encryptedData ->
-                        val effectivePassphrase = encryptionHelper.getEffectivePassphrase(googleId)
-                        val jsonBytes = encryptionHelper.decrypt(encryptedData, effectivePassphrase)
+                        val passphrase = driveBackupKeyManager.getOrCreatePassphrase(accessToken).getOrThrow()
+                        val jsonBytes = encryptionHelper.decrypt(encryptedData, passphrase)
                         val result = exportRepository.importFromJsonBytes(jsonBytes)
                         foundDriveBackupFile.value = null
                         hasRestoreConflict.value = false

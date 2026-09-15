@@ -10,6 +10,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -22,6 +23,43 @@ data class CategoryColors(
     val transfer: Color,
     val lending: Color,
     val savings: Color
+)
+
+/**
+ * Derived tonal-elevation surface roles (surfaceDim/Bright, surfaceContainer*).
+ * Compose's lightColorScheme()/darkColorScheme() fall back to fixed Material-baseline
+ * defaults for these roles when omitted, which do not match a custom surface/onSurface
+ * pair. Deriving them here keeps elevated surfaces (Cards, ModalBottomSheet, etc.) tonally
+ * consistent with each theme instead of showing an off-brand tint.
+ */
+private data class SurfaceTones(
+    val dim: Color,
+    val bright: Color,
+    val containerLowest: Color,
+    val containerLow: Color,
+    val container: Color,
+    val containerHigh: Color,
+    val containerHighest: Color
+)
+
+private fun lightSurfaceTones(surface: Color, onSurface: Color): SurfaceTones = SurfaceTones(
+    dim = lerp(surface, onSurface, 0.12f),
+    bright = surface,
+    containerLowest = surface,
+    containerLow = lerp(surface, onSurface, 0.02f),
+    container = lerp(surface, onSurface, 0.04f),
+    containerHigh = lerp(surface, onSurface, 0.06f),
+    containerHighest = lerp(surface, onSurface, 0.08f)
+)
+
+private fun darkSurfaceTones(surface: Color, onSurface: Color): SurfaceTones = SurfaceTones(
+    dim = surface,
+    bright = lerp(surface, onSurface, 0.18f),
+    containerLowest = lerp(surface, Color.Black, 0.10f),
+    containerLow = lerp(surface, onSurface, 0.04f),
+    container = lerp(surface, onSurface, 0.06f),
+    containerHigh = lerp(surface, onSurface, 0.10f),
+    containerHighest = lerp(surface, onSurface, 0.14f)
 )
 
 @Composable
@@ -107,6 +145,8 @@ private val calmGreenCategoryColors = CategoryColors(
     savings = Color(0xFFF5D90E)   // gold
 )
 
+private val calmGreenLightTones = lightSurfaceTones(surface = Color(0xFFFFFFFF), onSurface = Color(0xFF18181B))
+
 private val calmGreenLight = lightColorScheme(
     primary = Color(0xFF16A34A),
     onPrimary = Color.White,
@@ -143,9 +183,19 @@ private val calmGreenLight = lightColorScheme(
     inverseSurface = Color(0xFF18181B),
     inverseOnSurface = Color(0xFFF5F5F7),
 
-    surfaceTint = Color(0xFF16A34A)
+    surfaceTint = Color(0xFF16A34A),
+
+    surfaceDim = calmGreenLightTones.dim,
+    surfaceBright = calmGreenLightTones.bright,
+    surfaceContainerLowest = calmGreenLightTones.containerLowest,
+    surfaceContainerLow = calmGreenLightTones.containerLow,
+    surfaceContainer = calmGreenLightTones.container,
+    surfaceContainerHigh = calmGreenLightTones.containerHigh,
+    surfaceContainerHighest = calmGreenLightTones.containerHighest
 )
 
+
+private val calmGreenDarkTones = darkSurfaceTones(surface = Color(0xFF151B17), onSurface = Color(0xFFE2E3E0))
 
 private val calmGreenDark = darkColorScheme(
     /* Green: softer, pastel‑like primary */
@@ -188,7 +238,15 @@ private val calmGreenDark = darkColorScheme(
     inverseSurface = Color(0xFFE2E3E0),
     inverseOnSurface = Color(0xFF121714),
 
-    surfaceTint = Color(0xFF86EFAC)
+    surfaceTint = Color(0xFF86EFAC),
+
+    surfaceDim = calmGreenDarkTones.dim,
+    surfaceBright = calmGreenDarkTones.bright,
+    surfaceContainerLowest = calmGreenDarkTones.containerLowest,
+    surfaceContainerLow = calmGreenDarkTones.containerLow,
+    surfaceContainer = calmGreenDarkTones.container,
+    surfaceContainerHigh = calmGreenDarkTones.containerHigh,
+    surfaceContainerHighest = calmGreenDarkTones.containerHighest
 )
 
 /* ------------------------------------------------ */
@@ -201,6 +259,8 @@ private val cocoBrownCategoryColors = CategoryColors(
     lending = Color(0xFFA162BF),  // soft purple
     savings = Color(0xFFE9A23B)   // warm amber/gold
 )
+
+private val cocoBrownLightTones = lightSurfaceTones(surface = Color(0xFFFBF6F0), onSurface = Color(0xFF201A15))
 
 private val cocoBrownLight = lightColorScheme(
     primary = Color(0xFF7A4E3A), // warm brown tone ~40-ish
@@ -238,8 +298,18 @@ private val cocoBrownLight = lightColorScheme(
     inverseSurface = Color(0xFF35200C),
     inverseOnSurface = Color(0xFFFBF6F0),
 
-    surfaceTint = Color(0xFF7A4E3A)
+    surfaceTint = Color(0xFF7A4E3A),
+
+    surfaceDim = cocoBrownLightTones.dim,
+    surfaceBright = cocoBrownLightTones.bright,
+    surfaceContainerLowest = cocoBrownLightTones.containerLowest,
+    surfaceContainerLow = cocoBrownLightTones.containerLow,
+    surfaceContainer = cocoBrownLightTones.container,
+    surfaceContainerHigh = cocoBrownLightTones.containerHigh,
+    surfaceContainerHighest = cocoBrownLightTones.containerHighest
 )
+
+private val cocoBrownDarkTones = darkSurfaceTones(surface = Color(0xFF211C19), onSurface = Color(0xFFEDE0D5))
 
 private val cocoBrownDark = darkColorScheme(
     primary = Color(0xFFDDB892),
@@ -277,7 +347,15 @@ private val cocoBrownDark = darkColorScheme(
     inverseSurface = Color(0xFFEDE0D5),
     inverseOnSurface = Color(0xFF1A1614),
 
-    surfaceTint = Color(0xFFDDB892)
+    surfaceTint = Color(0xFFDDB892),
+
+    surfaceDim = cocoBrownDarkTones.dim,
+    surfaceBright = cocoBrownDarkTones.bright,
+    surfaceContainerLowest = cocoBrownDarkTones.containerLowest,
+    surfaceContainerLow = cocoBrownDarkTones.containerLow,
+    surfaceContainer = cocoBrownDarkTones.container,
+    surfaceContainerHigh = cocoBrownDarkTones.containerHigh,
+    surfaceContainerHighest = cocoBrownDarkTones.containerHighest
 )
 
 /* ------------------------------------------------ */
@@ -291,6 +369,8 @@ private val midnightBlueCategoryColors = CategoryColors(
     lending = Color(0xFFA78BFA),  // periwinkle purple
     savings = Color(0xFFFBBF24)   // amber yellow
 )
+
+private val midnightBlueLightTones = lightSurfaceTones(surface = Color(0xFFFFFFFF), onSurface = Color(0xFF0F172A))
 
 private val midnightBlueLight = lightColorScheme(
     primary = Color(0xFF2563EB),
@@ -328,9 +408,19 @@ private val midnightBlueLight = lightColorScheme(
     inverseSurface = Color(0xFF0F172A),
     inverseOnSurface = Color(0xFFF8FAFC),
 
-    surfaceTint = Color(0xFF2563EB)
+    surfaceTint = Color(0xFF2563EB),
+
+    surfaceDim = midnightBlueLightTones.dim,
+    surfaceBright = midnightBlueLightTones.bright,
+    surfaceContainerLowest = midnightBlueLightTones.containerLowest,
+    surfaceContainerLow = midnightBlueLightTones.containerLow,
+    surfaceContainer = midnightBlueLightTones.container,
+    surfaceContainerHigh = midnightBlueLightTones.containerHigh,
+    surfaceContainerHighest = midnightBlueLightTones.containerHighest
 )
 
+
+private val midnightBlueDarkTones = darkSurfaceTones(surface = Color(0xFF111827), onSurface = Color(0xFFF8FAFC))
 
 private val midnightBlueDark = darkColorScheme(
     primary = Color(0xFF3B82F6),
@@ -368,7 +458,15 @@ private val midnightBlueDark = darkColorScheme(
     inverseSurface = Color(0xFFF8FAFC),
     inverseOnSurface = Color(0xFF0B1220),
 
-    surfaceTint = Color(0xFF3B82F6)
+    surfaceTint = Color(0xFF3B82F6),
+
+    surfaceDim = midnightBlueDarkTones.dim,
+    surfaceBright = midnightBlueDarkTones.bright,
+    surfaceContainerLowest = midnightBlueDarkTones.containerLowest,
+    surfaceContainerLow = midnightBlueDarkTones.containerLow,
+    surfaceContainer = midnightBlueDarkTones.container,
+    surfaceContainerHigh = midnightBlueDarkTones.containerHigh,
+    surfaceContainerHighest = midnightBlueDarkTones.containerHighest
 )
 
 // Place after your existing ColorScheme definitions

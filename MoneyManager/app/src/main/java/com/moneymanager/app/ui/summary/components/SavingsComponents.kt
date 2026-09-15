@@ -19,7 +19,9 @@ import com.moneymanager.app.ui.summary.SavingsAccountRow
 import com.moneymanager.app.ui.summary.SavingsGoalRow
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.accountTypeIcon
-import com.moneymanager.app.ui.util.parseColor
+import com.moneymanager.app.ui.theme.CategoryPalettes
+import com.moneymanager.app.ui.theme.LocalAppTheme
+import com.moneymanager.app.ui.theme.LocalIsDarkMode
 
 @Composable
 fun SavingsOverviewCard(
@@ -309,17 +311,18 @@ fun SavingsAccountsList(
 
 @Composable
 private fun AccountItem(account: SavingsAccountRow, currencyFormat: java.text.NumberFormat) {
+    val accountColor = CategoryPalettes.getColor(LocalAppTheme.current, LocalIsDarkMode.current, account.colorIndex)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Surface(
             shape = CircleShape,
-            color = parseColor(account.color).copy(alpha = 0.1f),
+            color = accountColor.copy(alpha = 0.1f),
             modifier = Modifier.size(40.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = accountTypeIcon(account.type),
                     contentDescription = null,
-                    tint = parseColor(account.color),
+                    tint = accountColor,
                     modifier = Modifier.size(20.dp)
                 )
             }

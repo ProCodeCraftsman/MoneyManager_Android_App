@@ -282,7 +282,7 @@ fun AddEditTransactionDialog(
     val colorScheme = MaterialTheme.colorScheme
     val accentColor by animateColorAsState(
         targetValue = when (type) {
-            "expense"  -> Color(0xFFE53935)
+            "expense"  -> categoryColors.expense
             "income"   -> colorScheme.primary
             "savings"  -> colorScheme.tertiary
             "transfer" -> colorScheme.secondary
@@ -294,7 +294,7 @@ fun AddEditTransactionDialog(
     )
     val accentContainer by animateColorAsState(
         targetValue = when (type) {
-            "expense"  -> Color(0xFF4A1515)
+            "expense"  -> categoryColors.expense.copy(alpha = 0.18f)
             "income"   -> colorScheme.primaryContainer
             "savings"  -> colorScheme.tertiaryContainer
             "transfer" -> colorScheme.secondaryContainer

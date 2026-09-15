@@ -174,4 +174,8 @@ object CategoryPalettes {
         val set = getPaletteForTheme(theme)[index % 40]
         return if (isDarkMode) set.dark else set.light
     }
+
+    /** Like [getColor], but null [index] resolves to null (used for neutral "Others" buckets). */
+    fun getColorOrNull(theme: AppTheme, isDarkMode: Boolean, index: Int?): Color? =
+        index?.let { getColor(theme, isDarkMode, it) }
 }

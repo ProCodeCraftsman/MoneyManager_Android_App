@@ -17,6 +17,9 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
     <application
         android:name=".MoneyManagerApp"
         android:allowBackup="true"
@@ -72,7 +75,7 @@
         </receiver>
 
         <service
-            android:name=".data.ai.ModelDownloadService"
+            android:name="com.moneymanager.data.ai.ModelDownloadService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
 

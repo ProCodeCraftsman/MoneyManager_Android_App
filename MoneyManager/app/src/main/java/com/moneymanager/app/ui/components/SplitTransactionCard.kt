@@ -28,8 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moneymanager.app.ui.constants.COLOR_EXPENSE
 import com.moneymanager.app.ui.constants.ICON_SPLIT
+import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.PeerContact
@@ -49,6 +49,7 @@ fun SplitTransactionCard(
     onClickParent: (TransactionEntity) -> Unit,
     onClickChild: (TransactionEntity) -> Unit,
 ) {
+    val categoryColors = LocalCategoryColors.current
     Column {
         Row(
             modifier = Modifier
@@ -93,8 +94,8 @@ fun SplitTransactionCard(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = when (parentTransaction.type) {
-                    "income" -> MaterialTheme.colorScheme.secondary
-                    "expense", "lend" -> COLOR_EXPENSE
+                    "income" -> MaterialTheme.colorScheme.primary
+                    "expense", "lend" -> categoryColors.expense
                     else -> MaterialTheme.colorScheme.onSurface
                 }
             )

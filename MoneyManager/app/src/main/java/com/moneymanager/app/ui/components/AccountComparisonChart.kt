@@ -125,7 +125,7 @@ fun AccountComparisonChart(
                                     .weight(1f)
                                     .fillMaxHeight((item.outflow / maxVal).toFloat().coerceIn(0.01f, 1f))
                                     .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                    .background(Color(0xFFFF7043))
+                                    .background(MaterialTheme.colorScheme.tertiary)
                             )
                         }
 
@@ -152,7 +152,7 @@ fun AccountComparisonChart(
             ) {
                 LegendItem(color = MaterialTheme.colorScheme.secondary, label = "Inflow")
                 Spacer(modifier = Modifier.width(16.dp))
-                LegendItem(color = Color(0xFFFF7043), label = "Outflow")
+                LegendItem(color = MaterialTheme.colorScheme.tertiary, label = "Outflow")
             }
         }
     }

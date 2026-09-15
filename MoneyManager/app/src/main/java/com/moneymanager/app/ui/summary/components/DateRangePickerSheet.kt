@@ -275,11 +275,11 @@ fun DateRangePickerSheet(
                         }
                     },
                     modifier = Modifier.weight(2f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp),
                     enabled = startDate != null && endDate != null
                 ) {
-                    Text("Apply", color = Color.White)
+                    Text("Apply", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }

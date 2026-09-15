@@ -22,13 +22,17 @@ class DriveApiException(val code: Int, message: String) : Exception(message)
 @Singleton
 class DriveBackupManager @Inject constructor() {
 
-    /** Uploads [data] to appDataFolder, replacing any existing backup with the same name. */
-    suspend fun uploadBackup(data: ByteArray, accessToken: String): Result<String> =
+    /** Uploads [data] to appDataFolder under [fileName], replacing any existing file with that name. */
+    suspend fun uploadBackup(
+        data: ByteArray,
+        accessToken: String,
+        fileName: String = BACKUP_FILE_NAME,
+    ): Result<String> =
         withContext(Dispatchers.IO) {
             runCatching {
                 val boundary = "backup_${System.currentTimeMillis()}"
                 val metadata = JSONObject().apply {
-                    put("name", BACKUP_FILE_NAME)
+                    put("name", fileName)
                     put("parents", JSONArray().apply { put("appDataFolder") })
                 }.toString()
 
@@ -56,12 +60,12 @@ class DriveBackupManager @Inject constructor() {
             }
         }
 
-    /** Finds the most recent backup file in appDataFolder, or null if none exists. */
-    suspend fun findBackup(accessToken: String): Result<DriveFile?> =
+    /** Finds the most recent file named [fileName] in appDataFolder, or null if none exists. */
+    suspend fun findBackup(accessToken: String, fileName: String = BACKUP_FILE_NAME): Result<DriveFile?> =
         withContext(Dispatchers.IO) {
             runCatching {
                 val query = URLEncoder.encode(
-                    "name='$BACKUP_FILE_NAME' and trashed=false", "UTF-8"
+                    "name='$fileName' and trashed=false", "UTF-8"
                 )
                 val url = "$FILES_URL?spaces=appDataFolder&q=$query" +
                     "&fields=files(id,name,createdTime)&orderBy=createdTime+desc&pageSize=1"
@@ -132,6 +136,7 @@ class DriveBackupManager @Inject constructor() {
 
     companion object {
         const val BACKUP_FILE_NAME = "moneymanager_backup.enc"
+        const val KEY_FILE_NAME = "moneymanager_backup.key"
         private const val FILES_URL = "https://www.googleapis.com/drive/v3/files"
         private const val UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
     }

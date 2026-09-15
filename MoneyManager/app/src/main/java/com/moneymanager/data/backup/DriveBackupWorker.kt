@@ -14,7 +14,8 @@ import java.util.concurrent.TimeUnit
  *
  * Prerequisites before it will succeed:
  *  1. User has signed in to Drive at least once this session, OR silent token refresh succeeds.
- *  2. No custom passphrase is used; keys are derived from the Google account ID.
+ *  2. The encryption passphrase is a random key stored alongside the backup in Drive's
+ *     appDataFolder (see [DriveBackupKeyManager]), not derived from the account itself.
  *
  * The worker retries with exponential back-off on transient failures (network, token expiry).
  */
@@ -24,6 +25,7 @@ class DriveBackupWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val driveAuthManager: DriveAuthManager,
     private val driveBackupManager: DriveBackupManager,
+    private val driveBackupKeyManager: DriveBackupKeyManager,
     private val encryptionHelper: EncryptionHelper,
     private val exportRepository: ExportRepository,
     private val backupPreferences: BackupPreferences,
@@ -39,16 +41,12 @@ class DriveBackupWorker @AssistedInject constructor(
 
         // Drive Backup
         if (driveEnabled) {
-            val googleId = driveAuthManager.authState.value.let { 
-                if (it is DriveAuthState.SignedIn) it.email else null
-            }
-
             val accessToken = driveAuthManager.getSilentAccessToken()
             if (accessToken != null) {
                 try {
+                    val passphrase = driveBackupKeyManager.getOrCreatePassphrase(accessToken).getOrThrow()
                     val jsonBytes = exportRepository.exportToJsonBytes()
-                    val effectivePassphrase = encryptionHelper.getEffectivePassphrase(googleId)
-                    val encrypted = encryptionHelper.encrypt(jsonBytes, effectivePassphrase)
+                    val encrypted = encryptionHelper.encrypt(jsonBytes, passphrase)
 
                     driveBackupManager.uploadBackup(encrypted, accessToken).fold(
                         onSuccess = { fileId ->

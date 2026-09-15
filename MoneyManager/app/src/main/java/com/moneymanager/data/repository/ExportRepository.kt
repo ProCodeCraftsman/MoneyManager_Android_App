@@ -339,6 +339,7 @@ class ExportRepository @Inject constructor(
             obj.put("type", cat.type)
             obj.put("parentId", cat.parentId)
             obj.put("color", cat.color)
+            obj.put("colorIndex", cat.colorIndex)
             obj.put("isCustom", cat.isCustom)
             obj.put("isArchived", cat.isArchived)
             obj.put("createdAt", cat.createdAt)
@@ -552,7 +553,7 @@ class ExportRepository @Inject constructor(
     private suspend fun exportCategoriesCsv(): String {
         val categories = categoryDao.getAllCategoriesWithArchived().first()
         val sb = StringBuilder()
-        sb.appendLine("name,type,emoji,icon_type,color,parent_id,is_custom,is_archived")
+        sb.appendLine("name,type,emoji,icon_type,color,parent_id,is_custom,is_archived,color_index")
         categories.forEach { cat ->
             sb.appendLine(
                 "\"${cat.name.replace("\"", "\"\"")}\"," +
@@ -562,7 +563,8 @@ class ExportRepository @Inject constructor(
                 "${cat.color}," +
                 "${cat.parentId ?: ""}," +
                 "${cat.isCustom}," +
-                "${cat.isArchived}"
+                "${cat.isArchived}," +
+                "${cat.colorIndex}"
             )
         }
         return sb.toString()
@@ -824,6 +826,7 @@ class ExportRepository @Inject constructor(
                 isCustom = obj.optBoolean("isCustom", false),
                 isArchived = obj.optBoolean("isArchived", false),
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
+                colorIndex = obj.optInt("colorIndex", 0),
             )
             categoryDao.insertCategory(category)
             count++
@@ -1222,6 +1225,7 @@ class ExportRepository @Inject constructor(
                     parentId = parts.getOrNull(5)?.toLongOrNull(),
                     isCustom = parts.getOrNull(6)?.toBooleanStrictOrNull() ?: false,
                     isArchived = parts.getOrNull(7)?.toBooleanStrictOrNull() ?: false,
+                    colorIndex = parts.getOrNull(8)?.toIntOrNull() ?: 0,
                 )
                 categoryDao.insertCategory(category)
                 count++

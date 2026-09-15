@@ -4,8 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.app.ui.constants.TimeFilter
-import com.moneymanager.app.ui.util.parseColor
-import com.moneymanager.app.ui.util.generateDistinctColor
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.GoalEntity
@@ -248,15 +246,9 @@ class SummaryViewModel @Inject constructor(
         val activeBudgets = allBudgets.filter { it.month == budgetMonthStr }
         val totalExpense = SummaryAggregator.sumByType(txs, "expense")
         
-        val expenseByCategory = SummaryAggregator.expenseByCategory(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
-        }
-        val expenseByAccount = SummaryAggregator.expenseByAccount(txs, accounts) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") parseColor(hex) else generateDistinctColor(id.toInt())
-        }
-        val topBudgetUtilization = SummaryAggregator.topBudgetUtilization(txs, activeBudgets, categories, 100) { hex ->
-            parseColor(hex ?: "#FF5252")
-        }
+        val expenseByCategory = SummaryAggregator.expenseByCategory(txs, categories)
+        val expenseByAccount = SummaryAggregator.expenseByAccount(txs, accounts)
+        val topBudgetUtilization = SummaryAggregator.topBudgetUtilization(txs, activeBudgets, categories, 100)
         val totalBudget = activeBudgets.sumOf { it.amount }
         val budgetRemaining = (totalBudget - totalExpense).coerceAtLeast(0.0)
         val budgetUtilizationPercent = if (totalBudget > 0) (totalExpense / totalBudget * 100.0).toFloat() else 0f
@@ -276,15 +268,9 @@ class SummaryViewModel @Inject constructor(
         categoryRepository.getAllCategories(),
         accountRepository.getAllAccounts()
     ) { txs, categories, accounts ->
-        val incomeByCategory = SummaryAggregator.incomeByCategory(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
-        }
-        val incomeByCategoryPie = SummaryAggregator.incomeByCategoryPie(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
-        }
-        val incomeByAccount = SummaryAggregator.incomeByAccount(txs, accounts) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") parseColor(hex) else generateDistinctColor(id.toInt())
-        }
+        val incomeByCategory = SummaryAggregator.incomeByCategory(txs, categories)
+        val incomeByCategoryPie = SummaryAggregator.incomeByCategoryPie(txs, categories)
+        val incomeByAccount = SummaryAggregator.incomeByAccount(txs, accounts)
 
         SummaryUiState(
             incomeByCategory = incomeByCategory,
@@ -361,24 +347,15 @@ class SummaryViewModel @Inject constructor(
 
         val goalLinkedAmounts = mutableMapOf<Long, Double>()
         txs.forEach { tx -> tx.goalId?.let { gid -> goalLinkedAmounts[gid] = (goalLinkedAmounts[gid] ?: 0.0) + tx.amount } }
-        val savingsGoals = SummaryAggregator.savingsGoals(allGoals, goalLinkedAmounts) { _, id ->
-            val goalPalette = listOf("#673AB7", "#5E35B1", "#512DA8", "#4527A0", "#311B92")
-            parseColor(goalPalette[(id % goalPalette.size).toInt()])
-        }
-        
+        val savingsGoals = SummaryAggregator.savingsGoals(allGoals, goalLinkedAmounts)
+
         val currentSavingsInflow = SummaryAggregator.savingsInflow(txs, savingsAccountIds)
         val prevSavingsInflow = SummaryAggregator.savingsInflow(prevTxs, savingsAccountIds)
         val savingsGrowthPercent = if (prevSavingsInflow != 0.0) ((currentSavingsInflow - prevSavingsInflow) / kotlin.math.abs(prevSavingsInflow)) * 100.0 else if (currentSavingsInflow != 0.0) 100.0 else 0.0
 
-        val savingsByCategory = SummaryAggregator.savingsByCategory(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
-        }
-        val savingsByAccount = SummaryAggregator.savingsByAccount(txs, accounts) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#2a6049") parseColor(hex) else generateDistinctColor(id.toInt())
-        }
-        val savingsByCategorySpend = SummaryAggregator.savingsByCategorySpend(txs, categories) { hex, id ->
-            if (hex != null && hex.isNotBlank() && hex.lowercase() != "#90a4ae") parseColor(hex) else generateDistinctColor(id.toInt())
-        }
+        val savingsByCategory = SummaryAggregator.savingsByCategory(txs, categories)
+        val savingsByAccount = SummaryAggregator.savingsByAccount(txs, accounts)
+        val savingsByCategorySpend = SummaryAggregator.savingsByCategorySpend(txs, categories)
 
         SummaryUiState(
             totalSavings = totalSavings,

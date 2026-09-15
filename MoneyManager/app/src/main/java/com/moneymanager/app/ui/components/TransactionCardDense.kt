@@ -24,16 +24,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moneymanager.app.R
-import com.moneymanager.app.ui.constants.COLOR_EXPENSE
-import com.moneymanager.app.ui.constants.COLOR_SAVINGS
-import com.moneymanager.app.ui.constants.COLOR_TRANSFER
 import com.moneymanager.app.ui.constants.ICON_BORROW
 import com.moneymanager.app.ui.constants.ICON_DEFAULT
 import com.moneymanager.app.ui.constants.ICON_LEND
@@ -41,6 +37,7 @@ import com.moneymanager.app.ui.constants.ICON_SAVINGS
 import com.moneymanager.app.ui.constants.ICON_SPLIT
 import com.moneymanager.app.ui.constants.ICON_TRANSFER
 import com.moneymanager.app.ui.constants.SEPARATOR_DOT
+import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.PeerContact
@@ -72,11 +69,12 @@ fun TransactionCardDense(
         transaction.peerContactId?.let { id -> peers.find { it.id == id } }
     }
 
+    val categoryColors = LocalCategoryColors.current
     val typeColor = when (transaction.type) {
-        "income" -> MaterialTheme.colorScheme.secondary
-        "expense", "lend" -> COLOR_EXPENSE
-        "savings" -> COLOR_SAVINGS
-        "transfer" -> COLOR_TRANSFER
+        "income" -> MaterialTheme.colorScheme.primary
+        "expense", "lend" -> categoryColors.expense
+        "savings" -> categoryColors.savings
+        "transfer" -> categoryColors.transfer
         else -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -185,20 +183,20 @@ fun TransactionCardDense(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = COLOR_TRANSFER
+                            tint = categoryColors.transfer
                         )
                         Spacer(Modifier.width(2.dp))
                         Text(
                             text = toAccount.name,
                             style = MaterialTheme.typography.labelSmall,
-                            color = COLOR_TRANSFER
+                            color = categoryColors.transfer
                         )
                     } else if (transaction.type == "lend" && peer != null) {
                         Icon(
                             imageVector = Icons.Default.AccountBalanceWallet,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = COLOR_EXPENSE
+                            tint = categoryColors.expense
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
@@ -210,13 +208,13 @@ fun TransactionCardDense(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
-                            tint = COLOR_EXPENSE
+                            tint = categoryColors.expense
                         )
                         Spacer(Modifier.width(2.dp))
                         Text(
                             text = peer.effectiveDisplayName,
                             style = MaterialTheme.typography.labelSmall,
-                            color = COLOR_EXPENSE
+                            color = categoryColors.expense
                         )
                     } else {
                         Icon(

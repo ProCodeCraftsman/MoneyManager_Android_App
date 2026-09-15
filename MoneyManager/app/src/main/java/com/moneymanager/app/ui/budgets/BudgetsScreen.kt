@@ -19,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -27,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.components.ScrollToTopBox
+import com.moneymanager.app.ui.theme.LocalCategoryColors
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.data.entity.BudgetEntity
 import com.moneymanager.data.entity.CategoryEntity
@@ -180,17 +180,18 @@ private fun BudgetListItem(
     val progress = if (budget.amount > 0) (spent / budget.amount).toFloat().coerceIn(0f, 1f) else 0f
     val percentage = if (budget.amount > 0) (spent / budget.amount * 100) else 0.0
 
+    val categoryColors = LocalCategoryColors.current
     val color = if (isInvestment) {
         when {
-            percentage < 60 -> Color(0xFFF44336)
-            percentage < 100 -> Color(0xFFFFC107)
-            else -> Color(0xFF4CAF50)
+            percentage < 60 -> MaterialTheme.colorScheme.error
+            percentage < 100 -> categoryColors.savings
+            else -> categoryColors.income
         }
     } else {
         when {
-            percentage < 80 -> Color(0xFF4CAF50)
-            percentage < 100 -> Color(0xFFFFC107)
-            else -> Color(0xFFF44336)
+            percentage < 80 -> categoryColors.income
+            percentage < 100 -> categoryColors.savings
+            else -> MaterialTheme.colorScheme.error
         }
     }
 

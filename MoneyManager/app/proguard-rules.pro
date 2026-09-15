@@ -19,5 +19,7 @@
 -keep class com.google.firebase.** { *; }
 -keepnames class com.google.firebase.** { *; }
 
-# MPAndroidChart
--keep class com.github.mikephil.charting.** { *; }
+# SQLCipher - native/JNI bindings and reflection-based access break under R8 without this
+-keep class net.sqlcipher.** { *; }
+-keep class net.sqlcipher.database.** { *; }
+-dontwarn net.sqlcipher.**
