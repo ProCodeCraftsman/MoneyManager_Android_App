@@ -359,6 +359,15 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun getDefaultAccounts(): Map<String, Long> = defaultAccounts.first()
 
+    /** Resets every slot that points at [accountId] back to "Auto". */
+    suspend fun clearDefaultAccountsFor(accountId: Long) {
+        context.dataStore.edit { preferences ->
+            preferences.asMap().entries
+                .filter { (key, value) -> key.name.startsWith(DEFAULT_ACCOUNT_PREFIX) && value == accountId }
+                .forEach { (key, _) -> preferences.remove(key) }
+        }
+    }
+
     /** Passing null resets the slot to "Auto". */
     suspend fun setDefaultAccount(slotKey: String, accountId: Long?) {
         context.dataStore.edit { preferences ->

@@ -104,6 +104,8 @@ class AccountsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 accountRepository.archiveAccount(id)
+                // An archived account must not silently become the default again if it is reactivated later.
+                preferencesManager.clearDefaultAccountsFor(id)
                 _events.emit(AccountEvent.Success("Account archived successfully"))
             } catch (e: Exception) {
                 _events.emit(AccountEvent.Error(e.message ?: "Failed to archive account"))
