@@ -1,5 +1,6 @@
 package com.moneymanager.app.ui.recurring
 
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.GoalEntity
@@ -18,5 +19,7 @@ data class RecurringUiState(
     val goals: List<GoalEntity> = emptyList(),
     val currencyCode: String = "INR",
     val isLoading: Boolean = true,
+    val defaultAccounts: Map<String, Long> = emptyMap(),
+    val accountUsage: List<AccountUsage> = emptyList(),
     val currentDate: String = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
 )

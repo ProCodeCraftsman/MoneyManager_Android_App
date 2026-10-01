@@ -37,6 +37,8 @@ import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.RecurringEntity
 import com.moneymanager.domain.transaction.SplitTransactionFactory
 import kotlinx.coroutines.launch
+import com.moneymanager.domain.account.DefaultAccountResolver
+import com.moneymanager.domain.account.DefaultAccountSlot
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
@@ -107,14 +109,18 @@ fun RecurringFormScreen(
     }
 
     // Default account selection when state loads or type changes
-    LaunchedEffect(filteredAccounts, investmentAccounts, selectedType, uiState.accounts) {
-        if (selectedAccount == null && filteredAccounts.isNotEmpty()) {
-            selectedAccount = filteredAccounts.firstOrNull()
+    // Configured default, else most used for the type, else first valid account (never `excludeId`).
+    fun defaultAccount(type: String, destination: Boolean, excludeId: Long?): AccountEntity? =
+        DefaultAccountSlot.of(type, destination)
+            ?.let { DefaultAccountResolver.resolve(it, uiState.accounts, uiState.defaultAccounts, uiState.accountUsage, excludeId) }
+            ?.let { id -> uiState.accounts.firstOrNull { it.id == id } }
+
+    LaunchedEffect(filteredAccounts, investmentAccounts, selectedType, uiState.accounts, uiState.defaultAccounts, uiState.accountUsage) {
+        if (selectedAccount == null) {
+            selectedAccount = defaultAccount(selectedType, false, null)
         }
-        if (selectedType == "savings" && selectedToAccount == null) {
-            selectedToAccount = investmentAccounts.firstOrNull { it.id != selectedAccount?.id } ?: investmentAccounts.firstOrNull()
-        } else if (selectedType == "transfer" && selectedToAccount == null) {
-            selectedToAccount = uiState.accounts.firstOrNull { it.id != selectedAccount?.id }
+        if ((selectedType == "savings" || selectedType == "transfer") && selectedToAccount == null) {
+            selectedToAccount = defaultAccount(selectedType, true, selectedAccount?.id)
         }
     }
 
@@ -210,25 +216,16 @@ fun RecurringFormScreen(
                                 selectedCategory = null
                                 selectedSubCategory = null
 
-                                // Re-validate source account for new type
-                                val validSource = when (type) {
-                                    "expense", "savings" -> uiState.accounts.filter { it.type != "savings" }
-                                    else -> uiState.accounts
-                                }
-                                if (selectedAccount != null && selectedAccount!! !in validSource) {
-                                    selectedAccount = validSource.firstOrNull()
-                                } else if (selectedAccount == null) {
-                                    selectedAccount = validSource.firstOrNull()
+                                // Keep the source account if it suits the new type, otherwise use that type's default
+                                val fromSlot = DefaultAccountSlot.of(type, false)
+                                val keepSource = fromSlot != null && selectedAccount != null &&
+                                    DefaultAccountResolver.eligibleAccounts(fromSlot, uiState.accounts).any { it.id == selectedAccount?.id }
+                                if (!keepSource) {
+                                    selectedAccount = defaultAccount(type, false, null)
                                 }
 
                                 // Setup destination account
-                                if (type == "savings") {
-                                    selectedToAccount = investmentAccounts.firstOrNull { it.id != selectedAccount?.id } ?: investmentAccounts.firstOrNull()
-                                } else if (type == "transfer") {
-                                    selectedToAccount = uiState.accounts.firstOrNull { it.id != selectedAccount?.id }
-                                } else {
-                                    selectedToAccount = null
-                                }
+                                selectedToAccount = defaultAccount(type, true, selectedAccount?.id)
 
                                 if (type != "lend" && type != "borrow") selectedPeerId = null
                                 if (type != "savings") {
@@ -277,11 +274,7 @@ fun RecurringFormScreen(
                                 selectedAccount = account
                                 accountExpanded = false
                                 if (selectedToAccount?.id == account.id) {
-                                    if (selectedType == "savings") {
-                                        selectedToAccount = investmentAccounts.firstOrNull { it.id != account.id }
-                                    } else if (selectedType == "transfer") {
-                                        selectedToAccount = uiState.accounts.firstOrNull { it.id != account.id }
-                                    }
+                                    selectedToAccount = defaultAccount(selectedType, true, account.id)
                                 }
                             }
                         )

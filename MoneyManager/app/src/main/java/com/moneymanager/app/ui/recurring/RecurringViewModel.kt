@@ -2,6 +2,7 @@ package com.moneymanager.app.ui.recurring
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.GoalEntity
@@ -9,11 +10,13 @@ import com.moneymanager.data.entity.PeerContact
 import com.moneymanager.data.entity.RecurringEntity
 import com.moneymanager.data.entity.TagEntity
 import com.moneymanager.data.preferences.PreferencesManager
+import com.moneymanager.domain.account.observeAccountUsage
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.CategoryRepository
 import com.moneymanager.domain.repository.GoalRepository
 import com.moneymanager.domain.repository.PeerContactRepository
 import com.moneymanager.domain.repository.RecurringRepository
+import com.moneymanager.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import java.text.SimpleDateFormat
@@ -28,6 +31,7 @@ class RecurringViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
+    private val transactionRepository: TransactionRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<RecurringUiState> = combine(
@@ -38,6 +42,8 @@ class RecurringViewModel @Inject constructor(
         peerContactRepository.getAllPeers(),
         goalRepository.getAllGoals(),
         preferencesManager.currency,
+        preferencesManager.defaultAccounts,
+        transactionRepository.observeAccountUsage(),
     ) { flows ->
         val recurringList = flows[0] as List<RecurringEntity>
         val accounts = flows[1] as List<AccountEntity>
@@ -46,6 +52,8 @@ class RecurringViewModel @Inject constructor(
         val peers = flows[4] as List<PeerContact>
         val goals = flows[5] as List<GoalEntity>
         val currencyCode = flows[6] as String
+        val defaultAccounts = flows[7] as Map<String, Long>
+        val accountUsage = flows[8] as List<AccountUsage>
         
         RecurringUiState(
             recurringList = recurringList,
@@ -56,6 +64,8 @@ class RecurringViewModel @Inject constructor(
             goals = goals,
             currencyCode = currencyCode,
             isLoading = false,
+            defaultAccounts = defaultAccounts,
+            accountUsage = accountUsage,
         )
     }.stateIn(
         scope = viewModelScope,
