@@ -32,7 +32,8 @@ import java.text.NumberFormat
 @Composable
 fun AccountsScreen(
     viewModel: AccountsViewModel,
-    onNavigateBack: (() -> Unit)? = null
+    onNavigateBack: (() -> Unit)? = null,
+    onOpenDefaultAccounts: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currencyFormat = remember(uiState.currencyCode) {
@@ -89,6 +90,17 @@ fun AccountsScreen(
                         currencyFormat = currencyFormat,
                         accountCount = uiState.activeAccounts.size
                     )
+                }
+
+                if (onOpenDefaultAccounts != null) {
+                    item {
+                        OutlinedButton(
+                            onClick = onOpenDefaultAccounts,
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                        ) {
+                            Text("Default accounts for new transactions")
+                        }
+                    }
                 }
 
                 item {

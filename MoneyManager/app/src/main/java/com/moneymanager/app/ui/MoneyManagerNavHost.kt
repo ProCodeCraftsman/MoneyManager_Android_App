@@ -244,6 +244,13 @@ fun MoneyManagerNavHost(
                 composable(Screen.Accounts.route) {
                     AccountsScreen(
                         viewModel = hiltViewModel(),
+                        onNavigateBack = { navController.popBackStack() },
+                        onOpenDefaultAccounts = { navController.navigate("default_accounts") }
+                    )
+                }
+                composable("default_accounts") {
+                    com.moneymanager.app.ui.accounts.DefaultAccountsScreen(
+                        viewModel = hiltViewModel(),
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
