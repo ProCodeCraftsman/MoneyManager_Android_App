@@ -1,5 +1,6 @@
 package com.moneymanager.app.ui
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.util.Consumer
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -135,6 +137,15 @@ fun MoneyManagerNavHost(
     val lockState by appLockManager.lockState.collectAsState()
     val context = LocalContext.current
     val activity = context as? FragmentActivity
+
+    // Deep links delivered to the already-running activity (widget buttons, singleTask relaunch).
+    // Held until a NavHost exists, since the app may be loading or locked when the intent lands.
+    var pendingDeepLink by remember { mutableStateOf<Intent?>(null) }
+    DisposableEffect(activity) {
+        val listener = Consumer<Intent> { if (it.data != null) pendingDeepLink = it }
+        activity?.addOnNewIntentListener(listener)
+        onDispose { activity?.removeOnNewIntentListener(listener) }
+    }
 
     if (lockState is AppLockState.Loading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -453,6 +464,14 @@ fun MoneyManagerNavHost(
                     AllowlistManagerScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
+                }
+            }
+
+            // Runs after NavHost has set the graph, so the deep link always has a destination.
+            LaunchedEffect(pendingDeepLink) {
+                pendingDeepLink?.let {
+                    navController.handleDeepLink(it)
+                    pendingDeepLink = null
                 }
             }
         }

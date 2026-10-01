@@ -1,5 +1,6 @@
 package com.moneymanager.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -85,6 +86,13 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    // singleTask: widget/deep-link launches reach the already-running instance here instead of
+    // just bringing the task to front. MoneyManagerNavHost listens for the intent and routes it.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
     }
 
     override fun onStop() {
