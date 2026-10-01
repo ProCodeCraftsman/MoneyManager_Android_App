@@ -2,15 +2,14 @@ package com.moneymanager.app.ui.accounts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.account.DefaultAccountResolver
 import com.moneymanager.domain.account.DefaultAccountSlot
+import com.moneymanager.domain.account.observeAccountUsage
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -36,16 +35,10 @@ class DefaultAccountsViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
-    private val usage = MutableStateFlow<List<AccountUsage>>(emptyList())
-
-    init {
-        viewModelScope.launch { usage.value = transactionRepository.getAccountUsage() }
-    }
-
     val uiState: StateFlow<DefaultAccountsUiState> = combine(
         accountRepository.getActiveAccounts(),
         preferencesManager.defaultAccounts,
-        usage
+        transactionRepository.observeAccountUsage()
     ) { accounts, configured, usageRows ->
         DefaultAccountsUiState(
             rows = DefaultAccountSlot.entries.map { slot ->

@@ -33,6 +33,8 @@ fun AddTransactionScreen(
             initialType = type,
             categoryUsageCounts = uiState.categoryUsageCounts,
             imageAttachmentsEnabled = uiState.imageAttachmentsEnabled,
+            defaultAccounts = uiState.defaultAccounts,
+            accountUsage = uiState.accountUsage,
             onDismiss = onDismiss,
             initialDraft = initialDraft,
             onDraftDismiss = onDraftDismiss,

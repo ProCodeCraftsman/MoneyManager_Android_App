@@ -59,7 +59,10 @@ import com.moneymanager.domain.transaction.SplitTransactionFactory
 import com.moneymanager.domain.ai.TransactionDraft
 import com.moneymanager.app.ui.util.accountTypeIcon
 import com.moneymanager.app.ui.util.evaluateExpression
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.entity.*
+import com.moneymanager.domain.account.DefaultAccountResolver
+import com.moneymanager.domain.account.DefaultAccountSlot
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -108,6 +111,8 @@ fun AddEditTransactionDialog(
     initialType: String?,
     categoryUsageCounts: Map<Long, Int> = emptyMap(),
     imageAttachmentsEnabled: Boolean = true,
+    defaultAccounts: Map<String, Long> = emptyMap(),
+    accountUsage: List<AccountUsage> = emptyList(),
     initialDraft: TransactionDraft? = null,
     onDraftDismiss: (() -> Unit)? = null,
     onDismiss: () -> Unit,
@@ -145,17 +150,35 @@ fun AddEditTransactionDialog(
 
     val isIncomingTransferLeg = (transaction?.type == "transfer") &&
         transaction.note.startsWith("Transfer from ", ignoreCase = true)
+
+    // Default account for a transaction type's source/destination: user-configured, else most used, else first valid.
+    fun defaultAccountFor(forType: String, destination: Boolean, exclude: Long?): Long? =
+        DefaultAccountSlot.of(forType, destination)?.let {
+            DefaultAccountResolver.resolve(it, accounts, defaultAccounts, accountUsage, exclude)
+        }
+
     var selectedAccountId by rememberSaveable {
         mutableStateOf(
             if (isIncomingTransferLeg) (transaction.toAccountId ?: filteredAccounts.firstOrNull()?.id)
-            else (transaction?.accountId ?: filteredAccounts.firstOrNull()?.id)
+            else if (transaction != null) transaction.accountId
+            else defaultAccountFor(type, false, null)
         )
     }
     var selectedToAccountId by rememberSaveable {
         mutableStateOf(
             if (isIncomingTransferLeg) transaction.accountId
-            else (transaction?.toAccountId ?: if (type == "savings") investmentAccounts.firstOrNull()?.id else null)
+            else if (transaction != null) (transaction.toAccountId ?: if (type == "savings") investmentAccounts.firstOrNull()?.id else null)
+            else defaultAccountFor(type, true, defaultAccountFor(type, false, null))
         )
+    }
+    // Once the user (or an AI draft) picks an account, defaults stop overwriting it. Edits keep their saved accounts.
+    var fromAccountTouched by rememberSaveable { mutableStateOf(isEdit) }
+    var toAccountTouched by rememberSaveable { mutableStateOf(isEdit) }
+
+    // Defaults and usage stats can arrive after the dialog opens, so re-apply until the user picks something.
+    LaunchedEffect(type, accounts, defaultAccounts, accountUsage) {
+        if (!fromAccountTouched) selectedAccountId = defaultAccountFor(type, false, null)
+        if (!toAccountTouched) selectedToAccountId = defaultAccountFor(type, true, selectedAccountId)
     }
 
     // ── EMI State ──
@@ -323,20 +346,21 @@ fun AddEditTransactionDialog(
         selectedCategoryId = null
         expandedCategoryId = null
         selectedPeerId = null
-        selectedToAccountId = null
         selectedGoalId = null
         selectedPlatform = null
         expectedReturnDate = null
         splitEnabled = false
         isEmiEnabled = false
-        val validIds = when (newType) {
-            "expense" -> accounts.filter { it.type != "savings" }
-            "savings" -> accounts.filter { it.type == "savings" }
-            else -> accounts
-        }.map { it.id }
-        if (selectedAccountId != null && selectedAccountId !in validIds) {
-            selectedAccountId = validIds.firstOrNull()
+        // Keep a hand-picked (or saved) source account if it suits the new type, otherwise use that type's default.
+        val fromSlot = DefaultAccountSlot.of(newType, false)
+        val keepFrom = fromAccountTouched && fromSlot != null &&
+            DefaultAccountResolver.eligibleAccounts(fromSlot, accounts).any { it.id == selectedAccountId }
+        if (!keepFrom) {
+            selectedAccountId = defaultAccountFor(newType, false, null)
+            fromAccountTouched = false
         }
+        selectedToAccountId = defaultAccountFor(newType, true, selectedAccountId)
+        toAccountTouched = false
     }
 
     // ── Back Navigation Handler ──
@@ -486,7 +510,7 @@ fun AddEditTransactionDialog(
                 amountCursor = -1
             }
             initialDraft.categoryId?.let { selectedCategoryId = it }
-            initialDraft.accountId?.let { selectedAccountId = it }
+            initialDraft.accountId?.let { selectedAccountId = it; fromAccountTouched = true }
             initialDraft.peerContactId?.let { selectedPeerId = it }
             if (initialDraft.tagIds.isNotEmpty()) {
                 selectedTagIds = initialDraft.tagIds.toSet()
@@ -499,7 +523,7 @@ fun AddEditTransactionDialog(
             initialDraft.receiptPath?.let { receiptData = it }
             initialDraft.goalId?.let { selectedGoalId = it }
             initialDraft.investmentPlatform?.let { selectedPlatform = it }
-            initialDraft.toAccountId?.let { selectedToAccountId = it }
+            initialDraft.toAccountId?.let { selectedToAccountId = it; toAccountTouched = true }
             initialDraft.expectedReturnDate?.let { expectedReturnDate = it }
 
             aiSuggestedFields = buildSet {
@@ -702,9 +726,11 @@ fun AddEditTransactionDialog(
                         onAccountSelected = { acc ->
                             if (isToAccount) {
                                 selectedToAccountId = acc.id
+                                toAccountTouched = true
                             } else {
                                 aiSuggestedFields -= "account"
                                 selectedAccountId = acc.id
+                                fromAccountTouched = true
                             }
                             showAccountPickerSheet = false
                         },

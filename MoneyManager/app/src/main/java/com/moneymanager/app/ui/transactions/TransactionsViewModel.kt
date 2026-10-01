@@ -12,7 +12,9 @@ import com.moneymanager.data.entity.GoalEntity
 import com.moneymanager.data.entity.PeerContact
 import com.moneymanager.data.entity.TagEntity
 import com.moneymanager.data.entity.TransactionEntity
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.dao.TransactionSummary
+import com.moneymanager.domain.account.observeAccountUsage
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.CategoryRepository
 import com.moneymanager.domain.repository.GoalRepository
@@ -210,7 +212,9 @@ class TransactionsViewModel @Inject constructor(
         _showCategories,
         categoryUsageCounts,
         preferencesManager.imageAttachmentsEnabled,
-        transactionSummary
+        transactionSummary,
+        preferencesManager.defaultAccounts,
+        transactionRepository.observeAccountUsage()
     ) { array ->
         val q = array[0] as String
         val f = array[1] as FilterState
@@ -233,6 +237,10 @@ class TransactionsViewModel @Inject constructor(
         val counts = array[12] as Map<Long, Int>
         val attachmentsEnabled = array[13] as Boolean
         val summ = array[14] as TransactionSummary
+        @Suppress("UNCHECKED_CAST")
+        val defaultAccounts = array[15] as Map<String, Long>
+        @Suppress("UNCHECKED_CAST")
+        val accountUsage = array[16] as List<AccountUsage>
 
         TransactionsUiState(
             searchQuery = q,
@@ -258,7 +266,9 @@ class TransactionsViewModel @Inject constructor(
             totalExpense = summ.totalExpense,
             totalCount = summ.totalCount,
             categoryUsageCounts = counts,
-            imageAttachmentsEnabled = attachmentsEnabled
+            imageAttachmentsEnabled = attachmentsEnabled,
+            defaultAccounts = defaultAccounts,
+            accountUsage = accountUsage
         )
     }.stateIn(
         scope = viewModelScope,

@@ -16,6 +16,10 @@ enum class DefaultAccountSlot(val key: String, val txType: String, val isDestina
 
     companion object {
         fun fromKey(key: String): DefaultAccountSlot? = entries.firstOrNull { it.key == key }
+
+        /** The slot for a transaction type's source ([destination] = false) or destination account, if it has one. */
+        fun of(txType: String, destination: Boolean): DefaultAccountSlot? =
+            entries.firstOrNull { it.txType == txType && it.isDestination == destination }
     }
 }
 

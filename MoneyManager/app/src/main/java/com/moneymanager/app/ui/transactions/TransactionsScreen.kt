@@ -802,6 +802,8 @@ fun TransactionsScreen(
             initialType = preselectedType,
             categoryUsageCounts = uiState.categoryUsageCounts,
             imageAttachmentsEnabled = uiState.imageAttachmentsEnabled,
+            defaultAccounts = uiState.defaultAccounts,
+            accountUsage = uiState.accountUsage,
             onDismiss = { showAddDialog = false },
             onConfirm = { tx, children ->
                 if (children != null) viewModel.addSplitTransaction(tx, children)
@@ -834,6 +836,8 @@ fun TransactionsScreen(
             initialType = editing.type,
             categoryUsageCounts = uiState.categoryUsageCounts,
             imageAttachmentsEnabled = uiState.imageAttachmentsEnabled,
+            defaultAccounts = uiState.defaultAccounts,
+            accountUsage = uiState.accountUsage,
             onDismiss = { editingTransaction = null },
             onConfirm = { tx, children ->
                 viewModel.updateTransaction(editing, tx, children)

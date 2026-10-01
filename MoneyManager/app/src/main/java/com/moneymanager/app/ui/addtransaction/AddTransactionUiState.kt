@@ -1,5 +1,6 @@
 package com.moneymanager.app.ui.addtransaction
 
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.GoalEntity
@@ -16,4 +17,6 @@ data class AddTransactionUiState(
     val categoryUsageCounts: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = true,
     val imageAttachmentsEnabled: Boolean = true,
+    val defaultAccounts: Map<String, Long> = emptyMap(),
+    val accountUsage: List<AccountUsage> = emptyList(),
 )

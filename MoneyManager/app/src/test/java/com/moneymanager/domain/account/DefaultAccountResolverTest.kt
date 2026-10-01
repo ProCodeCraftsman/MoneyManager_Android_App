@@ -120,6 +120,17 @@ class DefaultAccountResolverTest {
     }
 
     @Test
+    fun `slot lookup by transaction type and side`() {
+        assertEquals(DefaultAccountSlot.EXPENSE, DefaultAccountSlot.of("expense", false))
+        assertNull(DefaultAccountSlot.of("expense", true))
+        assertEquals(DefaultAccountSlot.TRANSFER_FROM, DefaultAccountSlot.of("transfer", false))
+        assertEquals(DefaultAccountSlot.TRANSFER_TO, DefaultAccountSlot.of("transfer", true))
+        assertEquals(DefaultAccountSlot.SAVINGS_TO, DefaultAccountSlot.of("savings", true))
+        assertNull(DefaultAccountSlot.of("lend", true))
+        assertNull(DefaultAccountSlot.of("unknown", false))
+    }
+
+    @Test
     fun `slot keys round trip`() {
         DefaultAccountSlot.entries.forEach { assertEquals(it, DefaultAccountSlot.fromKey(it.key)) }
         assertNull(DefaultAccountSlot.fromKey("nope"))

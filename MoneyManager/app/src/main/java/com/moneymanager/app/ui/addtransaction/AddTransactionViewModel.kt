@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.app.ui.util.FileHelper
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.GoalEntity
@@ -12,6 +13,7 @@ import com.moneymanager.data.entity.TagEntity
 import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
+import com.moneymanager.domain.account.observeAccountUsage
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.CategoryRepository
 import com.moneymanager.domain.repository.GoalRepository
@@ -44,7 +46,9 @@ class AddTransactionViewModel @Inject constructor(
         peerContactRepository.getAllPeers(),
         preferencesManager.currency,
         transactionRepository.getAllTransactions(),
-        preferencesManager.imageAttachmentsEnabled
+        preferencesManager.imageAttachmentsEnabled,
+        preferencesManager.defaultAccounts,
+        transactionRepository.observeAccountUsage()
     ) { array ->
         @Suppress("UNCHECKED_CAST")
         val accounts = array[0] as List<AccountEntity>
@@ -60,6 +64,10 @@ class AddTransactionViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val transactions = array[6] as List<TransactionEntity>
         val attachmentsEnabled = array[7] as Boolean
+        @Suppress("UNCHECKED_CAST")
+        val defaultAccounts = array[8] as Map<String, Long>
+        @Suppress("UNCHECKED_CAST")
+        val accountUsage = array[9] as List<AccountUsage>
 
         AddTransactionUiState(
             accounts = accounts,
@@ -74,6 +82,8 @@ class AddTransactionViewModel @Inject constructor(
                 .mapValues { it.value.size },
             isLoading = false,
             imageAttachmentsEnabled = attachmentsEnabled,
+            defaultAccounts = defaultAccounts,
+            accountUsage = accountUsage,
         )
     }.stateIn(
         scope = viewModelScope,
