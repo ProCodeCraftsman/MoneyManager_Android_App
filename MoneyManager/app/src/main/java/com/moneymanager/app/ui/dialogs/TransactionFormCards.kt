@@ -38,8 +38,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -117,6 +121,8 @@ internal fun FormAmountDateAccountCard(
     onToAccountClick: () -> Unit,
     onPeerClick: () -> Unit,
     onExpectedReturnDateClick: () -> Unit,
+    cursorIndex: Int = -1,
+    onCursorChange: (Int) -> Unit = {},
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -155,23 +161,49 @@ internal fun FormAmountDateAccountCard(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = amount.ifEmpty { "0" },
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (amount.isEmpty())
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                        else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 32.sp,
-                        lineHeight = 36.sp
-                    )
-                    Text(
-                        "|",
-                        color = accentColor,
-                        fontWeight = FontWeight.Light,
-                        fontSize = 30.sp
-                    )
+                    // Tap anywhere on the amount to move the caret; keypad edits then apply there.
+                    val caret = if (cursorIndex < 0) amount.length else cursorIndex.coerceAtMost(amount.length)
+                    var amountLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .pointerInput(amount) {
+                                detectTapGestures { pos ->
+                                    amountLayout?.let { onCursorChange(it.getOffsetForPosition(pos).coerceIn(0, amount.length)) }
+                                }
+                            }
+                            .drawWithContent {
+                                drawContent()
+                                if (amount.isNotEmpty()) {
+                                    amountLayout?.let {
+                                        val r = it.getCursorRect(caret)
+                                        drawLine(accentColor, Offset(r.left, r.top), Offset(r.left, r.bottom), strokeWidth = 2.dp.toPx())
+                                    }
+                                }
+                            }
+                    ) {
+                        Text(
+                            text = amount.ifEmpty { "0" },
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (amount.isEmpty())
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                            else MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
+                            onTextLayout = { amountLayout = it },
+                            fontSize = 32.sp,
+                            lineHeight = 36.sp
+                        )
+                    }
+                    if (amount.isEmpty()) {
+                        Text(
+                            "|",
+                            color = accentColor,
+                            fontWeight = FontWeight.Light,
+                            fontSize = 30.sp
+                        )
+                    }
                 }
             }
 

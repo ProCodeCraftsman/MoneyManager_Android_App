@@ -51,6 +51,8 @@ import com.moneymanager.app.ui.components.CategoryIcon
 import com.moneymanager.app.ui.components.NumericKeypad
 import com.moneymanager.app.ui.components.SplitRowCard
 import com.moneymanager.app.ui.theme.LocalCategoryColors
+import com.moneymanager.app.ui.util.AmountEdit
+import com.moneymanager.app.ui.util.AmountEditor
 import com.moneymanager.app.ui.util.CurrencyUtils
 import com.moneymanager.app.ui.util.FileHelper
 import com.moneymanager.domain.transaction.SplitTransactionFactory
@@ -131,6 +133,14 @@ fun AddEditTransactionDialog(
 
     var amount by rememberSaveable {
         mutableStateOf(transaction?.amount?.let { if (it < 0) (-it).toString() else it.toString() } ?: "")
+    }
+
+    // Caret position inside `amount` (set by tapping it); -1 means "at the end".
+    var amountCursor by rememberSaveable { mutableIntStateOf(-1) }
+    fun amountCaret() = if (amountCursor < 0) amount.length else amountCursor.coerceAtMost(amount.length)
+    fun applyAmountEdit(edit: AmountEdit) {
+        amount = edit.text
+        amountCursor = if (edit.cursor >= edit.text.length) -1 else edit.cursor
     }
 
     val isIncomingTransferLeg = (transaction?.type == "transfer") &&
@@ -411,6 +421,7 @@ fun AddEditTransactionDialog(
             if (amount.contains("+") || amount.contains("-") || amount.contains("*") || amount.contains("/")) {
                 val res = evaluateExpression(amount)
                 amount = if (res % 1.0 == 0.0) "%.0f".format(Locale.US, res) else "%.2f".format(Locale.US, res)
+                amountCursor = -1
             }
         } catch (_: Exception) {}
 
@@ -470,7 +481,10 @@ fun AddEditTransactionDialog(
         if (initialDraft != null && !draftApplied) {
             draftApplied = true
             initialDraft.typeId?.let { type = it }
-            initialDraft.amount?.let { amount = if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() }
+            initialDraft.amount?.let {
+                amount = if (it % 1.0 == 0.0) it.toLong().toString() else it.toString()
+                amountCursor = -1
+            }
             initialDraft.categoryId?.let { selectedCategoryId = it }
             initialDraft.accountId?.let { selectedAccountId = it }
             initialDraft.peerContactId?.let { selectedPeerId = it }
@@ -658,7 +672,9 @@ fun AddEditTransactionDialog(
                         showAccountPickerSheet = true
                     },
                     onPeerClick = { showPeerDialog = true },
-                    onExpectedReturnDateClick = { showExpectedReturnDatePicker = true }
+                    onExpectedReturnDateClick = { showExpectedReturnDatePicker = true },
+                    cursorIndex = amountCursor,
+                    onCursorChange = { amountCursor = if (it >= amount.length) -1 else it }
                 )
 
                 if (showAccountPickerSheet) {
@@ -774,31 +790,21 @@ fun AddEditTransactionDialog(
                     saveButtonEnabled = amount.isNotEmpty() && (amount.toDoubleOrNull() ?: 0.0) > 0 && selectedAccountId != null,
                     onNumberClick = { num ->
                         aiSuggestedFields -= "amount"
-                        if (num == ".") {
-                            val lastNumber = amount.split('+', '-', '*', '/').last()
-                            if (!lastNumber.contains(".")) {
-                                amount += if (lastNumber.isEmpty()) "0." else "."
-                            }
-                        } else if (num in listOf("+", "-", "*", "/")) {
-                            if (amount.isNotEmpty() && !amount.last().isDigit() && amount.last() != '.')
-                                amount = amount.dropLast(1) + num
-                            else if (amount.isNotEmpty()) amount += num
-                        } else {
-                            if (amount == "0") amount = num else amount += num
-                        }
+                        applyAmountEdit(AmountEditor.insert(amount, amountCaret(), num))
                     },
                     onDeleteClick = {
                         aiSuggestedFields -= "amount"
-                        if (amount.isNotEmpty()) amount = amount.dropLast(1)
+                        applyAmountEdit(AmountEditor.delete(amount, amountCaret()))
                     },
                     onClearClick = {
                         aiSuggestedFields -= "amount"
-                        amount = ""
+                        applyAmountEdit(AmountEdit("", 0))
                     },
                     onEvaluate = {
                         try {
                             val res = evaluateExpression(amount)
                             amount = if (res % 1.0 == 0.0) "%.0f".format(Locale.US, res) else "%.2f".format(Locale.US, res)
+                            amountCursor = -1
                         } catch (_: Exception) {}
                     },
                     onCancelClick = { handleBackPress() },
