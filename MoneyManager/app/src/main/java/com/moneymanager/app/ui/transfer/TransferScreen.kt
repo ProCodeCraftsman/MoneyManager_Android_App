@@ -19,8 +19,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.app.ui.util.CurrencyUtils
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.TransactionEntity
+import com.moneymanager.data.preferences.PreferencesManager
+import com.moneymanager.domain.account.DefaultAccountResolver
+import com.moneymanager.domain.account.DefaultAccountSlot
+import com.moneymanager.domain.account.observeAccountUsage
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +36,8 @@ import java.util.*
 import javax.inject.Inject
 
 data class TransferUiState(
+    val defaultAccounts: Map<String, Long> = emptyMap(),
+    val accountUsage: List<AccountUsage> = emptyList(),
     val accounts: List<AccountEntity> = emptyList(),
     val isLoading: Boolean = true,
 )
@@ -40,12 +47,16 @@ class TransferViewModel @Inject constructor(
     application: Application,
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
+    preferencesManager: PreferencesManager,
 ) : AndroidViewModel(application) {
 
-    val uiState: StateFlow<TransferUiState> = accountRepository.getActiveAccounts()
-        .map { accounts ->
-            TransferUiState(accounts = accounts, isLoading = false)
-        }
+    val uiState: StateFlow<TransferUiState> = combine(
+        accountRepository.getActiveAccounts(),
+        preferencesManager.defaultAccounts,
+        transactionRepository.observeAccountUsage()
+    ) { accounts, defaults, usage ->
+        TransferUiState(accounts = accounts, isLoading = false, defaultAccounts = defaults, accountUsage = usage)
+    }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -131,6 +142,14 @@ fun TransferScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
+
+    // Preselect the configured / most-used transfer accounts until the user chooses (to never equals from).
+    LaunchedEffect(uiState.accounts, uiState.defaultAccounts, uiState.accountUsage, fromAccountId, toAccountId) {
+        fun resolve(slot: DefaultAccountSlot, exclude: Long?) =
+            DefaultAccountResolver.resolve(slot, uiState.accounts, uiState.defaultAccounts, uiState.accountUsage, exclude)
+        if (fromAccountId == null) fromAccountId = resolve(DefaultAccountSlot.TRANSFER_FROM, null)
+        if (toAccountId == null) toAccountId = resolve(DefaultAccountSlot.TRANSFER_TO, fromAccountId)
+    }
 
     val dateDisplayFmt = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     val timeFmt = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
