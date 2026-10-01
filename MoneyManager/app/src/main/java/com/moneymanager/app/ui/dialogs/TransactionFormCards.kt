@@ -41,8 +41,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -588,11 +591,18 @@ internal fun FormCategorySection(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("Note & Description", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        // Opening the Note tab goes straight to typing: focus the field and raise the keyboard.
+                        val noteFocus = remember { FocusRequester() }
+                        val keyboard = LocalSoftwareKeyboardController.current
+                        LaunchedEffect(Unit) {
+                            noteFocus.requestFocus()
+                            keyboard?.show()
+                        }
                         OutlinedTextField(
                             value = note,
                             onValueChange = onNoteChange,
                             placeholder = { Text("Add receipt note or comment...", style = MaterialTheme.typography.bodyMedium) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().focusRequester(noteFocus),
                             shape = RoundedCornerShape(12.dp),
                             maxLines = 3
                         )
