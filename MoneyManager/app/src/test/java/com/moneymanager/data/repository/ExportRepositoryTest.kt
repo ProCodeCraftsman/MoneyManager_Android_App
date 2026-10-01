@@ -7,6 +7,7 @@ import com.moneymanager.data.dao.*
 import com.moneymanager.data.entity.AccountEntity
 import com.moneymanager.data.entity.EmiEntity
 import com.moneymanager.data.entity.RecurringEntity
+import com.moneymanager.data.preferences.PreferencesManager
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -34,6 +35,7 @@ class ExportRepositoryTest {
     @Mock lateinit var peerContactDao: PeerContactDao
     @Mock lateinit var recurringDao: RecurringDao
     @Mock lateinit var emiDao: EmiDao
+    @Mock lateinit var preferencesManager: PreferencesManager
 
     private lateinit var repository: ExportRepository
 
@@ -42,7 +44,7 @@ class ExportRepositoryTest {
         MockitoAnnotations.openMocks(this)
         repository = ExportRepository(
             mockContext, accountDao, transactionDao, categoryDao, 
-            budgetDao, goalDao, tagDao, peerContactDao, recurringDao, emiDao
+            budgetDao, goalDao, tagDao, peerContactDao, recurringDao, emiDao, preferencesManager
         )
     }
 
@@ -88,6 +90,7 @@ class ExportRepositoryTest {
         `when`(peerContactDao.getAllPeers()).thenReturn(flowOf(emptyList()))
         `when`(recurringDao.getAllRecurring()).thenReturn(flowOf(emptyList()))
         `when`(emiDao.getAllEmis()).thenReturn(flowOf(emptyList()))
+        runBlocking { `when`(preferencesManager.getDefaultAccounts()).thenReturn(emptyMap()) }
     }
 
     @Test
@@ -181,5 +184,50 @@ class ExportRepositoryTest {
         val result = repository.importFromCsv(uri, ExportType.ALL)
 
         assertTrue("Expected at least one EMI imported from ALL CSV bundle", result.emisImported >= 1)
+    }
+
+    @Test
+    fun `JSON export includes default accounts under settings`() = runBlocking {
+        stubEmptyExportSources()
+        `when`(preferencesManager.getDefaultAccounts()).thenReturn(mapOf("expense" to 3L, "transfer_to" to 4L))
+
+        val json = JSONObject(String(repository.exportToJsonBytes(), Charsets.UTF_8))
+
+        val defaults = json.getJSONObject("settings").getJSONObject("defaultAccounts")
+        assertEquals(3L, defaults.getLong("expense"))
+        assertEquals(4L, defaults.getLong("transfer_to"))
+    }
+
+    @Test
+    fun `JSON import restores valid default accounts and skips unknown slots and missing accounts`() = runBlocking {
+        stubEmptyExportSources()
+        `when`(accountDao.getAccountById(3L)).thenReturn(AccountEntity(id = 3L, name = "Bank", type = "bank"))
+        `when`(accountDao.getAccountById(99L)).thenReturn(null)
+        val json = JSONObject().apply {
+            put("settings", JSONObject().apply {
+                put("defaultAccounts", JSONObject().apply {
+                    put("expense", 3L)
+                    put("income", 99L)
+                    put("bogus_slot", 3L)
+                })
+            })
+        }.toString()
+
+        val result = repository.importFromJsonBytes(json.toByteArray())
+
+        assertTrue(result.success)
+        org.mockito.Mockito.verify(preferencesManager).setDefaultAccount("expense", 3L)
+        org.mockito.Mockito.verify(preferencesManager, org.mockito.Mockito.never()).setDefaultAccount("income", 99L)
+        org.mockito.Mockito.verify(preferencesManager, org.mockito.Mockito.never()).setDefaultAccount("bogus_slot", 3L)
+    }
+
+    @Test
+    fun `JSON import of an older backup without settings still succeeds and leaves defaults alone`() = runBlocking {
+        stubEmptyExportSources()
+
+        val result = repository.importFromJsonBytes("""{"accounts":[],"transactions":[]}""".toByteArray())
+
+        assertTrue(result.success)
+        org.mockito.Mockito.verify(preferencesManager, org.mockito.Mockito.never()).setDefaultAccount(any(), any())
     }
 }

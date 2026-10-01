@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import com.moneymanager.data.dao.*
 import com.moneymanager.data.entity.*
+import com.moneymanager.data.preferences.PreferencesManager
+import com.moneymanager.domain.account.DefaultAccountSlot
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -52,6 +54,7 @@ class ExportRepository @Inject constructor(
     private val peerContactDao: com.moneymanager.data.dao.PeerContactDao,
     private val recurringDao: RecurringDao,
     private val emiDao: com.moneymanager.data.dao.EmiDao,
+    private val preferencesManager: PreferencesManager,
 ) {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
@@ -79,6 +82,26 @@ class ExportRepository @Inject constructor(
             put("peers", exportPeers())
             put("recurring", exportRecurring())
             put("emis", exportEmis())
+            put("settings", exportSettings())
+        }
+    }
+
+    /** App settings that belong with the data. Optional on import so older backups still restore. */
+    private suspend fun exportSettings(): JSONObject = JSONObject().apply {
+        put("defaultAccounts", JSONObject().apply {
+            preferencesManager.getDefaultAccounts().forEach { (slot, accountId) -> put(slot, accountId) }
+        })
+    }
+
+    /** Restores default accounts, skipping unknown slots and accounts that don't exist after the import. */
+    private suspend fun importSettings(settings: JSONObject) {
+        val defaults = settings.optJSONObject("defaultAccounts") ?: return
+        defaults.keys().forEach { slotKey ->
+            if (DefaultAccountSlot.fromKey(slotKey) == null) return@forEach
+            val accountId = defaults.optLong(slotKey, -1L)
+            if (accountId > 0 && accountDao.getAccountById(accountId) != null) {
+                preferencesManager.setDefaultAccount(slotKey, accountId)
+            }
         }
     }
 
@@ -179,6 +202,10 @@ class ExportRepository @Inject constructor(
             }
             if (jsonObject.has("recurring")) {
                 recurringImported = importRecurring(jsonObject.getJSONArray("recurring"))
+            }
+            // Settings are a convenience: a bad settings block must never fail an otherwise good restore.
+            jsonObject.optJSONObject("settings")?.let { settings ->
+                try { importSettings(settings) } catch (_: Exception) { }
             }
 
             val total = accountsImported + transactionsImported + categoriesImported +
