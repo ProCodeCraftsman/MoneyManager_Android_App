@@ -175,6 +175,16 @@ fun AddEditTransactionDialog(
     var fromAccountTouched by rememberSaveable { mutableStateOf(isEdit) }
     var toAccountTouched by rememberSaveable { mutableStateOf(isEdit) }
 
+    // From and to must differ for transfer/savings, whichever path (picker, AI draft, type switch) made them equal.
+    val sameAccountSelected = (type == "transfer" || type == "savings") &&
+        selectedAccountId != null && selectedAccountId == selectedToAccountId
+    LaunchedEffect(sameAccountSelected, selectedAccountId) {
+        if (sameAccountSelected) {
+            selectedToAccountId = defaultAccountFor(type, true, selectedAccountId)
+            toAccountTouched = false
+        }
+    }
+
     // Defaults and usage stats can arrive after the dialog opens, so re-apply until the user picks something.
     LaunchedEffect(type, accounts, defaultAccounts, accountUsage) {
         if (!fromAccountTouched) selectedAccountId = defaultAccountFor(type, false, null)
@@ -393,7 +403,7 @@ fun AddEditTransactionDialog(
     // ── Transaction Builder ──
     fun buildTransaction(): TransactionEntity? {
         val amt = amount.toDoubleOrNull() ?: return null
-        if (amt <= 0 || selectedAccountId == null) return null
+        if (amt <= 0 || selectedAccountId == null || sameAccountSelected) return null
         val selectedCat = categories.firstOrNull { it.id == selectedCategoryId }
         val isSplit = splitEnabled && TransactionFeature.SPLIT in features
         val effectiveCategoryId =
@@ -710,9 +720,10 @@ fun AddEditTransactionDialog(
                         else -> "Select Account"
                     }
                     val targetAccounts = if (isToAccount) {
-                        if (type == "savings") investmentAccounts else accounts.filter { it.id != selectedAccountId }
+                        (if (type == "savings") investmentAccounts else accounts).filter { it.id != selectedAccountId }
                     } else {
-                        filteredAccounts.ifEmpty { accounts }
+                        val sources = filteredAccounts.ifEmpty { accounts }
+                        if (type == "transfer" || type == "savings") sources.filter { it.id != selectedToAccountId } else sources
                     }
                     val currentSelectedId = if (isToAccount) selectedToAccountId else selectedAccountId
 
@@ -811,7 +822,7 @@ fun AddEditTransactionDialog(
                     accentColor = accentColor,
                     accentContainer = accentContainer,
                     saveButtonText = "Save",
-                    saveButtonEnabled = amount.isNotEmpty() && (amount.toDoubleOrNull() ?: 0.0) > 0 && selectedAccountId != null,
+                    saveButtonEnabled = amount.isNotEmpty() && (amount.toDoubleOrNull() ?: 0.0) > 0 && selectedAccountId != null && !sameAccountSelected,
                     onNumberClick = { num ->
                         aiSuggestedFields -= "amount"
                         applyAmountEdit(AmountEditor.insert(amount, amountCaret(), num))
