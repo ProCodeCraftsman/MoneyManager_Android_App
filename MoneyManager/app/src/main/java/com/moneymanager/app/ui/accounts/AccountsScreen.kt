@@ -118,7 +118,8 @@ fun AccountsScreen(
                 }
 
                 if (selectedTab == 0) {
-                    if (uiState.accountComparisonData.isNotEmpty()) {
+                    // Guard on active accounts, not the filtered data: an empty filter result must keep the chips visible
+                    if (uiState.activeAccounts.isNotEmpty()) {
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
