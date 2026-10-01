@@ -144,7 +144,7 @@ fun AddEditTransactionDialog(
     }
 
     val isIncomingTransferLeg = (transaction?.type == "transfer") &&
-        transaction.note.contains("transfer from", ignoreCase = true)
+        transaction.note.startsWith("Transfer from ", ignoreCase = true)
     var selectedAccountId by rememberSaveable {
         mutableStateOf(
             if (isIncomingTransferLeg) (transaction.toAccountId ?: filteredAccounts.firstOrNull()?.id)
@@ -712,74 +712,72 @@ fun AddEditTransactionDialog(
                     )
                 }
 
-                // 2. Category Section with Special Features Trigger
-                if (TransactionFeature.CATEGORY in features) {
-                    FormCategorySection(
-                        categories = categories,
-                        categoryFilter = categoryFilter,
-                        selectedCategoryId = selectedCategoryId,
-                        expandedCategoryId = expandedCategoryId,
-                        categoryUsageCounts = categoryUsageCounts,
-                        hasActiveSpecialFeatures = hasActiveSpecialFeatures,
-                        accentColor = accentColor,
-                        accentContainer = accentContainer,
-                        features = features,
-                        transactionType = type,
-                        note = description,
-                        onNoteChange = { description = it },
-                        selectedTagIds = selectedTagIds,
-                        tags = tags,
-                        onToggleTag = { tagId ->
-                            if (tagId in selectedTagIds) selectedTagIds -= tagId
-                            else selectedTagIds += tagId
-                        },
-                        isEmiEnabled = isEmiEnabled,
-                        onEmiToggle = { enabled ->
-                            isEmiEnabled = enabled
-                            if (enabled) showEmiDialog = true
-                        },
-                        emiTenure = emiTenure,
-                        onTenureChange = { emiTenure = it },
-                        receiptData = receiptData,
-                        imageAttachmentsEnabled = imageAttachmentsEnabled,
-                        onAddReceipt = {
-                            if (imageAttachmentsEnabled) {
-                                filePicker.launch("image/*")
-                            }
-                        },
-                        onPreviewReceipt = { showReceiptPreview = true },
-                        splitEnabled = splitEnabled,
-                        onOpenSplit = {
-                            splitEnabled = true
-                            updateSplitRowsFromSelection()
-                            showSplitDialog = true
-                        },
-                        selectedGoalId = selectedGoalId,
-                        goals = goals,
-                        onOpenGoal = { showGoalDialog = true },
-                        selectedPeerId = selectedPeerId,
-                        peers = peers,
-                        onOpenPeer = { showPeerDialog = true },
-                        expectedReturnDate = expectedReturnDate,
-                        onOpenReturnDate = { showExpectedReturnDatePicker = true },
-                        activeFeatureTab = activeFeatureTab,
-                        onTabSelected = { activeFeatureTab = it },
-                        onOpenTagsManager = { showTagsDialog = true },
-                        onCategoryClick = { cat ->
-                            aiSuggestedFields -= "category"
-                            if (cat.id == selectedCategoryId) {
-                                selectedCategoryId = null
-                                if (cat.parentId == null) expandedCategoryId = null
-                            } else {
-                                selectedCategoryId = cat.id
-                                if (cat.parentId == null) expandedCategoryId = cat.id
-                            }
-                        },
-                        onBackClick = { expandedCategoryId = null },
-                        onMoreClick = { showCategorySearch = true },
-                        onOpenSpecialFeatures = { showSpecialFeaturesSheet = true }
-                    )
-                }
+                // 2. Category / Note / Tags / Receipt tabs (category pane only for types with categories)
+                FormCategorySection(
+                    categories = categories,
+                    categoryFilter = categoryFilter,
+                    selectedCategoryId = selectedCategoryId,
+                    expandedCategoryId = expandedCategoryId,
+                    categoryUsageCounts = categoryUsageCounts,
+                    hasActiveSpecialFeatures = hasActiveSpecialFeatures,
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    features = features,
+                    transactionType = type,
+                    note = description,
+                    onNoteChange = { description = it },
+                    selectedTagIds = selectedTagIds,
+                    tags = tags,
+                    onToggleTag = { tagId ->
+                        if (tagId in selectedTagIds) selectedTagIds -= tagId
+                        else selectedTagIds += tagId
+                    },
+                    isEmiEnabled = isEmiEnabled,
+                    onEmiToggle = { enabled ->
+                        isEmiEnabled = enabled
+                        if (enabled) showEmiDialog = true
+                    },
+                    emiTenure = emiTenure,
+                    onTenureChange = { emiTenure = it },
+                    receiptData = receiptData,
+                    imageAttachmentsEnabled = imageAttachmentsEnabled,
+                    onAddReceipt = {
+                        if (imageAttachmentsEnabled) {
+                            filePicker.launch("image/*")
+                        }
+                    },
+                    onPreviewReceipt = { showReceiptPreview = true },
+                    splitEnabled = splitEnabled,
+                    onOpenSplit = {
+                        splitEnabled = true
+                        updateSplitRowsFromSelection()
+                        showSplitDialog = true
+                    },
+                    selectedGoalId = selectedGoalId,
+                    goals = goals,
+                    onOpenGoal = { showGoalDialog = true },
+                    selectedPeerId = selectedPeerId,
+                    peers = peers,
+                    onOpenPeer = { showPeerDialog = true },
+                    expectedReturnDate = expectedReturnDate,
+                    onOpenReturnDate = { showExpectedReturnDatePicker = true },
+                    activeFeatureTab = activeFeatureTab,
+                    onTabSelected = { activeFeatureTab = it },
+                    onOpenTagsManager = { showTagsDialog = true },
+                    onCategoryClick = { cat ->
+                        aiSuggestedFields -= "category"
+                        if (cat.id == selectedCategoryId) {
+                            selectedCategoryId = null
+                            if (cat.parentId == null) expandedCategoryId = null
+                        } else {
+                            selectedCategoryId = cat.id
+                            if (cat.parentId == null) expandedCategoryId = cat.id
+                        }
+                    },
+                    onBackClick = { expandedCategoryId = null },
+                    onMoreClick = { showCategorySearch = true },
+                    onOpenSpecialFeatures = { showSpecialFeaturesSheet = true }
+                )
 
                 // 3. Keypad Fixed Directly Below Category Section
                 NumericKeypad(

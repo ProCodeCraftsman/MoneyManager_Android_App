@@ -391,6 +391,11 @@ internal fun FormCategorySection(
     onMoreClick: () -> Unit,
     onOpenSpecialFeatures: () -> Unit,
 ) {
+    // Transfer / lend / borrow have no categories: their tab bar starts with Note, and the
+    // category pane is never shown even if the saved tab is still "category" after a type switch.
+    val hasCategory = TransactionFeature.CATEGORY in features
+    val visibleTab = if (activeFeatureTab == "category" && !hasCategory) "" else activeFeatureTab
+
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Tab Bar
         Row(
@@ -401,15 +406,17 @@ internal fun FormCategorySection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 1. Category Tab
-            CategoryTabPill(
-                label = "Category",
-                icon = Icons.Default.Category,
-                isSelected = activeFeatureTab == "category",
-                hasValue = selectedCategoryId != null,
-                accentColor = accentColor,
-                accentContainer = accentContainer,
-                onClick = { onTabSelected("category") }
-            )
+            if (hasCategory) {
+                CategoryTabPill(
+                    label = "Category",
+                    icon = Icons.Default.Category,
+                    isSelected = activeFeatureTab == "category",
+                    hasValue = selectedCategoryId != null,
+                    accentColor = accentColor,
+                    accentContainer = accentContainer,
+                    onClick = { onTabSelected("category") }
+                )
+            }
 
             // 2. Note Tab
             if (TransactionFeature.NOTE in features) {
@@ -537,7 +544,7 @@ internal fun FormCategorySection(
         }
 
         // Active Tab Content View
-        when (activeFeatureTab) {
+        when (visibleTab) {
             "category" -> {
                 if (expandedCategoryId != null) {
                     Row(
