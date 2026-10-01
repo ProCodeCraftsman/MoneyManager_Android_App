@@ -230,4 +230,41 @@ class ExportRepositoryTest {
         assertTrue(result.success)
         org.mockito.Mockito.verify(preferencesManager, org.mockito.Mockito.never()).setDefaultAccount(any(), any())
     }
+
+    @Test
+    fun `CSV ALL bundle carries default accounts by name`() = runBlocking {
+        stubEmptyExportSources()
+        val bank = AccountEntity(id = 7L, name = "HDFC \"Main\", Savings", type = "bank")
+        `when`(accountDao.getAllAccounts()).thenReturn(flowOf(listOf(bank)))
+        `when`(preferencesManager.getDefaultAccounts()).thenReturn(mapOf("expense" to 7L, "income" to 404L))
+        `when`(mockContext.contentResolver).thenReturn(org.mockito.Mockito.mock(ContentResolver::class.java))
+        val outputStream = ByteArrayOutputStream()
+        val uri = org.mockito.Mockito.mock(Uri::class.java)
+        `when`(mockContext.contentResolver.openOutputStream(uri)).thenReturn(outputStream)
+
+        repository.exportToCsv(uri, ExportType.ALL)
+        val csvText = outputStream.toString(Charsets.UTF_8.name())
+        assertTrue(csvText.contains("# DEFAULT_ACCOUNTS"))
+        assertTrue("Defaults whose account no longer exists are dropped", !csvText.contains("income,"))
+
+        `when`(mockContext.contentResolver.openInputStream(uri)).thenReturn(ByteArrayInputStream(csvText.toByteArray()))
+        val result = repository.importFromCsv(uri, ExportType.ALL)
+
+        assertTrue(result.success)
+        org.mockito.Mockito.verify(preferencesManager).setDefaultAccount("expense", 7L)
+    }
+
+    @Test
+    fun `CSV ALL bundle without a defaults section imports cleanly`() = runBlocking {
+        stubEmptyExportSources()
+        `when`(mockContext.contentResolver).thenReturn(org.mockito.Mockito.mock(ContentResolver::class.java))
+        val uri = org.mockito.Mockito.mock(Uri::class.java)
+        val oldCsv = "# ACCOUNTS\nid,name,type\n"
+        `when`(mockContext.contentResolver.openInputStream(uri)).thenReturn(ByteArrayInputStream(oldCsv.toByteArray()))
+
+        val result = repository.importFromCsv(uri, ExportType.ALL)
+
+        assertTrue(result.success)
+        org.mockito.Mockito.verify(preferencesManager, org.mockito.Mockito.never()).setDefaultAccount(any(), any())
+    }
 }

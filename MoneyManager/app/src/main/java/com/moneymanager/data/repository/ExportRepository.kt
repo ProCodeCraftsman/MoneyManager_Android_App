@@ -710,6 +710,35 @@ class ExportRepository @Inject constructor(
             appendLine()
             appendLine("# EMIS")
             appendLine(exportEmisCsv())
+            appendLine()
+            appendLine("# DEFAULT_ACCOUNTS")
+            appendLine(exportDefaultAccountsCsv())
+        }
+    }
+
+    /** Defaults are keyed by account *name*: CSV account import assigns new ids, so ids would not survive. */
+    private suspend fun exportDefaultAccountsCsv(): String {
+        val accountsById = accountDao.getAllAccounts().first().associateBy { it.id }
+        return buildString {
+            appendLine("slot,account_name")
+            preferencesManager.getDefaultAccounts().forEach { (slot, accountId) ->
+                val account = accountsById[accountId] ?: return@forEach
+                appendLine("$slot,\"${account.name.replace("\"", "\"\"")}\"")
+            }
+        }
+    }
+
+    /** Must run after accounts are imported. Unknown slots and unmatched names are skipped. */
+    private suspend fun importDefaultAccountsFromCsv(csv: String) {
+        // parseCsvLine drops embedded quote characters, so match on names with quotes stripped from both sides.
+        val accountsByName = accountDao.getAllAccounts().first().groupBy { it.name.replace("\"", "").trim() }
+        csv.lines().drop(1).filter { it.isNotBlank() }.forEach { line ->
+            val parts = parseCsvLine(line)
+            val slot = parts.getOrNull(0)?.trim() ?: return@forEach
+            if (DefaultAccountSlot.fromKey(slot) == null) return@forEach
+            val matches = accountsByName[parts.getOrNull(1)?.trim()] ?: return@forEach
+            val account = matches.firstOrNull { !it.isArchived } ?: matches.first()
+            preferencesManager.setDefaultAccount(slot, account.id)
         }
     }
     
@@ -1444,6 +1473,7 @@ class ExportRepository @Inject constructor(
         var emisCount = 0
 
         val sections = csv.split(Regex("\n(?=# )"))
+        var defaultAccountsBody: String? = null
         for (section in sections) {
             val trimmed = section.trim()
             if (trimmed.isBlank()) continue
@@ -1462,7 +1492,12 @@ class ExportRepository @Inject constructor(
                 header.startsWith("# PEERS") -> peersCount = importPeersFromCsv(body)
                 header.startsWith("# RECURRING") -> recurringCount = importRecurringFromCsv(body)
                 header.startsWith("# EMIS") -> emisCount = importEmisFromCsv(body)
+                header.startsWith("# DEFAULT_ACCOUNTS") -> defaultAccountsBody = body
             }
+        }
+        // Applied last so the accounts it names already exist; a settings problem must not fail the data import.
+        defaultAccountsBody?.let { body ->
+            try { importDefaultAccountsFromCsv(body) } catch (_: Exception) { }
         }
 
         val totalProcessed = accountsCount + categoriesCount + transactionsCount +
