@@ -42,6 +42,7 @@ class PreferencesManager(private val context: Context) {
         private val USER_OPTED_IN_AI = booleanPreferencesKey("user_opted_in_ai")
         private val USER_ALLOWLIST_JSON = stringPreferencesKey("user_allowlist_json")
         private val IMAGE_ATTACHMENTS_ENABLED = booleanPreferencesKey("image_attachments_enabled")
+        private const val DEFAULT_ACCOUNT_PREFIX = "default_account_"
     }
 
     val darkMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -344,6 +345,25 @@ class PreferencesManager(private val context: Context) {
     suspend fun setImageAttachmentsEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[IMAGE_ATTACHMENTS_ENABLED] = enabled
+        }
+    }
+
+    /** Configured default account id per slot key (see DefaultAccountSlot); a missing slot means "Auto". */
+    val defaultAccounts: Flow<Map<String, Long>> = context.dataStore.data.map { preferences ->
+        preferences.asMap().entries.mapNotNull { (key, value) ->
+            if (key.name.startsWith(DEFAULT_ACCOUNT_PREFIX) && value is Long) {
+                key.name.removePrefix(DEFAULT_ACCOUNT_PREFIX) to value
+            } else null
+        }.toMap()
+    }
+
+    suspend fun getDefaultAccounts(): Map<String, Long> = defaultAccounts.first()
+
+    /** Passing null resets the slot to "Auto". */
+    suspend fun setDefaultAccount(slotKey: String, accountId: Long?) {
+        context.dataStore.edit { preferences ->
+            val key = longPreferencesKey(DEFAULT_ACCOUNT_PREFIX + slotKey)
+            if (accountId == null) preferences.remove(key) else preferences[key] = accountId
         }
     }
 }

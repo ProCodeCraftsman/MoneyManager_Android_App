@@ -1,6 +1,7 @@
 package com.moneymanager.domain.repository
 
 import androidx.paging.PagingData
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.dao.CategoryCount
 import com.moneymanager.data.dao.TransactionSummary
 import com.moneymanager.data.entity.TransactionEntity
@@ -41,6 +42,7 @@ interface TransactionRepository {
     suspend fun deleteTransaction(transaction: TransactionEntity)
     suspend fun getTransferSiblings(accountId: Long, toAccountId: Long, amount: Double, excludeId: Long): List<TransactionEntity>
     suspend fun getCategoryUsageCounts(): Map<Long, Int>
+    suspend fun getAccountUsage(): List<AccountUsage>
 
     suspend fun getTransactionsWithAttachments(): List<TransactionEntity>
     suspend fun clearAllReceiptPaths()

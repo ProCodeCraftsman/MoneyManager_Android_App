@@ -3,6 +3,7 @@ package com.moneymanager.data.repository
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import com.moneymanager.data.dao.AccountUsage
 import com.moneymanager.data.dao.TransactionDao
 import com.moneymanager.data.dao.TransactionSummary
 import com.moneymanager.data.entity.TransactionEntity
@@ -51,6 +52,8 @@ class TransactionRepositoryImpl @Inject constructor(
 
     override suspend fun getCategoryUsageCounts(): Map<Long, Int> =
         transactionDao.getCategoryUsageCounts().associate { it.categoryId to it.count }
+
+    override suspend fun getAccountUsage(): List<AccountUsage> = transactionDao.getAccountUsage()
 
     override suspend fun getTransactionsWithAttachments(): List<TransactionEntity> {
         return transactionDao.getTransactionsWithAttachments()

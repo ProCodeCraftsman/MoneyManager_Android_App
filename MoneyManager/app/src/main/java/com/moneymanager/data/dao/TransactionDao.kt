@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 
 data class CategoryCount(val categoryId: Long, val count: Int)
 
+data class AccountUsage(val type: String, val accountId: Long, val toAccountId: Long?, val count: Int)
+
 data class TransactionSummary(
     val totalIncome: Double,
     val totalExpense: Double,
@@ -208,6 +210,9 @@ interface TransactionDao {
 
     @Query("SELECT categoryId, COUNT(*) AS count FROM transactions WHERE categoryId IS NOT NULL AND isSplitChild = 0 GROUP BY categoryId ORDER BY count DESC")
     suspend fun getCategoryUsageCounts(): List<CategoryCount>
+
+    @Query("SELECT type, accountId, toAccountId, COUNT(*) AS count FROM transactions WHERE isSplitChild = 0 GROUP BY type, accountId, toAccountId")
+    suspend fun getAccountUsage(): List<AccountUsage>
 
     @Query("SELECT * FROM transactions WHERE receiptPath IS NOT NULL")
     suspend fun getTransactionsWithAttachments(): List<TransactionEntity>
