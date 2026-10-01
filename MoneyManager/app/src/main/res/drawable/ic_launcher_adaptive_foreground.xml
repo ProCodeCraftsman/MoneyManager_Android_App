@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
+
+    <group
+        android:scaleX="0.72"
+        android:scaleY="0.72"
+        android:pivotX="64"
+        android:pivotY="64">
+
+        <!-- Blue folder body -->
+        <path
+            android:fillColor="#1A73E8"
+            android:pathData="M28,48 h64 a12,12 0 0,1 12,12 v40 a12,12 0 0,1 -12,12 h-64 a12,12 0 0,1 -12,-12 v-40 a12,12 0 0,1 12,-12 Z" />
+
+        <!-- Rotated book/file -->
+        <group
+            android:rotation="12"
+            android:pivotX="60"
+            android:pivotY="48">
+
+            <path
+                android:fillColor="#34A853"
+                android:pathData="M34,12 h48 a6,6 0 0,1 6,6 v52 a6,6 0 0,1 -6,6 h-48 a6,6 0 0,1 -6,-6 v-52 a6,6 0 0,1 6,-6 Z" />
+
+            <path
+                android:fillColor="#00000000"
+                android:strokeColor="#188038"
+                android:strokeWidth="3"
+                android:strokeAlpha="0.4"
+                android:pathData="M38,18 h40 a4,4 0 0,1 4,4 v44 a4,4 0 0,1 -4,4 h-40 a4,4 0 0,1 -4,-4 v-44 a4,4 0 0,1 4,-4 Z" />
+
+            <path
+                android:fillColor="#EA4335"
+                android:pathData="M50,12 h16 v64 h-16 Z" />
+        </group>
+
+        <!-- Blue folder flap -->
+        <path
+            android:fillColor="#4285F4"
+            android:pathData="M16,72 L104,56 L104,100 A12,12 0 0,1 92,112 L28,112 A12,12 0 0,1 16,100 Z" />
+
+        <!-- Folder edge depth line -->
+        <path
+            android:fillColor="#1A73E8"
+            android:fillAlpha="0.4"
+            android:pathData="M16,72 L104,56 L104,60 L16,76 Z" />
+
+        <!-- Yellow trend circle -->
+        <path
+            android:fillColor="#FBBC05"
+            android:pathData="M98,70 A24,24 0 0,1 122,94 A24,24 0 0,1 98,118 A24,24 0 0,1 74,94 A24,24 0 0,1 98,70 Z" />
+
+        <!-- Circle inner ring -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#F9AB00"
+            android:strokeWidth="3"
+            android:pathData="M98,76 A18,18 0 0,1 116,94 A18,18 0 0,1 98,112 A18,18 0 0,1 80,94 A18,18 0 0,1 98,76 Z" />
+
+        <!-- Upward arrow stem -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:pathData="M98,104 L98,84" />
+
+        <!-- Arrow chevron -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M88,94 L98,84 L108,94" />
+    </group>
+
+</vector>
