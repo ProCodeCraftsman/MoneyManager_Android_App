@@ -85,6 +85,7 @@ object PromptBuilder {
                 pre.amount?.let { add("amount=$it") }
                 pre.typeId?.let { add("typeId=$it") }
                 pre.merchantHint?.let { add("merchant=${it}") }
+                addAll(pre.hints)
             }
             if (hints.isNotEmpty()) {
                 appendLine("Pre-extracted (treat as ground truth, do not re-derive): ${hints.joinToString(", ")}")

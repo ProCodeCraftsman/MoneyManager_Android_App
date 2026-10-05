@@ -47,6 +47,7 @@ fun AddTransactionScreen(
                 if (hint != null && tx.categoryId != null) {
                     viewModel.recordMerchantCategory(hint, tx.categoryId, tx.type)
                 }
+                initialDraft?.accountLink?.let { viewModel.recordSmsAccountLink(it, tx) }
                 onDismiss()
             },
             onConfirmEmi = { tx, tenure, rate, isNoCost, fee ->

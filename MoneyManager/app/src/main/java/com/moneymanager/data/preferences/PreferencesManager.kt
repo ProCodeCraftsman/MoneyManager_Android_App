@@ -375,4 +375,16 @@ class PreferencesManager(private val context: Context) {
             if (accountId == null) preferences.remove(key) else preferences[key] = accountId
         }
     }
+
+    /** SMS account source key (see SmsAccountLinks.keyFor) -> the account the user filed it under. */
+    suspend fun getSmsAccountLinks(): Map<String, Long> =
+        context.dataStore.data.first().asMap().entries.mapNotNull { (key, value) ->
+            if (key.name.startsWith(SMS_LINK_PREFIX) && value is Long) key.name.removePrefix(SMS_LINK_PREFIX) to value else null
+        }.toMap()
+
+    suspend fun setSmsAccountLink(linkKey: String, accountId: Long) {
+        context.dataStore.edit { it[longPreferencesKey(SMS_LINK_PREFIX + linkKey)] = accountId }
+    }
 }
+
+private const val SMS_LINK_PREFIX = "sms_account_link:"

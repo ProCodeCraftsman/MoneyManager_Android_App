@@ -171,6 +171,8 @@ class AiDraftViewModel @Inject constructor(
 
     private fun mapThrowableToAiError(throwable: Throwable): com.moneymanager.domain.ai.AiError {
         return when {
+            throwable is com.moneymanager.domain.sms.NotATransactionException ->
+                com.moneymanager.domain.ai.AiError.Generic(throwable.message ?: "No transaction found in this message.")
             throwable is com.moneymanager.domain.ai.AiUnavailableException &&
                     _uiState.value.aiBackendTier == AiBackend.LOCAL_MODEL &&
                     !_uiState.value.isLocalModelDownloaded ->

@@ -1,14 +1,21 @@
 package com.moneymanager.data.repository
 
 import com.moneymanager.data.dao.MerchantCategoryMemoryDao
+import com.moneymanager.data.dao.TransactionDao
 import com.moneymanager.data.entity.MerchantCategoryMemoryEntity
+import com.moneymanager.domain.sms.HistoryRow
+import com.moneymanager.domain.sms.MerchantHistoryIndex
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class MerchantCategoryMemoryRepository @Inject constructor(
     private val dao: MerchantCategoryMemoryDao,
+    private val transactionDao: TransactionDao,
 ) {
+    @Volatile private var historyIndex: MerchantHistoryIndex? = null
+    @Volatile private var historyBuiltAt = 0L
+
     /**
      * Look up cached category for a merchant. Returns null if unknown or key is too short.
      * Call this BEFORE triggering the AI inference — a hit means we can skip the AI call.
@@ -17,6 +24,34 @@ class MerchantCategoryMemoryRepository @Inject constructor(
         val key = normalize(merchantHint)
         if (key.length < 3) return null
         return dao.findByKey(key)
+    }
+
+    /**
+     * Like [lookup], but when nothing was learned yet for [merchantHint] falls back to the category the user
+     * already uses for similar descriptions in their transaction history. The result is a suggestion and is
+     * not persisted. A remembered entry only counts when it was learned for the same [typeId].
+     */
+    suspend fun lookupWithHistory(merchantHint: String, typeId: String?): MerchantCategoryMemoryEntity? {
+        lookup(merchantHint)?.takeIf { typeId == null || it.typeId == null || it.typeId == typeId }?.let { return it }
+        val s = history().suggest(merchantHint, typeId) ?: return null
+        return MerchantCategoryMemoryEntity(
+            merchantKey = MerchantHistoryIndex.normalize(merchantHint),
+            categoryId = s.categoryId,
+            categoryName = s.categoryName,
+            typeId = s.typeId,
+            hitCount = s.count,
+        )
+    }
+
+    private suspend fun history(): MerchantHistoryIndex {
+        val now = System.currentTimeMillis()
+        historyIndex?.takeIf { now - historyBuiltAt < HISTORY_TTL_MS }?.let { return it }
+        val rows = transactionDao.getMerchantCategoryCounts()
+            .map { HistoryRow(it.description, it.type, it.categoryId, it.categoryName, it.count) }
+        return MerchantHistoryIndex(rows).also {
+            historyIndex = it
+            historyBuiltAt = now
+        }
     }
 
     /**
@@ -42,6 +77,9 @@ class MerchantCategoryMemoryRepository @Inject constructor(
         }
     }
 
-    private fun normalize(raw: String): String =
-        raw.lowercase().replace(Regex("[^a-z0-9]"), "").take(40)
+    private fun normalize(raw: String): String = MerchantHistoryIndex.normalize(raw)
+
+    private companion object {
+        const val HISTORY_TTL_MS = 60_000L
+    }
 }

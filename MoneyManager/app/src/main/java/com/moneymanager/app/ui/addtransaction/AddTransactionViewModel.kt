@@ -13,6 +13,7 @@ import com.moneymanager.data.entity.TagEntity
 import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
+import com.moneymanager.data.repository.SmsAccountLinkRepository
 import com.moneymanager.domain.account.observeAccountUsage
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.CategoryRepository
@@ -35,6 +36,7 @@ class AddTransactionViewModel @Inject constructor(
     private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
     private val merchantMemory: MerchantCategoryMemoryRepository,
+    private val smsAccountLinks: SmsAccountLinkRepository,
     private val emiDao: com.moneymanager.data.dao.EmiDao,
 ) : AndroidViewModel(application) {
 
@@ -164,6 +166,15 @@ class AddTransactionViewModel @Inject constructor(
                 .firstOrNull { it.id == categoryId }?.name ?: ""
             merchantMemory.record(merchantHint, categoryId, categoryName, typeId)
         }
+    }
+
+    // Called after saving a draft that came from an SMS: the account the user kept becomes the link for that
+    // SMS source, so the next message from it needs no account edit. A card repayment's SMS describes the card,
+    // which is the destination of the transfer.
+    fun recordSmsAccountLink(linkKey: String, tx: TransactionEntity) {
+        val accountId = if (tx.type == "transfer") tx.toAccountId else tx.accountId
+        if (accountId == null) return
+        viewModelScope.launch(Dispatchers.IO) { smsAccountLinks.learn(linkKey, accountId) }
     }
 
     private suspend fun updatePeerBalance(tx: TransactionEntity, reverse: Boolean) {
