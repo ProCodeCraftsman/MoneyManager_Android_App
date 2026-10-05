@@ -1,0 +1,1132 @@
+[
+ {
+  "sender": "FEDSCP",
+  "count": 333,
+  "template": "Hi! Your txn of <AMT> at <MERCHANT> on your Scapia Federal RuPay credit card was successful. Not you? Go to <MERCHANT> on the app.- Federal Bank"
+ },
+ {
+  "sender": "UTKSPR",
+  "count": 93,
+  "template": "Dear <NAME> , your SuperCard <N> debited for <AMT> on <DATE>:<N> PM for UPI - <NUM>. To <MERCHANT> call <NUM> - Utkarsh SFBL"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 82,
+  "template": "Sent <AMT> From HDFC Bank A/C <ACC> To <MERCHANT> On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 42,
+  "template": "Dear <NAME> , UPI AutoPay for ICCL Mutual Funds Autopay debit of <AMT> is scheduled on .<DATE>, <VPA>. Please ensure sufficient balance in your account. -SBI"
+ },
+ {
+  "sender": "UTKSPR",
+  "count": 42,
+  "template": "Dear <NAME> , your SuperCard <N> debited for <AMT> on <DATE>:<N> AM for UPI - <NUM>. To <MERCHANT> call <NUM> - Utkarsh SFBL"
+ },
+ {
+  "sender": "SLCBNK",
+  "count": 38,
+  "template": "<AMT> spent on your credit card <ACC> at <MERCHANT> on <DATE> (UPI Ref: <NUM>). Not you? Call <N>-<N>-<N> - slice"
+ },
+ {
+  "sender": "CBSSBI",
+  "count": 33,
+  "template": "Your A/C <ACC> Debited <AMT> on <DATE> -Transferred to <MERCHANT>. <NAME> . Avl Balance <AMT>-SBI"
+ },
+ {
+  "sender": "CBSSBI",
+  "count": 32,
+  "template": "Your A/C <ACC> Credited <AMT> on <DATE> -Deposit by <MERCHANT>. <NAME> . Avl Bal <AMT>-SBI"
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 30,
+  "template": "Hi! Your txn of <AMT> at <MERCHANT> on your Scapia Federal Visa credit card was successful. Not you? Go to <MERCHANT> on the app.- Federal Bank"
+ },
+ {
+  "sender": "ABCAMC",
+  "count": 29,
+  "template": "Purchase SIP in Folio <NUM> in ABSL PSU Equity Fund Direct-Growth for <AMT>, NAV <N>/Trade date <DATE> is processed. Balance Units <N>.Statement will be sent in <N> Days. ABSLMF."
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 22,
+  "template": "Hi! You have received a fuel surcharge waiver of <AMT> for your fuel transaction at <MERCHANT> on <DATE> <TIME>using your Scapia Federal RuPay credit card - Federal Bank"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 21,
+  "template": "ICICI Bank Credit Card <ACC> Statement is sent to sw**********<EMAIL> Total of <AMT> or minimum of <AMT> is due by <DATE>."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 20,
+  "template": "Payment of <AMT> has been received on your ICICI Bank Credit Card <ACC> through Bharat Bill Payment System on <DATE>."
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 18,
+  "template": "UPDATE: <AMT> debited from HDFC Bank <ACC> on <DATE>. Info: <MERCHANT><ACC>:<NAME> K S. Avl bal:<AMT>"
+ },
+ {
+  "sender": "SBYONO",
+  "count": 18,
+  "template": "Your Ac <ACC> debited <AMT> for transfer to <NAME> Ac <ACC> dt <DATE> Ref <NUM>. If not done by you, call <NUM>. YONO SBI"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 17,
+  "template": "Credit Alert! <AMT> credited to HDFC Bank A/c <ACC> on <DATE> from <MERCHANT> <VPA> (UPI <NUM>)"
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 17,
+  "template": "Yay! We've received your payment of <AMT> towards your Scapia Federal credit card. -Federal Bank"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 17,
+  "template": "Dear <NAME> , UPI AutoPay for SAFE GOLD debit of <AMT> is scheduled on .<DATE>, <VPA>. Please ensure sufficient balance in your account. -SBI"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 17,
+  "template": "Dear <NAME> , UPI AutoPay for INDmoney debit of <AMT> is scheduled on .<DATE>, <VPA>. Please ensure sufficient balance in your account. -SBI"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 16,
+  "template": "Sent <AMT> From HDFC Bank A/C *<N> To <MERCHANT> On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 11,
+  "template": "Payment of <AMT> has been received towards your Axis Bank Credit Card <ACC> on <DATE> - Axis Bank"
+ },
+ {
+  "sender": "IPRUMF",
+  "count": 10,
+  "template": "Dear <NAME> , Your SIP Purchase of <AMT> in Folio <NUM> in Commodities Fund DP Growth for <DATE> units has been processed for NAV of <AMT> on <DATE> - IPRUMF"
+ },
+ {
+  "sender": "TATAMF",
+  "count": 10,
+  "template": "Your Purchase SIP in folio <NUM>/<N> in scheme Tata Small Cap Fund Dir Pl Gr for <AMT> for <DATE> units at <MERCHANT> <AMT> dated <DATE> is successful with applicable load, Click <URL> to <MERCHANT>. The password is your PAN in CAPITALS. In case PAN is not registered in the Folio, enter your Folio No -TATA MF"
+ },
+ {
+  "sender": "RZRPAY",
+  "count": 10,
+  "template": "Settlement worth <AMT> for Razorpay MID <ID> has been processed. It will be credited in your bank account before <N> PM today!"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 9,
+  "template": "Congratulations! Cashback of <AMT> has been credited to your Axis Bank Flipkart Visa Credit Card <ACC> towards your last month spends - Axis Bank"
+ },
+ {
+  "sender": "UTKSPR",
+  "count": 8,
+  "template": "We have received payment of <AMT> for your SuperCard ending <N>. Your available limit is now <AMT> -Utkarsh SFBL"
+ },
+ {
+  "sender": "PTNNPS",
+  "count": 7,
+  "template": "PRAN <ACC>: Units for Voluntary contribution of <AMT> credited with NAV of <DATE> -Protean"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 7,
+  "template": "Pay Total Amount Due of <AMT> or Minimum Amount Due of <AMT> by <DATE> towards <MERCHANT> <ACC>. Delay/Non-payment is reported to <MERCHANT>. Ignore if paid."
+ },
+ {
+  "sender": "IRCTCI",
+  "count": 6,
+  "template": "Namaskar Vande Bharat Guest, Your meal plan booked for upcoming journey with PNR <NUM> is - Passenge<AMT>-No Food. Have a happy journey. -IRCTC"
+ },
+ {
+  "sender": "SBIMFM",
+  "count": 6,
+  "template": "Dear <NAME> , Purchase transaction in Folio No. <NUM> in Scheme : SBI ELSS Tax Saver Fund Dir Gr for date <DATE> for amount of <AMT> at <MERCHANT>.<N> is processed for number of units <DATE> - SBIMF"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 5,
+  "template": "Sent <AMT> From HDFC Bank A/C <ACC> To <NAME> K S On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "SBIMFD",
+  "count": 5,
+  "template": "Dear <NAME> , Purchase transaction in Folio No. <NUM> in Scheme : SBI Long Term Equity Fund-Dir Gr for date <DATE> for amount of <AMT> at <MERCHANT>.<N> is processed for number of units <DATE> - SBIMF"
+ },
+ {
+  "sender": "SWIGGY",
+  "count": 5,
+  "template": "Refund of <AMT> has been initiated for Swiggy order <NUM>. Updated balance should reflect in <N> hours. <URL>"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 5,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> /ATTN/<ID>-SBI"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 5,
+  "template": "<AMT> spent on ICICI Bank Card <ACC> on <DATE> at <MERCHANT>. Avl Lmt: <AMT>. To <MERCHANT>, call <NUM>/SMS BLOCK <N> to <NUM>. To <MERCHANT> txn to <MERCHANT> call on <NUM>. Know more about EMI conversion at <URL>"
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 4,
+  "template": "Hi! Your txn of <AMT> at The Chinese Box on your Scapia Federal RuPay credit card was successful. Not you? Go to <MERCHANT> on the app.- Federal Bank"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 4,
+  "template": "Spent <AMT> On HDFC Bank Card <N> At <MERCHANT> On <DATE>:<TIME>.Not You? To Block+Reissue Call <NUM>/SMS BLOCK CC <N> to <NUM>"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 4,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> <N> NAVI FINSERV LIMITED <NUM> <N>//<NUM>-SBI"
+ },
+ {
+  "sender": "IRSMSA",
+  "count": 4,
+  "template": "<AMT> debited from your RWallet Account on Jan <DATE> <TIME> . Available Balance <AMT>. Indian Railway"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 4,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on BOOKMYSHOW. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "AXISBK",
+  "count": 4,
+  "template": "Statement for your Axis Bank Credit Card <ACC> of <AMT> has been generated with due date <DATE>. View the transaction details @ <URL> & to <MERCHANT>, visit <URL> ; Minimum amount due is <AMT>."
+ },
+ {
+  "sender": "AXISBK",
+  "count": 4,
+  "template": "Spent Card no. <ACC> USD <N> <DATE> <TIME>PADDLE*NET* Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 4,
+  "template": "Payment of <AMT> for Axis Bank Credit Card no. <ACC> is due on <DATE> with minimum amount due of <AMT>. Ignore if paid."
+ },
+ {
+  "sender": "EDLAMC",
+  "count": 4,
+  "template": "Hello, your purchase request dated <DATE> under Edelweiss Balanced Advantage Fund - Direct Plan Growth for <AMT> has been processed @ NAV of <AMT> and <DATE> units are allotted in Folio: <ACC> -Edelweiss Asset Management Limited"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 3,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> <N> SALARY-SBI"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 3,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> NAVI FINSERV LIMITED-SBI"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 3,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>KERALA VISI Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 3,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> <N> <ID> GPS RENEWABLES PRIVATE SALARY-SBI"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 3,
+  "template": "USD <N> spent using ICICI Bank Card <ACC> on <DATE> on PADDLE.NET* VPS. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "NPSCRA",
+  "count": 3,
+  "template": "PRAN <ACC>: Units for Voluntary contribution of <AMT> credited with NAV of <DATE> -Protean"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 3,
+  "template": "Dear Customer, your payment of <AMT> for Amazon Seller Services PL to be debited from your ICICI Bank Credit Card <N>, as per Standing Instructions <ID>, is due by <DATE>. To cancel this debit or your Standing Instructions, visit <URL> >Cards>Credit Cards>Standing Instructions and Recurring Charges>Manage Standing Instructions."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 3,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on THACHAPPALLIL B. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "AXISBK",
+  "count": 3,
+  "template": "Spent <AMT> Axis Bank Card no. <ACC> <DATE> <TIME>IST Flipkart Avl Limit: <AMT> Not you? SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "PHONPE",
+  "count": 2,
+  "template": "Wintwealth has requested money from you on PhonePe.<AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 2,
+  "template": "Sent <AMT> From HDFC Bank A/C *<N> To SREE NARAYANA DHARMA SANGHOM TRUST UNIT SSNM MISSION On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 2,
+  "template": "Spent <AMT> Axis Bank Card no. <ACC> <DATE> <TIME>IST GODADDYLLCV Avl Limit: <AMT> Not you? SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "SLCBNK",
+  "count": 2,
+  "template": "Repayment of <AMT> received for the slice credit card. The amount has been credited to your card account - slice"
+ },
+ {
+  "sender": "JIOPAY",
+  "count": 2,
+  "template": "Your last payment attempt of <AMT> on Jun <N>, <N> <TIME> for Jio number <NUM> was unsuccessful. Please try again. Transaction ID : <ID>. In case any amount has been deducted from your account, then it will be automatically refunded by your bank/card/wallet within <N> days."
+ },
+ {
+  "sender": "PHONPE",
+  "count": 2,
+  "template": "IRCTC Rail Web has requested money from you on PhonePe. <AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "HDFCMF",
+  "count": 2,
+  "template": "Your Purchase in Folio <NUM>/<N> under HDFC ELSS Tax saver - DP - Growth for <AMT> has been processed at the NAV of <N> for <DATE> units and <DATE>. Your smart statement <URL> Enter your PAN as the password. Sincerely, HDFCMF"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 2,
+  "template": "Spent <AMT> Axis Bank Card no. <ACC> <DATE> <TIME>IST Flipkart In Avl Limit: <AMT> Not you? SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 2,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>Raz*IRCTC Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "AIRINF",
+  "count": 2,
+  "template": "Hi, Payment of <AMT> has failed for your Airtel Mobile <NUM>. Any amount, if debited will be refunded to your source account within a day. Please keep order ID <NUM> for reference."
+ },
+ {
+  "sender": "ICCSLM",
+  "count": 2,
+  "template": "Dear <NAME> You have remitted <AMT> as your <N> installment of certificate no <NUM>. Your next due date is <DATE>. Thank you, ICCSLM"
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 2,
+  "template": "Hi! Your txn of <AMT> at The Burger Kitchen on your Scapia Federal RuPay credit card was successful. Not you? Go to <MERCHANT> on the app.- Federal Bank"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 2,
+  "template": "E-Statement of your Axis Bank Credit Card no. <ACC> has been generated. Total amount due: INR Cr. <N>. Minimum amt due: <AMT>, Due date: <DATE>. Visit <URL> to <MERCHANT>."
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 2,
+  "template": "Hi! You've received a refund of <AMT> from <MERCHANT> on your Scapia Federal Visa credit card. If you have opted for an EMI on this transaction, please login to Scapia app and proceed with the cancellation of the EMI. -Federal Bank"
+ },
+ {
+  "sender": "IRSMSA",
+  "count": 2,
+  "template": "<AMT> credited to your RWallet Account on Sep <DATE> <TIME> .Now the Available Balance is <AMT>. IR-CRIS"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 2,
+  "template": "Update! <AMT> deposited in HDFC Bank A/c <ACC> on <DATE> for HDFC ERGO GENE-<NUM>.Avl bal <AMT>. Cheque deposits in A/C are subject to <MERCHANT>"
+ },
+ {
+  "sender": "DSPAMC",
+  "count": 2,
+  "template": "Transaction CONFIRMATION Alert Purchase request of <AMT> in scheme ELSS Tax Saver Fund - Dir - G in your folio <NUM>/<N> has been processed for <DATE> with NAV of <AMT>. TnC Apply. - DSPMF"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 2,
+  "template": "Spent <AMT> Axis Bank Card no. <ACC> <DATE> <TIME>IST GOOGLE PLAY Avl Limit: <AMT> Not you? SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "JIOPAY",
+  "count": 2,
+  "template": "Your last payment attempt of <AMT> on Feb <N>, <N> <TIME> for Jio number <NUM> was unsuccessful. Please try again. Transaction ID : <ID>. In case any amount has been deducted from your account, then it will be automatically refunded by your bank/card/wallet within <N> days."
+ },
+ {
+  "sender": "SWIGGY",
+  "count": 2,
+  "template": "Dear <NAME> , your refund reference number for <AMT> is <NUM>-<N>-R1. <URL>"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 2,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 30Mar25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 2,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>National Pe Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 2,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on SRI RAMAKRISHNA. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "JIOPAY",
+  "count": 2,
+  "template": "Your last payment attempt of <AMT> on Mar <N>, <N> <TIME> for Jio number <NUM> was unsuccessful. Please try again. Transaction ID : <ID>. In case any amount has been deducted from your account, then it will be automatically refunded by your bank/card/wallet within <N> days."
+ },
+ {
+  "sender": "SAMCCC",
+  "count": 2,
+  "template": "Dear Customer, amount paid for your Samsung Service Request No. <NUM> was <AMT>. Thank you"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 2,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on Pho*IRCTC E-TIC. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 2,
+  "template": "Oh no! Your txn of <AMT> at <MERCHANT> is declined as you've disabled the Domestic ECOM facility on your Scapia Federal Visa credit card. To <MERCHANT>, you can log in to the Scapia app > Card > Manage your card or go to the Scapia support section on the app. -Federal Bank"
+ },
+ {
+  "sender": "PHONPE",
+  "count": 2,
+  "template": "Jio Prepaid Recharges has requested money from you on PhonePe.<AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "650022",
+  "count": 2,
+  "template": "Important Update for <NUM>: Your Prepaid bill payment of <AMT> was successful. You could've paid up to <AMT> less with Airtel Axis Bank Credit Card. View Details <URL>"
+ },
+ {
+  "sender": "IRCTCI",
+  "count": 2,
+  "template": "Namaskar Vande Bharat Guest, Your meal plan booked for upcoming journey with PNR <NUM> is - Passenge<AMT>-Lunch. Have a happy journey. -IRCTC"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 2,
+  "template": "Your statement for Axis Bank Credit Card no. <ACC> is generated. Due on: <DATE> Total amt: <AMT> Min amt due: <AMT> Pay at <MERCHANT>.<URL> To view fees & charges: axis.<URL> To view/download statement: <URL>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 2,
+  "template": "You have a credit balance of <AMT>/- on your Axis Bank Credit Card no. <ACC>. Call <NUM> to <MERCHANT>."
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 2,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 03Jan25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 2,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on RSP*KERALA VISI. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 2,
+  "template": "Sent <AMT> From HDFC Bank A/C *<N> To <NAME> K S On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "ICICIP",
+  "count": 1,
+  "template": "ICICIPru policy <ID> protects your family. Pay <AMT> now at <URL> . Ignore if paid."
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 1,
+  "template": "Hi! You've received a refund of <AMT> from <MERCHANT> on your Scapia Federal RuPay credit card. If you have opted for an EMI on this transaction, please login to Scapia app and proceed with the cancellation of the EMI. -Federal Bank"
+ },
+ {
+  "sender": "PHONPE",
+  "count": 1,
+  "template": "IRCTC has requested money from you on PhonePe. <AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on Azad Group Hote. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on THOTTIPARAMBIL . Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "INDANE",
+  "count": 1,
+  "template": "Dear <NAME> , As per available Income-tax records, your (or a linked family member's) gross taxable income exceeds the prescribed limit of <AMT> lakh. If you wish to <MERCHANT>, please contact the toll-free number <N>-<N>-<N> or register your grievance on the portal of your respective Oil Marketing Company within seven days of receipt of this message. If no response is received within the stipulated period, the LPG subsidy may be discontinued thereafter. Link: <URL> INDANE"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> NCD INT JUNE <N>-SBI"
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 1,
+  "template": "Hi! Your txn of <AMT> at <MERCHANT> <ID> Ha No on your Scapia Federal Visa credit card was successful. Not you? Go to <MERCHANT> on the app.- Federal Bank"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on Bharat Petroleu. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on AMAZON PAY INDI. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 01May25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "IONEMG",
+  "count": 1,
+  "template": "We have received your test request with respect to Order id: <ID>-<N> for <N> test(s) with Tata 1mg Labs. We will confirm the time slot shortly. Amount payable is <AMT> - Team 1mg"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> <N> GPS SALARY JAN25-SBI"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent <AMT> Axis Bank Card no. <ACC> <DATE> <TIME>IST WWW AMAZON Avl Limit: <AMT> Not you? SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>, your passbook balance against PYBOM<ACC> is <AMT>/-. Contribution of <AMT>/- for due month Dec-<N> has been received."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on MAKEMYTRIP INDI. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 14Apr25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by NAVI FINSERV LIMITEDDIVIDEND REFUND INTEREST PAYMENTHDF, INFO: BATCHID:<N> <N> NAVI FINSERV LIMITED <NUM> <N>//<NUM>-SBI"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , UPI AutoPay for INDstocks debit of <AMT> is scheduled on .<DATE>, <VPA>. Please ensure sufficient balance in your account. -SBI"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>, your passbook balance against PYBOM<ACC> is <AMT>/-. Contribution of <AMT>/- for due month Feb-<N> has been received."
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "UPDATE: <AMT> debited from HDFC Bank A/c <ACC> on <DATE>. For: DEBIT CARD ANNUAL FEE-May-<N>-<ID>"
+ },
+ {
+  "sender": "MOAMCL",
+  "count": 1,
+  "template": "Dear <NAME> , We have received your subscription in Motilal Oswal BSE Enhanced Value Index Fund under folio <NUM> for <AMT>. Units will be allotted after necessary validation at <MERCHANT>.Thank you for investing, please call <NUM> for any assistance. Motilal Oswal MF."
+ },
+ {
+  "sender": "MOBINR",
+  "count": 1,
+  "template": "<AMT> can be credited in your account at <MERCHANT> <AMT>/PM for 10yrs To <MERCHANT> <URL> MOBISOFT"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>, your passbook balance against PYBOM<ACC> is <AMT>/-. Contribution of <AMT>/- for due month Mar-<N> has been received."
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>,your passbook balance against <ID> is <AMT>/-. Contribution of <AMT>/- for due month Feb-<N> has been received."
+ },
+ {
+  "sender": "CBSSBI",
+  "count": 1,
+  "template": "Dear Customer, Your A/C <ACC> Credited. <AMT> on <DATE> on account of Closure of TD A/c <ACC>.-SBI"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 24Jan25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>WWW AMAZON Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "SWIGGY",
+  "count": 1,
+  "template": "Dear <NAME> , your refund reference number for <AMT> is <ID>-R1-R1. <URL>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "ICICI Bank Credit Card <ACC> debited for <AMT> on <DATE> for UPI-<NUM>-Samudra. To <MERCHANT> call <NUM>/SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>,your passbook balance against <ID> is <AMT>/-. Contribution of <AMT>/- for due month Dec-<N> has been received."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "Late payment charges revised from <DATE>. Total <AMT> or min <AMT> for ICICI Bank Credit Card <ACC> due on <DATE>. Pay at <URL>"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>, your passbook balance against PYBOM<ACC> is <AMT>/-. Contribution of <AMT>/- for due month Jun-<N> has been received."
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, Your a/c no. <ACC> is credited by <AMT> on <DATE> by a/c linked to mobile <ID>-GROWW INVE (IMPS Ref# <NUM>)-SBI"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>, your passbook balance against PYBOM<ACC> is <AMT>/-. Contribution of <AMT>/- for due month Jan-<N> has been received."
+ },
+ {
+  "sender": "FEDBNK",
+  "count": 1,
+  "template": "Debited <AMT> from a/c <ACC> on 24Jul26 <TIME>via UPI to <NAME> K S. Ref <NUM>.Bal <AMT>. Not you?Call <NUM> -Federal Bank"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 05Jan25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Your UPI-Mandate for <AMT> is successfully created towards ICCL Mutual Funds Autopay from A/c No: <ACC>. UMN:<VPA>. If not you, kindly report on <NUM>. -SBI"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "You have earned a total cash back of <AMT> in May on your Flipkart Axis Bank Credit Card <ACC>. It will be credited in the next statement. T&C."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "ICICI Bank Credit Card <ACC> debited for <AMT> on <DATE> for UPI-<NUM>-ALTAZA. To <MERCHANT> call <NUM>/SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by NEXTBILLION TECHNOLOGY PRIVATE LIMITED CLIENT ACCO, INFO: BATCHID:<N> GROWW WITHDRAW REQ <MERCHANT>-SBI"
+ },
+ {
+  "sender": "PHONPE",
+  "count": 1,
+  "template": "IRCTCTOURISM has requested money from you on PhonePe.<AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on LULU INTERNATIO. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 02Jan25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent <AMT> Axis Bank Card no. <ACC> <DATE> <TIME>IST FLIPKART IN Avl Limit: <AMT> Not you? SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "ICICI Bank Credit Card <ACC> debited for <AMT> on <DATE> for UPI-<NUM>-JONYS. To <MERCHANT> call <NUM>/SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "MOAMCL",
+  "count": 1,
+  "template": "Dear <NAME> , Your purchase request dated <DATE> in scheme Motilal Oswal BSE Enhanced Value Index Fund under the Folio No <NUM> for <AMT> is processed and <DATE> units are allotted in demat mode @ NAV <AMT>. Please contact you DP for any queries on your demat account. Motilal Oswal MF."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent on ICICI Bank Card <ACC> on <DATE> at PPSL*Cleartrip-. Avl Lmt: <AMT>. To <MERCHANT>, call <NUM>/SMS BLOCK <N> to <NUM>. To <MERCHANT> txn to <MERCHANT> call on <NUM>. Know more about EMI conversion at <URL>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on SEA VIEW LODGIN. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "You have earned a total cash back of <AMT> in April on your Flipkart Axis Bank Credit Card?<ACC>. It will be credited in the next statement. T&C."
+ },
+ {
+  "sender": "IRSMSA",
+  "count": 1,
+  "template": "<AMT> credited to your RWallet Account on Jan <DATE> <TIME> .Now the Available Balance is <AMT>. IR-CRIS"
+ },
+ {
+  "sender": "POLBAZ",
+  "count": 1,
+  "template": "Hi <NAME> , your policy <N>-<N>-<NUM>-<N> with Aditya Birla is due on <DATE>. Renew for <N> yr(s) at <AMT> to get a dedicated manager and 24x7 claims support. Pay now: <URL> - Team Policybazaar"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "ICICI Bank Credit Card <ACC> debited for <AMT> on <DATE> for UPI-<NUM>-TRANSWAR. To <MERCHANT> call <NUM>/SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "SBIMFM",
+  "count": 1,
+  "template": "Dear <NAME> , Purchase transaction in Folio No. <NUM> in Scheme : SBI Long Term Equity Fund-Dir Gr for date <DATE> for amount of <AMT> at <MERCHANT>.<N> is processed for number of units <DATE> - SBIMF"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> MIDLAND MICROFIN LIMITED-SBI"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 16Jan25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "PHONPE",
+  "count": 1,
+  "template": "SBI General Insurance Company Limited has requested money from you on PhonePe.<AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>,your passbook balance against <ID> is <AMT>/-. Contribution of <AMT>/- for due month Apr-<N> has been received."
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> NCD INT <DATE>-SBI"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on SUPREME GOURMET. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>M S KUNNIL Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "SNITCH",
+  "count": 1,
+  "template": "Thanks for shopping at <MERCHANT>, Trivandrum. <AMT> paid. View your invoice & all past purchases in one place, download our app: <URL>"
+ },
+ {
+  "sender": "JIOFBR",
+  "count": 1,
+  "template": "Dear Customer, Thank you for your payment of <AMT> against JioFiber/JioAirFiber request No. <ID> Ref Transaction ID : <ID> A Voucher worth of <AMT> will be credited to your MyJio account and we will notify you after scheduling an appointment for Installation. Team Jio"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 01Feb25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "SUPRMY",
+  "count": 1,
+  "template": "Federal Easy Payments has requested money on SuperMoney. On approving the request, <AMT> will be debited from your account : <URL>"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "Sent <AMT> From HDFC Bank A/C *<N> To Fi - Federal Bank On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "SUPRMY",
+  "count": 1,
+  "template": "NPS Trust has requested money on SuperMoney. On approving the request, <AMT> will be debited from your account : <URL>"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 06Feb25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> /ATTN/<NUM>-SBI"
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 1,
+  "template": "Refund received of <AMT> on your Scapia Federal RuPay Credit Card from <MERCHANT>. If you have opted for an EMI, kindly cancel on Scapia app. - Federal Bank"
+ },
+ {
+  "sender": "FEDSCP",
+  "count": 1,
+  "template": "You have received a fuel surcharge waiver of <AMT> for your transaction at <MERCHANT> on <DATE> <TIME>using your Scapia Federal credit card - Federal Bank"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> is due on ICICI Bank Credit Card <ACC>. Minimum due is <AMT>. Pay instantly through UPI at <URL> . Ignore if paid."
+ },
+ {
+  "sender": "EDLAMC",
+  "count": 1,
+  "template": "Hello, your purchase request dated <DATE> under Edelweiss Balanced Advantage Fund - Direct Plan Growth for <AMT> has been processed @ NAV of <AMT> and <DATE> units are allotted in Folio: <ACC>. Please write to us at <EMAIL> in case the mobile number updated now in our records does not pertain to you -Edelweiss Asset Management Limited"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> NCD INT JULY <N>-SBI"
+ },
+ {
+  "sender": "JIOPAY",
+  "count": 1,
+  "template": "Your current plan <AMT>-12m-<N>.5GB/D for Jio number <NUM> will expire on <DATE> <TIME>Hrs. You have an upcoming plan of <AMT>_1Yr_2.5GB/D , which will automatically get activated to <MERCHANT>. To view your current and upcoming plan details, click <URL> Dial <N>, to <MERCHANT>, validity, plan details and for exciting recharge plans ."
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "Sent <AMT> From HDFC Bank A/C <ACC> To <NAME> KS On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "SBIBNK",
+  "count": 1,
+  "template": "Dear Customer, For PAN <ID>, An IT Refund amount of <AMT> for AY-<N>-<N> has been credited to your account <ACC> on <DATE>. -SBI"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, Your a/c no. <ACC> is credited by <AMT> on <DATE> by a/c linked to mobile <ID>-<MERCHANT> (IMPS Ref# <NUM>)-SBI"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Statement for your Axis Bank Credit Card no. <ACC> has been generated. Due on: <DATE> Total amt: <AMT> Min amt due: <AMT> To <MERCHANT>, visit <URL> To <MERCHANT>, visit <URL> To <MERCHANT>, visit <URL>"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 31Jan25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on IRCTC. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "Sent <AMT> From HDFC Bank A/C *<N> To POPULAR MOTOR WORLD PRIVATE LIMITED-KLLM SER On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent on ICICI Bank Card <ACC> on <DATE> at PAY*CLEARTRIP C. Avl Lmt: <AMT>. To <MERCHANT>, call <NUM>/SMS BLOCK <N> to <NUM>. To <MERCHANT> txn to <MERCHANT> call on <NUM>. Know more about EMI conversion at <URL>"
+ },
+ {
+  "sender": "SUPRMY",
+  "count": 1,
+  "template": "EatSure Foodcourt has requested money on SuperMoney. On approving the request, <AMT> will be debited from your account : <URL>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on LKST389. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "MMTRIP",
+  "count": 1,
+  "template": "Dear <NAME> KS, We would like to inform you that your Bangalore-Thiruvananthapuram bus booking with ID <ID> was cancelled by you on <DATE>, at <TIME> and we have accordingly initiated a refund of <AMT>. Please note, refund timelines are dependent on your bank/card/wallet provider. You can track your refund status at <URL> Thank you, Team MakeMyTrip"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on BIGTREE Enterta. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 01Jan25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>, your passbook balance against PYBOM<ACC> is <AMT>/-. Contribution of <AMT>/- for due month May-<N> has been received."
+ },
+ {
+  "sender": "PHONPE",
+  "count": 1,
+  "template": "Kerala Vision Broad Band Private has requested money from you on PhonePe.<AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on WOOD APPLES FOO. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>,your passbook balance against <ID> is <AMT>/-. Contribution of <AMT>/- for due month Jan-<N> has been received."
+ },
+ {
+  "sender": "PHONPE",
+  "count": 1,
+  "template": "Godaddy has requested money from you on PhonePe.<AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "POLBAZ",
+  "count": 1,
+  "template": "Hi <NAME> K S, Payment of <AMT> is successful for the purchase of your Twowheeler policy. Please log in to <MERCHANT> for queries - <URL> - PolicyBazaar"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on CONSUMERS FED T. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT> <ID>, INFO: BATCHID:<N> <N> NAVI FINSERV LIMITED <NUM> <N>//<NUM>-SBI"
+ },
+ {
+  "sender": "JIOPAY",
+  "count": 1,
+  "template": "Your last payment attempt of <AMT> on Dec <N>, <N> <TIME> for Jio number <NUM> was unsuccessful. Please try again. Transaction ID : <ID>. In case any amount has been deducted from your account, then it will be automatically refunded by your bank/card/wallet within <N> days."
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "Sent <AMT> From HDFC Bank A/C *<N> To Ac Bar On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>JIO PLATFOR Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "SWIGGY",
+  "count": 1,
+  "template": "Dear <NAME> , your refund reference number for <AMT> is <NUM>. <URL>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>SP MARGIN F Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "PHONPE",
+  "count": 1,
+  "template": "<MERCHANT> has requested money from you on PhonePe.<AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "JIOPAY",
+  "count": 1,
+  "template": "Your plan <AMT>-12m-<N>.5GB/D for Jio Number <NUM> has expired on <DATE> <TIME>Hrs. You have already recharged with <AMT>_1Yr_2.5GB/D plan, which will automatically get activated to <MERCHANT>. To view your current and upcoming plan details, click <URL> Dial <N>, to <MERCHANT>, validity, plan details and for exciting recharge plans."
+ },
+ {
+  "sender": "KRD24X",
+  "count": 1,
+  "template": "Complete your application today. Up to <AMT>* can be credited to your account. <URL> - <ID>"
+ },
+ {
+  "sender": "IRSMSA",
+  "count": 1,
+  "template": "<AMT> debited from your RWallet Account on Sep <DATE> <TIME> . Available Balance <AMT>. Indian Railway"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on <DATE> transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "SBIUPI",
+  "count": 1,
+  "template": "Dear <NAME> , your A/c <ACC>-credited by <AMT> on 15Jan25 transfer from <MERCHANT> Ref No <NUM> -SBI"
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> <ID> AUG26-SBI"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "You have earned a total cash back of <AMT> in January on your Flipkart Axis Bank Credit Card <ACC>. It will be credited in the next statement. T&C."
+ },
+ {
+  "sender": "VAAHAN",
+  "count": 1,
+  "template": "Your PUC certificate validity is <DATE> and payment received for certificate is <AMT> (excluding GST). (MoRTH)"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on National Pensio. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on IMPERIAL KITCHE. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "Sent <AMT> From HDFC Bank A/C <ACC> To HOTEL SRI MU SARAVANA BHAVAN (Pallimukku south junction) On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on SUT HOSPITAL PA. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "SWIGGY",
+  "count": 1,
+  "template": "Refund of <AMT> has been initiated for Swiggy order <ID>. Updated balance should reflect in <N>-<N> days. <URL>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>SAMUDRA FUE Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "DEAR <NAME> , PAYMENT OF <AMT> RECEIVED TOWARDS YOUR CREDIT CARD ENDING WITH <N> ON <DATE>.YOUR AVAILABLE LIMIT IS <AMT>"
+ },
+ {
+  "sender": "FEDFIB",
+  "count": 1,
+  "template": "<AMT> sent from your account <ACC> Sent to your beneficiary on October <N>, <N>. If this transaction wasn't done by you, call <N>-<NUM>-Federal Bank"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>FLIPKART PA Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "SLCBNK",
+  "count": 1,
+  "template": "BIG TREE ENTERTAINMENT PRIVATE has requested money from you on your slice app. On approving the request, <AMT> will be debited from your account. <URL> - slice"
+ },
+ {
+  "sender": "IRSMSA",
+  "count": 1,
+  "template": "<AMT> debited from your RWallet Account on Feb <DATE> <TIME> . Available Balance <AMT>. Indian Railway"
+ },
+ {
+  "sender": "CBSSBI",
+  "count": 1,
+  "template": "Your A/C <ACC> Credited <AMT> on <DATE> -Deposit by <MERCHANT>. <MERCHANT>. Avl Bal <AMT>-SBI"
+ },
+ {
+  "sender": "ICCSLM",
+  "count": 1,
+  "template": "Dear <NAME> You have deposited <AMT> as RD with certificate No. <NUM> for <N> Years in Indian Cooperative Credit Society limited"
+ },
+ {
+  "sender": "POLBAZ",
+  "count": 1,
+  "template": "Hi <NAME> , your policy <N>-<N>-<NUM>-<N> with Aditya Birla is due on <DATE>. Premium for <N> yr(s): <AMT>. Pay at <URL> - Team Policybazaar"
+ },
+ {
+  "sender": "ICICIT",
+  "count": 1,
+  "template": "<AMT> spent using ICICI Bank Card <ACC> on <DATE> on AMAZON. Avl Limit: <AMT>. If not you, call <N> <N>/SMS BLOCK <N> to <NUM>."
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent <AMT> Axis Bank Card no. <ACC> <DATE> <TIME>IST HEADPHONE Z Avl Limit: <AMT> Not you? SMS BLOCK <N> to <NUM>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "You have earned a total cash back of <AMT> in March on your Flipkart Axis Bank Credit Card?<ACC>. It will be credited in the next statement. T&C."
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>, your passbook balance against PYBOM<ACC> is <AMT>/-. Contribution of <AMT>/- for due month Nov-<N> has been received."
+ },
+ {
+  "sender": "SBIPSG",
+  "count": 1,
+  "template": "Dear Customer, <AMT> credited to your A/c No <ACC> on <DATE> through NEFT with UTR <ID> by <MERCHANT>, INFO: BATCHID:<N> <N> NEFT <NUM> <NUM> GPS-SBI"
+ },
+ {
+  "sender": "PHONPE",
+  "count": 1,
+  "template": "Agoda has requested money from you on PhonePe.<AMT> will be debited from your account on approving the request - <URL>"
+ },
+ {
+  "sender": "SLCBNK",
+  "count": 1,
+  "template": "Refund of <AMT> from <MERCHANT> has been successfully processed to your credit card <ACC> - slice"
+ },
+ {
+  "sender": "UTKSPR",
+  "count": 1,
+  "template": "Gentle reminder! We are awaiting your payment of <AMT> towards your SuperCard, pay by <MERCHANT>. Pay here <URL> - Utkarsh SFBL"
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "Sent <AMT> From HDFC Bank A/C *<N> To THE FEDERAL BANK LIMITED On <DATE> Ref <NUM> Not You? Call <NUM>/SMS BLOCK UPI to <NUM>"
+ },
+ {
+  "sender": "AXISBK",
+  "count": 1,
+  "template": "Spent Card no. <ACC> <AMT> <DATE> <TIME>ELENGICKAL Avl Lmt <AMT> SMS BLOCK <N> to <NUM>, if not you - Axis Bank"
+ },
+ {
+  "sender": "ITDCPC",
+  "count": 1,
+  "template": "Dear User, Challan payment of <AMT> against PAN/TAN <ID> for Assessment Year <N> has been successfully paid. e-Filing, ITD."
+ },
+ {
+  "sender": "HDFCBK",
+  "count": 1,
+  "template": "HDFC Bank Cardmember, Online Payment of <AMT> vide Ref# <ID> was credited to your card ending <N> On <N>/SEP/2026_value Date <DATE>"
+ },
+ {
+  "sender": "EPFOHO",
+  "count": 1,
+  "template": "Dear <ACC>,your passbook balance against <ID> is <AMT>/-. Contribution of <AMT>/- for due month Mar-<N> has been received."
+ },
+ {
+  "sender": "FVNFNV",
+  "count": 1,
+  "template": "Up to <AMT> is ready to <MERCHANT>. EMI from <AMT>. Just complete your <N>-min KYC - <URL> FinVen"
+ }
+]

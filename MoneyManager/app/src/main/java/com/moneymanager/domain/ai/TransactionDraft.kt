@@ -34,6 +34,8 @@ data class TransactionDraft(
     val confidence: Map<String, String> = emptyMap(),
     val needsReview: Boolean = false,
     val flags: List<String> = emptyList(),
+    // Which SMS account source this draft came from (SmsAccountLinks.keyFor); lets a save teach the app the link.
+    val accountLink: String? = null,
 ) : Parcelable {
     fun isHighConfidence(): Boolean {
         if (needsReview) return false
