@@ -13,6 +13,28 @@ object SmsDraftMapper {
     fun memoryApplies(draftTypeId: String?, memoryTypeId: String?): Boolean =
         memoryTypeId == null || memoryTypeId == draftTypeId
 
+    /**
+     * Account for a draft that did not come from [toDraft] (merchant cache, model). A learned link or a clear name
+     * match from the SMS beats whatever default or model guess is already there; no match leaves the draft alone.
+     * The link key is always attached so saving the draft still teaches the app.
+     */
+    fun withAccountFromSms(
+        draft: TransactionDraft,
+        parsed: ParsedSms?,
+        accounts: List<AccountEntry>,
+        links: SmsAccountLinks,
+    ): TransactionDraft {
+        val hint = parsed?.accountHint ?: return draft
+        val withKey = draft.copy(accountLink = SmsAccountLinks.keyFor(hint))
+        if (draft.typeId == "transfer") return withKey
+        val account = AccountMatcher.match(hint, accounts, links) ?: return withKey
+        return withKey.copy(
+            accountId = account.id,
+            accountName = account.name,
+            confidence = draft.confidence + ("accountId" to "high"),
+        )
+    }
+
     fun toDraft(
         parsed: ParsedSms,
         accounts: List<AccountEntry>,

@@ -79,17 +79,20 @@ class AiAgent @Inject constructor(
             emit(AgentStatus.Progress(AgentStep.SEARCHING_CACHE, hint))
             val cached = withContext(Dispatchers.IO) { merchantMemory.lookup(hint) }
             if (cached != null) {
-                val fastDraft = TransactionDraft(
-                    amount = pre.amount,
-                    typeId = pre.typeId ?: cached.typeId,
-                    date = pre.epochMs,
-                    categoryId = cached.categoryId,
-                    categoryName = cached.categoryName,
-                    accountId = context.accounts.firstOrNull { it.type != "peer" }?.id, // Default account
-                    merchantHint = hint,
-                    sourceType = sourceType,
-                    sourceSender = sourceSender,
-                    receiptPath = attachmentPath,
+                val fastDraft = SmsDraftMapper.withAccountFromSms(
+                    TransactionDraft(
+                        amount = pre.amount,
+                        typeId = pre.typeId ?: cached.typeId,
+                        date = pre.epochMs,
+                        categoryId = cached.categoryId,
+                        categoryName = cached.categoryName,
+                        accountId = context.accounts.firstOrNull { it.type != "peer" }?.id, // Default account
+                        merchantHint = hint,
+                        sourceType = sourceType,
+                        sourceSender = sourceSender,
+                        receiptPath = attachmentPath,
+                    ),
+                    smsParsed, context.accounts, smsLinks,
                 )
                 
                 if (autoCommit && fastDraft.isHighConfidence()) {
@@ -112,9 +115,12 @@ class AiAgent @Inject constructor(
         
         result.fold(
             onSuccess = { draft ->
-                val finalDraft = draft.copy(
-                    receiptPath = attachmentPath ?: draft.receiptPath,
-                    merchantHint = pre.merchantHint ?: draft.merchantHint,
+                val finalDraft = SmsDraftMapper.withAccountFromSms(
+                    draft.copy(
+                        receiptPath = attachmentPath ?: draft.receiptPath,
+                        merchantHint = pre.merchantHint ?: draft.merchantHint,
+                    ),
+                    smsParsed, context.accounts, smsLinks,
                 )
 
                 // The model's category is only a guess: merchant memory learns from what the user saves

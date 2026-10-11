@@ -1,6 +1,7 @@
 package com.moneymanager.domain.sms
 
 import com.moneymanager.domain.ai.AccountEntry
+import com.moneymanager.domain.ai.TransactionDraft
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -112,6 +113,36 @@ class SmsDraftMapperTest {
         val peersOnly = listOf(AccountEntry(5, "HDFC Ravi", "peer"))
         val p = parse("AD-HDFCBK-S", "Sent Rs.250.00 From HDFC Bank A/C *1234 To SWIGGY On 02/10/26 Ref 123456789012 Not You?")
         assertNull(SmsDraftMapper.toDraft(p, peersOnly, null)!!.accountId)
+    }
+
+    private val upi = "Sent Rs.250.00 From HDFC Bank A/C *1234 To SWIGGY On 02/10/26 Ref 123456789012 Not You?"
+
+    @Test
+    fun `learned link sets the account on a model or cache draft and keeps the link key`() {
+        val p = parse("AD-HDFCBK-S", upi)
+        val links = SmsAccountLinks(mapOf(SmsAccountLinks.keyFor(p.accountHint)!! to 2L))
+        val d = SmsDraftMapper.withAccountFromSms(TransactionDraft(typeId = "expense", accountId = 6), p, accounts, links)
+        assertEquals(2L, d.accountId)
+        assertEquals("SBI Savings", d.accountName)
+        assertEquals("high", d.confidence["accountId"])
+        assertEquals(SmsAccountLinks.keyFor(p.accountHint), d.accountLink)
+    }
+
+    @Test
+    fun `no match keeps the existing account but still attaches the link key`() {
+        val p = parse("AX-AXISBK-S", "Spent Card no. XX1234 INR 450.00 02-10-26 14:05:33 KERALA VISI Avl Lmt INR 50,000.00 SMS BLOCK 1234 to 919951860002")
+        val d = SmsDraftMapper.withAccountFromSms(TransactionDraft(typeId = "expense", accountId = 6), p, accounts, SmsAccountLinks.EMPTY)
+        assertEquals(6L, d.accountId)
+        assertEquals(SmsAccountLinks.keyFor(p.accountHint), d.accountLink)
+    }
+
+    @Test
+    fun `transfers and non sms drafts are left alone`() {
+        val p = parse("AD-HDFCBK-S", upi)
+        val transfer = TransactionDraft(typeId = "transfer", accountId = null)
+        assertNull(SmsDraftMapper.withAccountFromSms(transfer, p, accounts, SmsAccountLinks.EMPTY).accountId)
+        val plain = TransactionDraft(typeId = "expense", accountId = 6)
+        assertEquals(plain, SmsDraftMapper.withAccountFromSms(plain, null, accounts, SmsAccountLinks.EMPTY))
     }
 
     @Test
