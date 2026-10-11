@@ -71,3 +71,20 @@ coverage/
 .cache/
 tmp/
 phone_db_backups/
+
+# Personal and tool state (never commit: machine paths, plans, raw dumps)
+.claude/settings.local.json
+.artifacts/
+.kotlin/
+.gsd.migrating/
+errors.txt
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sms
+*.hprof.zip
+
+# Build scripts and the wrapper jar are required sources, not build output
+!*.gradle.kts
+!gradle/wrapper/gradle-wrapper.jar
