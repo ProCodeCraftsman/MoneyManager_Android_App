@@ -17,10 +17,11 @@ class SmsVerifierTest {
         merchant: String? = "SWIGGY",
         date: Long? = now,
         category: SmsCategory = SmsCategory.TRANSACTION,
+        matched: Boolean = true,
     ) = ParsedSms(
         category = category, direction = direction, amount = amount, currency = "INR", balance = null,
         accountHint = AccountHint("HDFC Bank", Instrument.BANK_ACCOUNT, "1234"), counterparty = merchant,
-        reference = null, dateMillis = date, nature = TxnNature.NORMAL, ruleId = "r", matched = true,
+        reference = null, dateMillis = date, nature = TxnNature.NORMAL, ruleId = "r", matched = matched,
     )
 
     private fun verify(body: String, p: ParsedSms) = SmsVerifier.verify(body, p, now)
@@ -58,12 +59,30 @@ class SmsVerifierTest {
 
     @Test
     fun `direction conflicts only when the text uses the opposite wording alone`() {
-        assertEquals(setOf(SmsIssue.DIRECTION_CONFLICT), verify("Rs.250 credited to your A/c", parsed()))
-        assertEquals(setOf(SmsIssue.DIRECTION_CONFLICT), verify("Rs.250 debited from your A/c", parsed(direction = TxnDirection.CREDIT)))
+        assertEquals(setOf(SmsIssue.DIRECTION_CONFLICT), verify("Rs.250 credited to your A/c", parsed(matched = false)))
+        assertEquals(
+            setOf(SmsIssue.DIRECTION_CONFLICT),
+            verify("Rs.250 debited from your A/c", parsed(direction = TxnDirection.CREDIT, matched = false)),
+        )
         // A transfer message legitimately says both.
-        assertTrue(verify("Rs.250 debited from A/c and credited to SWIGGY", parsed()).isEmpty())
+        assertTrue(verify("Rs.250 debited from A/c and credited to SWIGGY", parsed(matched = false)).isEmpty())
         // No direction wording at all (late fee style) is not a conflict.
-        assertTrue(verify("Late fee of Rs.250 has been charged", parsed(merchant = null)).isEmpty())
+        assertTrue(verify("Late fee of Rs.250 has been charged", parsed(merchant = null, matched = false)).isEmpty())
+    }
+
+    @Test
+    fun `rules whose own wording uses the opposite verb are not direction conflicts`() {
+        val bodies = listOf(
+            "PTNNPS" to "PRAN 1100XXXX1234: Units for Voluntary contribution of Rs.1000.00 credited with NAV of 01/07/26 -Protean",
+            "VAAHAN" to "Your PUC certificate validity is 01/01/27 and payment received for certificate is Rs.100 (excluding GST). (MoRTH)",
+            "ICCSLM" to "Dear MEMBER You have deposited Rs.500 as RD with certificate No. 123 for 5 Years in Indian Cooperative Credit Society limited",
+            "JIOFBR" to "Dear Customer, Thank you for your payment of Rs.1000 against JioFiber/JioAirFiber request No. AB12 Ref Transaction ID : CD34 A Voucher worth of Rs.100 will be credited to your MyJio account",
+        )
+        for ((sender, body) in bodies) {
+            val p = SmsRuleEngine.parse(SmsMessage("AD-$sender-S", body, now))
+            assertTrue("$sender should match a rule", p.matched)
+            assertTrue("$sender: ${verify(SmsText.normalize(body), p)}", verify(SmsText.normalize(body), p).isEmpty())
+        }
     }
 
     @Test

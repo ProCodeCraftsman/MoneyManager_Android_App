@@ -35,7 +35,9 @@ object SmsVerifier {
         if (parsed.category != SmsCategory.TRANSACTION) return emptySet()
         return buildSet {
             parsed.amount?.let { if (!amountAppears(body, it)) add(SmsIssue.AMOUNT_NOT_IN_TEXT) }
-            if (directionConflicts(body, parsed.direction)) add(SmsIssue.DIRECTION_CONFLICT)
+            // A built-in rule's direction is authored for its exact wording, which can legitimately contain the
+            // opposite verb ("Units ... credited" for an NPS contribution), so only the generic parse is checked.
+            if (!parsed.matched && directionConflicts(body, parsed.direction)) add(SmsIssue.DIRECTION_CONFLICT)
             parsed.counterparty?.let { if (isJunk(it)) add(SmsIssue.MERCHANT_JUNK) }
             parsed.dateMillis?.let { if (it > reference + FUTURE_SLACK_MS) add(SmsIssue.DATE_IN_FUTURE) }
         }
