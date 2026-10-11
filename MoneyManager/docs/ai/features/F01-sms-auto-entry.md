@@ -14,8 +14,8 @@ Dry-run on the real inbox before the redesign: 0 of 1,228 drafts ready (account 
 
 ## Design (decisions that matter)
 - Model picks from a numbered list of the user's own categories only; account is never given to the model (it cannot know which account is "HDFC").
-- Verify withdraws a parse whose amount is not in the text; direction conflicts only flag.
-- Learned links key: `institution|INSTRUMENT|last4`; stored in DataStore, not in backups.
+- Verify withdraws a parse whose amount is not in the text; direction conflicts only flag, and only on generic (non-rule) parses.
+- Learned links key: `institution|INSTRUMENT|last4`; stored in DataStore and included in the JSON/Drive and CSV backups (AI-013, F07).
 
 ## Phases
 | Phase | Scope | Exit check | Status |
@@ -24,8 +24,8 @@ Dry-run on the real inbox before the redesign: 0 of 1,228 drafts ready (account 
 | B | Rule engine and rules | Corpus 100% (fit data) | Done |
 | C | Agent wiring | Flow tests | Done |
 | C2 | Verify, links, history + model category | Unit tests | Built |
-| C3 | Device verification: AI-002..004 | Verify rejects near 0; ready rate reported; E2B picks reviewed | Not started |
-| C4 | Links on AI paths (AI-005) | Test + device | Not started |
+| C3 | Device verification: AI-002..004 | Verify rejects near 0; ready rate reported; E2B picks reviewed | Done 2026-10-11 (rejects 2 of 1250; ready 8%; E2B picks not reviewed, moved to the category workflow) |
+| C4 | Links on AI paths (AI-005) | Test + device | Built (unit tests; device pending) |
 | D | Learned templates (AI-040) | Proposed rule passes its own sample and the user's approval | Not started |
 | E | Inbox import, non-Play build (AI-042) | Policy decision first | Not started |
 
@@ -37,13 +37,16 @@ Dry-run on the real inbox before the redesign: 0 of 1,228 drafts ready (account 
 ## Risks and unknowns
 - Rules were fit to masked templates; real-message edge cases will appear.
 - E2B category quality unmeasured.
-- Verify false positives on real data unknown.
+- Verify false positives on real data: 2 of 1250 after the 2026-10-11 fix (`hdfc.upi-sent` future date, unconfirmed cause).
 - Bank SMS and card SMS for one purchase create two drafts (F06).
 
 ## Unverified on device
-Everything except the analyzer scan itself. Named regex groups need API 26 (minSdk is 26).
+Verified on the S24 (2026-10-11): analyzer scan, verify reject rate, masked export. Still unverified: the draft flow (picker → draft → save → learn) and E2B category quality. Named regex groups need API 26 (minSdk is 26).
 
 ## Decisions log
 - 2026-10: model limited to multiple choice because free-form JSON from E2B is unreliable.
 - 2026-10: account choice by learned links, not by the model.
+- 2026-10: on the merchant-cache and model-success paths a link or clear name match from the SMS overrides the default/model account (`SmsDraftMapper.withAccountFromSms`); no match keeps the existing account. The link key is always attached so a save still teaches.
 - 2026-10: card repayment SMS maps to transfer; source account left to the user.
+- 2026-10-11: direction conflict is checked on generic parses only; a rule's direction is authored for its wording (NPS "Units … credited" was 14 of 16 rejects).
+- 2026-10-11: AI-003/004 closed. Missing categories are accepted as something memory learns over time; category matching gets a separate AI-assisted workflow (AI-075, AI-057). No debug logging of model picks.

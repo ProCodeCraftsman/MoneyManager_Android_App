@@ -61,7 +61,7 @@ Next phase of the app: local AI agents that turn SMS, then voice and images, int
 
 - `README.md`: principles, working agreement, status vocabulary, feature-file template. Read first.
 - `BACKLOG.md`: ordered next items (IDs `AI-0xx`). Update it in the same change that finishes or adds an item.
-- `features/F01..F06-*.md`: per-feature design, phases, acceptance, risks (SMS, voice, image, shared pipeline, evals, duplicate detection).
+- `features/F01..F08-*.md`: per-feature design, phases, acceptance, risks (SMS, voice, image, shared pipeline, evals, duplicate detection, auto-capture inbox, learning/audit/setup).
 
 Rules for AI work (full reasoning in `docs/ai/README.md`):
 
