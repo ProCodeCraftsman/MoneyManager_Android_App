@@ -116,19 +116,9 @@ class AiAgent @Inject constructor(
                     receiptPath = attachmentPath ?: draft.receiptPath,
                     merchantHint = pre.merchantHint ?: draft.merchantHint,
                 )
-                
-                // Learn merchant association
-                if (pre.merchantHint != null && finalDraft.categoryId != null) {
-                    withContext(Dispatchers.IO) {
-                        merchantMemory.record(
-                            merchantHint = pre.merchantHint,
-                            categoryId = finalDraft.categoryId,
-                            categoryName = finalDraft.categoryName ?: "",
-                            typeId = finalDraft.typeId,
-                        )
-                    }
-                }
 
+                // The model's category is only a guess: merchant memory learns from what the user saves
+                // (AddTransactionViewModel.recordMerchantCategory), never from an unapproved draft.
                 if (autoCommit && finalDraft.isHighConfidence()) {
                     emit(AgentStatus.Progress(AgentStep.AUTO_COMMITTING))
                     val id = withContext(Dispatchers.IO) { 
@@ -251,20 +241,8 @@ class AiAgent @Inject constructor(
                     receiptPath = attachmentPath ?: draft.receiptPath,
                     accountId = context.accounts.firstOrNull { it.type != "peer" }?.id // Default account
                 )
-                
-                // Learn merchant association if confidence is high
-                if (finalDraft.merchantHint != null && finalDraft.categoryId != null &&
-                    finalDraft.confidence["merchant"] != "low") {
-                    withContext(Dispatchers.IO) {
-                        merchantMemory.record(
-                            merchantHint = finalDraft.merchantHint,
-                            categoryId = finalDraft.categoryId,
-                            categoryName = finalDraft.categoryName ?: "",
-                            typeId = finalDraft.typeId,
-                        )
-                    }
-                }
-                
+
+                // Memory learns on save only; see processText.
                 if (autoCommit && finalDraft.isHighConfidence()) {
                     emit(AgentStatus.Progress(AgentStep.AUTO_COMMITTING))
                     val id = withContext(Dispatchers.IO) { 

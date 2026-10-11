@@ -177,6 +177,37 @@ class AiAgentSmsFlowTest {
     }
 
     @Test
+    fun `a model-picked category from the ai draft is not written to merchant memory`() = runTest {
+        val aiDraft = TransactionDraft(typeId = "expense", amount = 640.0, categoryId = 9L, categoryName = "Travel", accountId = 1L)
+        whenever(textUseCase.invoke(any(), any(), any(), anyOrNull(), anyOrNull())).thenReturn(Result.success(aiDraft))
+        val draft = (run("Your A/c XX4321 is debited by Rs.640.00 on 02-10-26 at CAFE COFFEE DAY. Avl Bal Rs.2,000.00", "AD-NEWBNK-S")
+            .last() as AgentStatus.Success).draft
+
+        assertEquals(9L, draft.categoryId)
+        verify(memory, never()).record(any(), any(), any(), anyOrNull())
+    }
+
+    @Test
+    fun `a model category pick on a rule draft is not written to merchant memory`() = runTest {
+        whenever(chooser.choose(any(), any())).thenReturn(CategoryEntry(9L, "Travel", "expense"))
+        run("Sent Rs.250.00 From HDFC Bank A/C *1234 To KERALA VISI On 02/10/26 Ref 123456789012 Not You?", "AD-HDFCBK-S")
+        verify(memory, never()).record(any(), any(), any(), anyOrNull())
+    }
+
+    @Test
+    fun `an image draft with a category is not written to merchant memory`() = runTest {
+        val imageDraft = TransactionDraft(
+            typeId = "expense", amount = 320.0, categoryId = 7L, categoryName = "Food",
+            merchantHint = "Cafe Coffee Day", confidence = mapOf("merchant" to "high"),
+        )
+        whenever(imageUseCase.invoke(any(), any(), any())).thenReturn(Result.success(imageDraft))
+        val draft = (agent.processImage(ByteArray(1), context).toList().last() as AgentStatus.Success).draft
+
+        assertEquals(7L, draft.categoryId)
+        verify(memory, never()).record(any(), any(), any(), anyOrNull())
+    }
+
+    @Test
     fun `ai failure on text with nothing parseable stays a failure`() = runTest {
         whenever(textUseCase.invoke(any(), any(), any(), anyOrNull(), anyOrNull()))
             .thenReturn(Result.failure(AiUnavailableException("no model")))
