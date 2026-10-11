@@ -25,7 +25,7 @@ Last reviewed: 2026-10-11.
 
 | ID | Item | Feature | Size | Status | Depends |
 |---|---|---|---|---|---|
-| AI-010 | Extract `DraftPipeline` stages (Verify, ResolveAccount, ResolveCategory, Learn) out of `AiAgent` so every source calls the same code | F04 | M | Planned | AI-002 |
+| AI-010 | Extract `DraftPipeline` stages (Verify, ResolveAccount, ResolveCategory, Learn) out of `AiAgent` so every source calls the same code | F04 | M | Built | AI-002. Part 1 done: `SmsDraftPipeline.fromRules` (rule match, verify, account links, memory category) is model-free and takes the account list, so the scanner can call it. Unit tests only (`SmsDraftPipelineTest`, `AiAgentSmsFlowTest` unchanged). Not seen on the phone. Still open: ResolveAccount/Category as named stages, Learn |
 | AI-011 | `CapturedInput` adapter type per source (SMS, VOICE, IMAGE, TEXT) with source-specific normalise + verify | F04 | M | Planned | AI-010 |
 | AI-012 | Auto-commit policy object (per source, confidence thresholds, kill switch in Settings); remove the hard-coded `autoCommit = sourceType == "VOICE"` in `AiDraftViewModel` | F04 | S | Planned | AI-010 |
 | AI-013 | Include learned account links and SMS-related learned data in backup/export (JSON, CSV bundle, Drive) | F04 | M | Built | Done inside AI-051 (links, merchant memory, ledger); unit tests only |

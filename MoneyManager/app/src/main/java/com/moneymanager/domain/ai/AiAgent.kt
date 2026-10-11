@@ -9,14 +9,9 @@ import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
 import com.moneymanager.data.repository.SmsAccountLinkRepository
 import com.moneymanager.domain.repository.TransactionRepository
 import com.moneymanager.domain.sms.Instrument
-import com.moneymanager.domain.sms.NotATransactionException
 import com.moneymanager.domain.sms.ParsedSms
 import com.moneymanager.domain.sms.SmsAccountLinks
 import com.moneymanager.domain.sms.SmsDraftMapper
-import com.moneymanager.domain.sms.SmsMessage
-import com.moneymanager.domain.sms.SmsRuleEngine
-import com.moneymanager.domain.sms.SmsText
-import com.moneymanager.domain.sms.SmsVerifier
 import com.moneymanager.domain.sms.TxnDirection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -36,6 +31,9 @@ class AiAgent @Inject constructor(
     private val accountLinks: SmsAccountLinkRepository,
     private val categoryChooser: SmsCategoryChooser,
 ) {
+    // Not injected: the constructor above is what the SMS flow tests build, and the pipeline is stateless.
+    private val smsPipeline = SmsDraftPipeline(merchantMemory, accountLinks)
+
     fun processText(
         rawText: String,
         context: PromptContext,
@@ -51,20 +49,18 @@ class AiAgent @Inject constructor(
         var smsLinks = SmsAccountLinks.EMPTY
         if (sourceType == "SMS") {
             emit(AgentStatus.Progress(AgentStep.EXTRACTING, "Matching known SMS formats"))
-            val raw = SmsRuleEngine.parse(SmsMessage(sourceSender, rawText))
-            if (raw.isDefinitelyNotATransaction) {
-                emit(AgentStatus.Failure(NotATransactionException(raw.category, raw.ruleId)))
-                return@flow
-            }
-            // A rule that matched but captured something the text does not back up is not trusted as a draft.
-            val parsed = SmsVerifier.apply(raw, SmsVerifier.verify(SmsText.normalize(rawText).trim(), raw))
-            smsParsed = parsed
-            smsLinks = withContext(Dispatchers.IO) { accountLinks.load() }
-            if (parsed.matched && parsed.isActionableTransaction) {
-                val ruleDraft = SmsDraftMapper.toDraft(parsed, context.accounts, sourceSender, attachmentPath, smsLinks)
-                if (ruleDraft != null) {
-                    emitOrCommit(withCategoryFromAi(withCategoryFromMemory(ruleDraft), context), autoCommit)
+            when (val outcome = smsPipeline.fromRules(rawText, sourceSender, attachmentPath, context.accounts)) {
+                is SmsRuleOutcome.NotATransaction -> {
+                    emit(AgentStatus.Failure(outcome.exception))
                     return@flow
+                }
+                is SmsRuleOutcome.Draft -> {
+                    emitOrCommit(withCategoryFromAi(outcome.draft, context), autoCommit)
+                    return@flow
+                }
+                is SmsRuleOutcome.Unmatched -> {
+                    smsParsed = outcome.parsed
+                    smsLinks = outcome.links
                 }
             }
         }
@@ -142,7 +138,7 @@ class AiAgent @Inject constructor(
                     ?.takeIf { it.isActionableTransaction }
                     ?.let { SmsDraftMapper.toDraft(it, context.accounts, sourceSender, attachmentPath, smsLinks) }
                 if (fallback != null) {
-                    emit(AgentStatus.Success(withCategoryFromMemory(fallback.copy(flags = fallback.flags + "ai_fallback"))))
+                    emit(AgentStatus.Success(smsPipeline.withCategoryFromMemory(fallback.copy(flags = fallback.flags + "ai_fallback"))))
                 } else {
                     emit(AgentStatus.Failure(error))
                 }
@@ -170,20 +166,6 @@ class AiAgent @Inject constructor(
             merchantHint = parsed.counterparty ?: base.merchantHint,
             hints = hints,
         )
-    }
-
-    /** Fills the category from the on-device merchant memory when the merchant has been seen before. */
-    private suspend fun withCategoryFromMemory(draft: TransactionDraft): TransactionDraft {
-        val needsCategory = SmsDraftMapper.needsCategory(draft.typeId)
-        val hint = draft.merchantHint
-        val cached = if (needsCategory && hint != null && draft.categoryId == null) {
-            withContext(Dispatchers.IO) { merchantMemory.lookupWithHistory(hint, draft.typeId) }
-                ?.takeIf { SmsDraftMapper.memoryApplies(draft.typeId, it.typeId) }
-        } else null
-        val withCategory = if (cached != null) {
-            draft.copy(categoryId = cached.categoryId, categoryName = cached.categoryName)
-        } else draft
-        return if (needsCategory && withCategory.categoryId == null) withCategory.copy(needsReview = true) else withCategory
     }
 
     /**
