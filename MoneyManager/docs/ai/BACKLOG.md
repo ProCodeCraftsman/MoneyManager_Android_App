@@ -54,7 +54,7 @@ Last reviewed: 2026-10-11.
 | ID | Item | Feature | Size | Status | Depends |
 |---|---|---|---|---|---|
 | AI-070 | SMS ↔ saved-transaction join engine (unique match, amount + ±1 day, any account) producing merchant→category and source→account labels + capture coverage figure | F08 L1 | M | Built | 2026-10-11. Pure `HistoryJoin` with 9 unit tests (`HistoryJoinTest`); read-only SMS pass in `LearnFromHistoryUseCase`. Coverage figure and label counts not yet recorded from the phone |
-| AI-071 | "Learned from your history" confirm screen writing memory + links | F08 L2 | M | Planned | AI-070 |
+| AI-071 | "Learned from your history" confirm screen writing memory + links | F08 L2 | M | Built | 2026-10-11. Screen under the AI tile stack on TransactionsScreen (personal build only). ViewModel unit test not written; not seen on the phone |
 | AI-072 | Merchant key normalisation (POS prefixes, UPI QR ids, truncation) with alias read | F08 L4 | S | Planned | none |
 | AI-073 | Deterministic audit checks A1–A8 as pure functions | F08 A1 | M | Planned | AI-072 |
 | AI-074 | Audit worker (idle + charging) + "Check these" section + dismiss fingerprints in DataStore and JSON backup | F08 A2 | M | Planned | AI-073, AI-056 |

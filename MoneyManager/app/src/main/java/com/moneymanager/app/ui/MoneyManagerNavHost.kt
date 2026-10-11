@@ -37,6 +37,7 @@ import com.moneymanager.app.ui.accounts.AccountsViewModel
 import com.moneymanager.app.ui.addtransaction.AddTransactionScreen
 import com.moneymanager.app.ui.aidraft.AiDraftViewModel
 import com.moneymanager.app.ui.aidraft.AiHistoryScreen
+import com.moneymanager.app.ui.learn.LearnFromHistoryScreen
 import com.moneymanager.app.ui.aimodels.AiModelsScreen
 import com.moneymanager.app.ui.aimodels.AllowlistManagerScreen
 import com.moneymanager.app.ui.aidraft.ReceiptScanScreen
@@ -120,6 +121,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object AiDraftReceipt : Screen("ai_draft_receipt", "AI Draft from Receipt", null)
     data object AiDraftVoice : Screen("ai_draft_voice", "AI Draft from Voice", null)
     data object AiHistory : Screen("ai_history", "AI Conversation History", null)
+    data object LearnFromHistory : Screen("learn_from_history", "Learn from history", null)
     data object AiModels : Screen("ai_models", "AI Models", null)
     data object AllowlistManager : Screen("allowlist_manager", "Model Allowlist", null)
     data object AddTransaction : Screen("add_transaction?type={type}", "Add Transaction", null)
@@ -282,7 +284,8 @@ fun MoneyManagerNavHost(
                         isAiAssistAvailable = isAiAvailable,
                         onNavigateToAiDraftSms = { navController.navigate(Screen.AiDraftSms.route) },
                         onNavigateToAiDraftReceipt = { navController.navigate(Screen.AiDraftReceipt.route) },
-                        onNavigateToAiDraftVoice = { navController.navigate(Screen.AiDraftVoice.route) }
+                        onNavigateToAiDraftVoice = { navController.navigate(Screen.AiDraftVoice.route) },
+                        onNavigateToLearnFromHistory = { navController.navigate(Screen.LearnFromHistory.route) }
                     )
                 }
                 composable(Screen.Budgets.route) {
@@ -455,6 +458,9 @@ fun MoneyManagerNavHost(
                             )
                         }
                     )
+                }
+                composable(Screen.LearnFromHistory.route) {
+                    LearnFromHistoryScreen(onNavigateBack = { navController.popBackStack() })
                 }
                 composable(Screen.AiHistory.route) {
                     AiHistoryScreen(

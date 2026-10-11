@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.BadgedBox
@@ -83,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.moneymanager.app.BuildConfig
 import com.moneymanager.app.R
 import com.moneymanager.app.ui.components.ScrollToTopBox
 import com.moneymanager.app.ui.components.SplitTransactionCard
@@ -117,7 +119,8 @@ fun TransactionsScreen(
     isAiAssistAvailable: Boolean = false,
     onNavigateToAiDraftSms: () -> Unit = {},
     onNavigateToAiDraftReceipt: () -> Unit = {},
-    onNavigateToAiDraftVoice: () -> Unit = {}
+    onNavigateToAiDraftVoice: () -> Unit = {},
+    onNavigateToLearnFromHistory: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -519,6 +522,15 @@ fun TransactionsScreen(
                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                                 ) {
                                     Icon(Icons.Default.Mic, contentDescription = "AI Draft from Voice")
+                                }
+                            }
+                            if (BuildConfig.SMS_CAPTURE) {
+                                SmallFloatingActionButton(
+                                    onClick = { onNavigateToLearnFromHistory(); aiDraftExpanded = false },
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ) {
+                                    Icon(Icons.Default.History, contentDescription = "Learn from history")
                                 }
                             }
                         }
