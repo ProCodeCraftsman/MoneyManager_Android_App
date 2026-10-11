@@ -55,6 +55,8 @@ class ExportRepository @Inject constructor(
     private val recurringDao: RecurringDao,
     private val emiDao: com.moneymanager.data.dao.EmiDao,
     private val preferencesManager: PreferencesManager,
+    private val merchantMemoryDao: MerchantCategoryMemoryDao,
+    private val capturedMessageDao: CapturedMessageDao,
 ) {
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
@@ -82,6 +84,8 @@ class ExportRepository @Inject constructor(
             put("peers", exportPeers())
             put("recurring", exportRecurring())
             put("emis", exportEmis())
+            put("merchantMemory", exportMerchantMemory())
+            put("capturedMessages", exportCapturedMessages())
             put("settings", exportSettings())
         }
     }
@@ -91,10 +95,103 @@ class ExportRepository @Inject constructor(
         put("defaultAccounts", JSONObject().apply {
             preferencesManager.getDefaultAccounts().forEach { (slot, accountId) -> put(slot, accountId) }
         })
+        // Learned SMS source -> account choices; losing them means re-teaching every card and bank.
+        put("smsAccountLinks", JSONObject().apply {
+            preferencesManager.getSmsAccountLinks().forEach { (linkKey, accountId) -> put(linkKey, accountId) }
+        })
+    }
+
+    private suspend fun exportMerchantMemory(): JSONArray = JSONArray().apply {
+        merchantMemoryDao.getAll().forEach { m ->
+            put(JSONObject().apply {
+                put("merchantKey", m.merchantKey)
+                put("categoryId", m.categoryId)
+                put("categoryName", m.categoryName)
+                m.typeId?.let { put("typeId", it) }
+                put("hitCount", m.hitCount)
+                put("lastUsedAt", m.lastUsedAt)
+            })
+        }
+    }
+
+    /** Hashes, status and pending drafts only: the ledger never holds message text. */
+    private suspend fun exportCapturedMessages(): JSONArray = JSONArray().apply {
+        capturedMessageDao.getAll().forEach { c ->
+            put(JSONObject().apply {
+                put("id", c.id)
+                put("messageHash", c.messageHash)
+                c.refHash?.let { put("refHash", it) }
+                c.amount?.let { put("amount", it) }
+                put("messageDate", c.messageDate)
+                c.sourceKey?.let { put("sourceKey", it) }
+                put("status", c.status)
+                c.transactionId?.let { put("transactionId", it) }
+                c.mergedIntoId?.let { put("mergedIntoId", it) }
+                c.draftJson?.let { put("draftJson", it) }
+                put("createdAt", c.createdAt)
+                put("updatedAt", c.updatedAt)
+            })
+        }
+    }
+
+    /** Keeps only entries whose category still exists, so a restore never suggests a category that is gone. */
+    private suspend fun importMerchantMemory(array: JSONArray) {
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            val categoryId = obj.optLong("categoryId", -1L)
+            if (categoryId <= 0 || categoryDao.getCategoryById(categoryId) == null) continue
+            merchantMemoryDao.upsert(
+                MerchantCategoryMemoryEntity(
+                    merchantKey = obj.getString("merchantKey"),
+                    categoryId = categoryId,
+                    categoryName = obj.optString("categoryName", ""),
+                    typeId = if (obj.isNull("typeId")) null else obj.optString("typeId"),
+                    hitCount = obj.optInt("hitCount", 1),
+                    lastUsedAt = obj.optLong("lastUsedAt", System.currentTimeMillis()),
+                )
+            )
+        }
+    }
+
+    private suspend fun importCapturedMessages(array: JSONArray) {
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            val status = obj.optString("status", "")
+            if (status !in CapturedMessageEntity.VALID_STATUSES) continue
+            capturedMessageDao.upsert(
+                CapturedMessageEntity(
+                    id = obj.optLong("id", 0),
+                    messageHash = obj.getString("messageHash"),
+                    refHash = if (obj.isNull("refHash")) null else obj.optString("refHash"),
+                    amount = if (obj.isNull("amount")) null else obj.optDouble("amount"),
+                    messageDate = obj.optLong("messageDate", 0L),
+                    sourceKey = if (obj.isNull("sourceKey")) null else obj.optString("sourceKey"),
+                    status = status,
+                    transactionId = if (obj.isNull("transactionId")) null else obj.optLong("transactionId"),
+                    mergedIntoId = if (obj.isNull("mergedIntoId")) null else obj.optLong("mergedIntoId"),
+                    draftJson = if (obj.isNull("draftJson")) null else obj.optString("draftJson"),
+                    createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
+                    updatedAt = obj.optLong("updatedAt", System.currentTimeMillis()),
+                )
+            )
+        }
+    }
+
+    /** Restores learned SMS links, skipping accounts that don't exist after the import. */
+    private suspend fun importSmsAccountLinks(links: JSONObject) {
+        links.keys().forEach { linkKey ->
+            val accountId = links.optLong(linkKey, -1L)
+            if (accountId > 0 && accountDao.getAccountById(accountId) != null) {
+                preferencesManager.setSmsAccountLink(linkKey, accountId)
+            }
+        }
     }
 
     /** Restores default accounts, skipping unknown slots and accounts that don't exist after the import. */
     private suspend fun importSettings(settings: JSONObject) {
+        settings.optJSONObject("smsAccountLinks")?.let { links ->
+            try { importSmsAccountLinks(links) } catch (_: Exception) { }
+        }
         val defaults = settings.optJSONObject("defaultAccounts") ?: return
         defaults.keys().forEach { slotKey ->
             if (DefaultAccountSlot.fromKey(slotKey) == null) return@forEach
@@ -202,6 +299,13 @@ class ExportRepository @Inject constructor(
             }
             if (jsonObject.has("recurring")) {
                 recurringImported = importRecurring(jsonObject.getJSONArray("recurring"))
+            }
+            // Learned data is rebuildable, so a bad block here must never fail an otherwise good restore.
+            jsonObject.optJSONArray("merchantMemory")?.let { array ->
+                try { importMerchantMemory(array) } catch (_: Exception) { }
+            }
+            jsonObject.optJSONArray("capturedMessages")?.let { array ->
+                try { importCapturedMessages(array) } catch (_: Exception) { }
             }
             // Settings are a convenience: a bad settings block must never fail an otherwise good restore.
             jsonObject.optJSONObject("settings")?.let { settings ->
@@ -713,6 +817,108 @@ class ExportRepository @Inject constructor(
             appendLine()
             appendLine("# DEFAULT_ACCOUNTS")
             appendLine(exportDefaultAccountsCsv())
+            appendLine()
+            appendLine("# SMS_ACCOUNT_LINKS")
+            appendLine(exportSmsAccountLinksCsv())
+            appendLine()
+            appendLine("# MERCHANT_MEMORY")
+            appendLine(exportMerchantMemoryCsv())
+            appendLine()
+            appendLine("# CAPTURED_MESSAGES")
+            appendLine(exportCapturedMessagesCsv())
+        }
+    }
+
+    private fun csvQuote(value: String) = "\"${value.replace("\"", "\"\"")}\""
+
+    /** Keyed by account *name* for the same reason as defaults: CSV import assigns new account ids. */
+    private suspend fun exportSmsAccountLinksCsv(): String {
+        val accountsById = accountDao.getAllAccounts().first().associateBy { it.id }
+        return buildString {
+            appendLine("source_key,account_name")
+            preferencesManager.getSmsAccountLinks().forEach { (linkKey, accountId) ->
+                val account = accountsById[accountId] ?: return@forEach
+                appendLine("${csvQuote(linkKey)},${csvQuote(account.name)}")
+            }
+        }
+    }
+
+    /** Must run after accounts are imported. Unmatched names are skipped. */
+    private suspend fun importSmsAccountLinksFromCsv(csv: String) {
+        val accountsByName = accountDao.getAllAccounts().first().groupBy { it.name.replace("\"", "").trim() }
+        csv.lines().drop(1).filter { it.isNotBlank() }.forEach { line ->
+            val parts = parseCsvLine(line)
+            val linkKey = parts.getOrNull(0)?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
+            val matches = accountsByName[parts.getOrNull(1)?.trim()] ?: return@forEach
+            val account = matches.firstOrNull { !it.isArchived } ?: matches.first()
+            preferencesManager.setSmsAccountLink(linkKey, account.id)
+        }
+    }
+
+    /** Category is carried by name and type, because CSV category import assigns new ids. */
+    private suspend fun exportMerchantMemoryCsv(): String {
+        val categoriesById = categoryDao.getAllCategoriesWithArchived().first().associateBy { it.id }
+        return buildString {
+            appendLine("merchant_key,category_name,category_type,type_id,hit_count,last_used_at")
+            merchantMemoryDao.getAll().forEach { m ->
+                val category = categoriesById[m.categoryId] ?: return@forEach
+                appendLine("${csvQuote(m.merchantKey)},${csvQuote(category.name)},${category.type},${m.typeId.orEmpty()},${m.hitCount},${m.lastUsedAt}")
+            }
+        }
+    }
+
+    private suspend fun importMerchantMemoryFromCsv(csv: String) {
+        csv.lines().drop(1).filter { it.isNotBlank() }.forEach { line ->
+            val parts = parseCsvLine(line)
+            val key = parts.getOrNull(0)?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
+            val categoryName = parts.getOrNull(1)?.trim() ?: return@forEach
+            val categoryType = parts.getOrNull(2)?.trim() ?: return@forEach
+            val category = categoryDao.getCategoryByName(categoryName, categoryType) ?: return@forEach
+            merchantMemoryDao.upsert(
+                MerchantCategoryMemoryEntity(
+                    merchantKey = key,
+                    categoryId = category.id,
+                    categoryName = category.name,
+                    typeId = parts.getOrNull(3)?.trim()?.takeIf { it.isNotEmpty() },
+                    hitCount = parts.getOrNull(4)?.trim()?.toIntOrNull() ?: 1,
+                    lastUsedAt = parts.getOrNull(5)?.trim()?.toLongOrNull() ?: System.currentTimeMillis(),
+                )
+            )
+        }
+    }
+
+    /**
+     * Decided messages only. Pending drafts are not in the CSV bundle (their ids and account links do not survive
+     * a CSV import), so a pending message is simply captured again; transaction ids are not carried either.
+     */
+    private suspend fun exportCapturedMessagesCsv(): String = buildString {
+        appendLine("message_hash,ref_hash,amount,message_date,source_key,status,created_at,updated_at")
+        capturedMessageDao.getAll().filter { it.status != CapturedMessageEntity.STATUS_PENDING }.forEach { c ->
+            appendLine(
+                "${c.messageHash},${c.refHash.orEmpty()},${c.amount?.toString().orEmpty()},${c.messageDate}," +
+                    "${csvQuote(c.sourceKey.orEmpty())},${c.status},${c.createdAt},${c.updatedAt}"
+            )
+        }
+    }
+
+    private suspend fun importCapturedMessagesFromCsv(csv: String) {
+        csv.lines().drop(1).filter { it.isNotBlank() }.forEach { line ->
+            val parts = parseCsvLine(line)
+            val hash = parts.getOrNull(0)?.trim()?.takeIf { it.isNotEmpty() } ?: return@forEach
+            val status = parts.getOrNull(5)?.trim() ?: return@forEach
+            if (status !in CapturedMessageEntity.VALID_STATUSES || status == CapturedMessageEntity.STATUS_PENDING) return@forEach
+            capturedMessageDao.insertIfNew(
+                CapturedMessageEntity(
+                    messageHash = hash,
+                    refHash = parts.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() },
+                    amount = parts.getOrNull(2)?.trim()?.toDoubleOrNull(),
+                    messageDate = parts.getOrNull(3)?.trim()?.toLongOrNull() ?: return@forEach,
+                    sourceKey = parts.getOrNull(4)?.trim()?.takeIf { it.isNotEmpty() },
+                    status = status,
+                    createdAt = parts.getOrNull(6)?.trim()?.toLongOrNull() ?: System.currentTimeMillis(),
+                    updatedAt = parts.getOrNull(7)?.trim()?.toLongOrNull() ?: System.currentTimeMillis(),
+                )
+            )
         }
     }
 
@@ -1474,6 +1680,9 @@ class ExportRepository @Inject constructor(
 
         val sections = csv.split(Regex("\n(?=# )"))
         var defaultAccountsBody: String? = null
+        var smsLinksBody: String? = null
+        var merchantMemoryBody: String? = null
+        var capturedMessagesBody: String? = null
         for (section in sections) {
             val trimmed = section.trim()
             if (trimmed.isBlank()) continue
@@ -1493,11 +1702,24 @@ class ExportRepository @Inject constructor(
                 header.startsWith("# RECURRING") -> recurringCount = importRecurringFromCsv(body)
                 header.startsWith("# EMIS") -> emisCount = importEmisFromCsv(body)
                 header.startsWith("# DEFAULT_ACCOUNTS") -> defaultAccountsBody = body
+                header.startsWith("# SMS_ACCOUNT_LINKS") -> smsLinksBody = body
+                header.startsWith("# MERCHANT_MEMORY") -> merchantMemoryBody = body
+                header.startsWith("# CAPTURED_MESSAGES") -> capturedMessagesBody = body
             }
         }
-        // Applied last so the accounts it names already exist; a settings problem must not fail the data import.
+        // Applied last so the accounts and categories they name already exist; a settings or learned-data problem
+        // must not fail the data import.
         defaultAccountsBody?.let { body ->
             try { importDefaultAccountsFromCsv(body) } catch (_: Exception) { }
+        }
+        smsLinksBody?.let { body ->
+            try { importSmsAccountLinksFromCsv(body) } catch (_: Exception) { }
+        }
+        merchantMemoryBody?.let { body ->
+            try { importMerchantMemoryFromCsv(body) } catch (_: Exception) { }
+        }
+        capturedMessagesBody?.let { body ->
+            try { importCapturedMessagesFromCsv(body) } catch (_: Exception) { }
         }
 
         val totalProcessed = accountsCount + categoriesCount + transactionsCount +
@@ -1545,7 +1767,8 @@ class ExportRepository @Inject constructor(
             budgetDao.getLatestTimestamp(),
             goalDao.getLatestTimestamp(),
             peerContactDao.getLatestTimestamp(),
-            recurringDao.getLatestTimestamp()
+            recurringDao.getLatestTimestamp(),
+            capturedMessageDao.getLatestTimestamp()
         ).maxOrNull() ?: 0L
     }
 
@@ -1554,7 +1777,7 @@ class ExportRepository @Inject constructor(
             val json = data.toString(Charsets.UTF_8)
             val jsonObject = JSONObject(json)
             var maxTimestamp = 0L
-            val keys = listOf("accounts", "transactions", "categories", "budgets", "goals", "peers", "recurring", "emis")
+            val keys = listOf("accounts", "transactions", "categories", "budgets", "goals", "peers", "recurring", "emis", "capturedMessages")
             for (key in keys) {
                 if (jsonObject.has(key)) {
                     val array = jsonObject.getJSONArray(key)

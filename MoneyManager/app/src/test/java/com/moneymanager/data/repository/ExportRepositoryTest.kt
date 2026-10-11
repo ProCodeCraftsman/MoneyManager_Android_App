@@ -5,7 +5,10 @@ import android.content.Context
 import android.net.Uri
 import com.moneymanager.data.dao.*
 import com.moneymanager.data.entity.AccountEntity
+import com.moneymanager.data.entity.CapturedMessageEntity
+import com.moneymanager.data.entity.CategoryEntity
 import com.moneymanager.data.entity.EmiEntity
+import com.moneymanager.data.entity.MerchantCategoryMemoryEntity
 import com.moneymanager.data.entity.RecurringEntity
 import com.moneymanager.data.preferences.PreferencesManager
 import kotlinx.coroutines.flow.flowOf
@@ -36,6 +39,8 @@ class ExportRepositoryTest {
     @Mock lateinit var recurringDao: RecurringDao
     @Mock lateinit var emiDao: EmiDao
     @Mock lateinit var preferencesManager: PreferencesManager
+    @Mock lateinit var merchantMemoryDao: MerchantCategoryMemoryDao
+    @Mock lateinit var capturedMessageDao: CapturedMessageDao
 
     private lateinit var repository: ExportRepository
 
@@ -43,8 +48,9 @@ class ExportRepositoryTest {
     fun setup() {
         MockitoAnnotations.openMocks(this)
         repository = ExportRepository(
-            mockContext, accountDao, transactionDao, categoryDao, 
-            budgetDao, goalDao, tagDao, peerContactDao, recurringDao, emiDao, preferencesManager
+            mockContext, accountDao, transactionDao, categoryDao,
+            budgetDao, goalDao, tagDao, peerContactDao, recurringDao, emiDao, preferencesManager,
+            merchantMemoryDao, capturedMessageDao,
         )
     }
 
@@ -90,7 +96,12 @@ class ExportRepositoryTest {
         `when`(peerContactDao.getAllPeers()).thenReturn(flowOf(emptyList()))
         `when`(recurringDao.getAllRecurring()).thenReturn(flowOf(emptyList()))
         `when`(emiDao.getAllEmis()).thenReturn(flowOf(emptyList()))
-        runBlocking { `when`(preferencesManager.getDefaultAccounts()).thenReturn(emptyMap()) }
+        runBlocking {
+            `when`(preferencesManager.getDefaultAccounts()).thenReturn(emptyMap())
+            `when`(preferencesManager.getSmsAccountLinks()).thenReturn(emptyMap())
+            `when`(merchantMemoryDao.getAll()).thenReturn(emptyList())
+            `when`(capturedMessageDao.getAll()).thenReturn(emptyList())
+        }
     }
 
     @Test
@@ -252,6 +263,98 @@ class ExportRepositoryTest {
 
         assertTrue(result.success)
         org.mockito.Mockito.verify(preferencesManager).setDefaultAccount("expense", 7L)
+    }
+
+    private val groceries = CategoryEntity(id = 11L, name = "Groceries", type = "expense")
+    private val ledgerSaved = CapturedMessageEntity(
+        id = 5L, messageHash = "abc123", refHash = "ref456", amount = 250.0, messageDate = 1_700_000_000_000L,
+        sourceKey = "hdfc|BANK_ACCOUNT|1234", status = CapturedMessageEntity.STATUS_SAVED, transactionId = 77L,
+    )
+    private val ledgerPending = CapturedMessageEntity(
+        id = 6L, messageHash = "def789", amount = 99.5, messageDate = 1_700_000_100_000L,
+        status = CapturedMessageEntity.STATUS_PENDING, draftJson = """{"amount":99.5}""",
+    )
+
+    @Test
+    fun `JSON round-trip restores sms links, merchant memory and the captured ledger`() = runBlocking {
+        stubEmptyExportSources()
+        `when`(preferencesManager.getSmsAccountLinks()).thenReturn(mapOf("hdfc|BANK_ACCOUNT|1234" to 3L, "gone|OTHER|" to 404L))
+        `when`(accountDao.getAccountById(3L)).thenReturn(AccountEntity(id = 3L, name = "Bank", type = "bank"))
+        `when`(merchantMemoryDao.getAll()).thenReturn(listOf(
+            MerchantCategoryMemoryEntity("swiggy", 11L, "Groceries", "expense", 4, 1_700_000_000_000L),
+            MerchantCategoryMemoryEntity("orphan", 99L, "Deleted", "expense"),
+        ))
+        `when`(categoryDao.getCategoryById(11L)).thenReturn(groceries)
+        `when`(capturedMessageDao.getAll()).thenReturn(listOf(ledgerSaved, ledgerPending))
+
+        val bytes = repository.exportToJsonBytes()
+        val result = repository.importFromJsonBytes(bytes)
+
+        assertTrue(result.success)
+        org.mockito.Mockito.verify(preferencesManager).setSmsAccountLink("hdfc|BANK_ACCOUNT|1234", 3L)
+        org.mockito.Mockito.verify(preferencesManager, org.mockito.Mockito.never()).setSmsAccountLink("gone|OTHER|", 404L)
+        val memory = org.mockito.kotlin.argumentCaptor<MerchantCategoryMemoryEntity>()
+        org.mockito.Mockito.verify(merchantMemoryDao).upsert(memory.capture())
+        assertEquals("swiggy", memory.firstValue.merchantKey)
+        assertEquals(4, memory.firstValue.hitCount)
+        val ledger = org.mockito.kotlin.argumentCaptor<CapturedMessageEntity>()
+        org.mockito.Mockito.verify(capturedMessageDao, org.mockito.Mockito.times(2)).upsert(ledger.capture())
+        assertEquals(ledgerSaved, ledger.firstValue)
+        assertEquals(ledgerPending, ledger.secondValue)
+    }
+
+    @Test
+    fun `JSON import of an older backup without learned data leaves it alone`() = runBlocking {
+        stubEmptyExportSources()
+
+        repository.importFromJsonBytes("""{"accounts":[],"transactions":[]}""".toByteArray())
+
+        org.mockito.Mockito.verify(merchantMemoryDao, org.mockito.Mockito.never()).upsert(any())
+        org.mockito.Mockito.verify(capturedMessageDao, org.mockito.Mockito.never()).upsert(any())
+        org.mockito.Mockito.verify(preferencesManager, org.mockito.Mockito.never()).setSmsAccountLink(any(), any())
+    }
+
+    @Test
+    fun `CSV ALL bundle carries sms links by name, merchant memory by category and decided ledger rows only`() = runBlocking {
+        stubEmptyExportSources()
+        val bank = AccountEntity(id = 7L, name = "HDFC \"Main\", Savings", type = "bank")
+        `when`(accountDao.getAllAccounts()).thenReturn(flowOf(listOf(bank)))
+        `when`(preferencesManager.getSmsAccountLinks()).thenReturn(mapOf("hdfc|BANK_ACCOUNT|1234" to 7L, "gone|OTHER|" to 404L))
+        `when`(categoryDao.getAllCategoriesWithArchived()).thenReturn(flowOf(listOf(groceries)))
+        `when`(categoryDao.getCategoryByName("Groceries", "expense")).thenReturn(groceries)
+        `when`(merchantMemoryDao.getAll()).thenReturn(listOf(
+            MerchantCategoryMemoryEntity("swiggy", 11L, "Groceries", "expense", 4, 1_700_000_000_000L),
+            MerchantCategoryMemoryEntity("orphan", 99L, "Deleted", "expense"),
+        ))
+        `when`(capturedMessageDao.getAll()).thenReturn(listOf(ledgerSaved, ledgerPending))
+        `when`(mockContext.contentResolver).thenReturn(org.mockito.Mockito.mock(ContentResolver::class.java))
+        val outputStream = ByteArrayOutputStream()
+        val uri = org.mockito.Mockito.mock(Uri::class.java)
+        `when`(mockContext.contentResolver.openOutputStream(uri)).thenReturn(outputStream)
+
+        repository.exportToCsv(uri, ExportType.ALL)
+        val csvText = outputStream.toString(Charsets.UTF_8.name())
+        assertTrue(csvText.contains("# SMS_ACCOUNT_LINKS") && csvText.contains("# MERCHANT_MEMORY") && csvText.contains("# CAPTURED_MESSAGES"))
+        assertTrue("A link to a vanished account is dropped", !csvText.contains("gone|OTHER"))
+        assertTrue("Memory pointing at a vanished category is dropped", !csvText.contains("orphan"))
+        assertTrue("Pending drafts are not in the CSV bundle", !csvText.contains("def789"))
+
+        `when`(mockContext.contentResolver.openInputStream(uri)).thenReturn(ByteArrayInputStream(csvText.toByteArray()))
+        val result = repository.importFromCsv(uri, ExportType.ALL)
+
+        assertTrue(result.success)
+        org.mockito.Mockito.verify(preferencesManager).setSmsAccountLink("hdfc|BANK_ACCOUNT|1234", 7L)
+        val memory = org.mockito.kotlin.argumentCaptor<MerchantCategoryMemoryEntity>()
+        org.mockito.Mockito.verify(merchantMemoryDao).upsert(memory.capture())
+        assertEquals(11L, memory.firstValue.categoryId)
+        assertEquals(4, memory.firstValue.hitCount)
+        val ledger = org.mockito.kotlin.argumentCaptor<CapturedMessageEntity>()
+        org.mockito.Mockito.verify(capturedMessageDao).insertIfNew(ledger.capture())
+        assertEquals("abc123", ledger.firstValue.messageHash)
+        assertEquals("ref456", ledger.firstValue.refHash)
+        assertEquals(250.0, ledger.firstValue.amount!!, 0.0)
+        assertEquals(CapturedMessageEntity.STATUS_SAVED, ledger.firstValue.status)
+        assertEquals(null, ledger.firstValue.transactionId)
     }
 
     @Test

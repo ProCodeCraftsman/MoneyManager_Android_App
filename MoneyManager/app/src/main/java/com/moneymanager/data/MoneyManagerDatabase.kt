@@ -282,6 +282,31 @@ val MIGRATION_17_18 = object : Migration(17, 18) {
     }
 }
 
+val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Additive only: a new table, nothing existing is touched.
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS `captured_messages` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `messageHash` TEXT NOT NULL,
+                `refHash` TEXT,
+                `amount` REAL,
+                `messageDate` INTEGER NOT NULL,
+                `sourceKey` TEXT,
+                `status` TEXT NOT NULL,
+                `transactionId` INTEGER,
+                `mergedIntoId` INTEGER,
+                `draftJson` TEXT,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_captured_messages_messageHash` ON `captured_messages` (`messageHash`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_captured_messages_refHash` ON `captured_messages` (`refHash`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_captured_messages_status` ON `captured_messages` (`status`)")
+    }
+}
+
 private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()
 
 @Database(
@@ -297,8 +322,9 @@ private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isE
         AiConversationEntity::class,
         MerchantCategoryMemoryEntity::class,
         EmiEntity::class,
+        CapturedMessageEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = true
 )
 abstract class MoneyManagerDatabase : RoomDatabase() {
@@ -313,4 +339,5 @@ abstract class MoneyManagerDatabase : RoomDatabase() {
     abstract fun aiConversationDao(): AiConversationDao
     abstract fun merchantCategoryMemoryDao(): MerchantCategoryMemoryDao
     abstract fun emiDao(): EmiDao
+    abstract fun capturedMessageDao(): CapturedMessageDao
 }
