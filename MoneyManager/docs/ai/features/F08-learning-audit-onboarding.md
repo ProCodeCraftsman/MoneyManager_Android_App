@@ -1,6 +1,6 @@
 # F08 Learning from history, background audit, AI-assisted setup
 
-State: Planned | Packages: `domain/learn` (new, pure), `domain/audit` (new, pure), `domain/ai` (narrow choosers), `data/repository`, `app/ui/capture` | Depends on: F07 E4 (scanner), F04 (AI-010), F05 (AI-014)
+State: In progress (L1 built) | Packages: `domain/learn` (new, pure), `domain/audit` (new, pure), `domain/ai` (narrow choosers), `data/repository`, `app/ui/capture` | Depends on: F07 E4 (scanner), F04 (AI-010), F05 (AI-014)
 
 ## Goal and non-goals
 Goal: use the on-device model where it saves the user real effort or catches real mistakes, at moments that are not latency-critical. These are one-time setup, one-time bootstrap and a background second look; not "AI on every entry". Three tracks:
@@ -95,7 +95,7 @@ Non-goals:
 ## Phases
 | Phase | Scope | Exit check | Status |
 |---|---|---|---|
-| L1 | SMS ↔ transaction join engine (pure) + coverage figure | Unit tests on scrubbed fixtures; on the phone: labels found, coverage recorded here (counts only) | Not started |
+| L1 | SMS ↔ transaction join engine (pure) + coverage figure | Unit tests on scrubbed fixtures; on the phone: labels found, coverage recorded here (counts only) | Built (9 unit tests; not run on the phone) |
 | L2 | "Learned from your history" confirm screen, writes memory + links | Phone: memory filled; next F07 scan shows the learned share of categories | Not started |
 | L4 | Merchant key normalisation with alias read | Unit tests over real-shaped keys (scrubbed) | Not started |
 | A1 | Deterministic checks A1–A8 (pure) | Unit tests per check incl. the daily-tea repeat case | Not started |
@@ -126,3 +126,5 @@ Everything.
 - 2026-10-11: bootstrap the merchant base from SMS ↔ saved-transaction joins (deterministic) before any model labelling; the model only suggests for what joins could not label.
 - 2026-10-11: audit findings never auto-fix and never notify on their own; capped at 3 a day; dismissals remembered and backed up.
 - 2026-10-11: AI-assisted setup (O) is deferred until the app has other users; L and A come first.
+- 2026-10-11 (L1 built): a pair is kept only if it is unique on both sides: the SMS has exactly one saved candidate (same type, same amount to the paisa, within a day, any account) and that row is not the candidate of another SMS. Identical same-day purchases therefore teach nothing. Merchant labels need 2+ kept pairs and a 0.6 share; source labels come only from non-cash rows, since a cash row says nothing about the SMS source.
+- 2026-10-11 (L1 built): the join reads the last 6 months of SMS (newest 5,000) through the same rules-only classifier as the scanner, and writes nothing. Coverage counts non-cash bank, card, savings and transfer rows only.
