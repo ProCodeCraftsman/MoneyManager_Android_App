@@ -21,7 +21,7 @@ sealed interface SmsRuleOutcome {
     data class NotATransaction(val exception: NotATransactionException) : SmsRuleOutcome
 
     /** A verified, actionable rule match. Merchant memory has been applied; the category may still be missing. */
-    data class Draft(val draft: TransactionDraft) : SmsRuleOutcome
+    data class Draft(val draft: TransactionDraft, val reference: String? = null) : SmsRuleOutcome
 
     /**
      * No rule matched, or the match was not trusted. [parsed] is the generic parse, kept as hints for the
@@ -58,7 +58,7 @@ class SmsDraftPipeline @Inject constructor(
         val links = withContext(Dispatchers.IO) { accountLinks.load() }
         if (parsed.matched && parsed.isActionableTransaction) {
             val ruleDraft = SmsDraftMapper.toDraft(parsed, accounts, sourceSender, attachmentPath, links)
-            if (ruleDraft != null) return SmsRuleOutcome.Draft(withCategoryFromMemory(ruleDraft))
+            if (ruleDraft != null) return SmsRuleOutcome.Draft(withCategoryFromMemory(ruleDraft), parsed.reference)
         }
         return SmsRuleOutcome.Unmatched(parsed, links)
     }

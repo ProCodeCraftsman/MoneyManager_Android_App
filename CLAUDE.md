@@ -30,13 +30,13 @@ Kotlin 2.3, Jetpack Compose (Material 3), Hilt, Room (DB version 18, schemas exp
 Run from `MoneyManager/`:
 
 ```
-./gradlew.bat :app:testDebugUnitTest --offline -q                      # all unit tests
-./gradlew.bat :app:testDebugUnitTest --tests "com.moneymanager.domain.sms.*" --offline -q
-./gradlew.bat :app:compileDebugKotlin --offline -q
-./gradlew.bat installDebug                                              # phone connected
+./gradlew.bat :app:testPersonalDebugUnitTest --offline -q                  # all unit tests (personal flavor; play has the same tests)
+./gradlew.bat :app:testPersonalDebugUnitTest --tests "com.moneymanager.domain.sms.*" --offline -q
+./gradlew.bat :app:compilePersonalDebugKotlin --offline -q
+./gradlew.bat installPersonalDebug                                     # phone connected (play: installPlayDebug)
 ```
 
-- A successful `-q` run prints nothing; a failure prints the report path. Per-test failures are in `app/build/test-results/testDebugUnitTest/*.xml`.
+- A successful `-q` run prints nothing; a failure prints the report path. Per-test failures are in `app/build/test-results/testPersonalDebugUnitTest/*.xml`.
 - Tests are plain JVM JUnit 4 (`testImplementation` includes `org.json`, Mockito, coroutines-test). `unitTests.isReturnDefaultValues = true`.
 - There is no emulator workflow. UI changes need a check on a real phone; say so when something is unverified on device.
 
@@ -51,7 +51,7 @@ Run from `MoneyManager/`:
 
 ## Privacy rules (hard constraints)
 
-- `READ_SMS` is declared only in `app/src/debug/AndroidManifest.xml`. It must never appear in the release manifest (Play policy). Verify with the merged release manifest after any manifest change.
+- `READ_SMS` is declared only in `app/src/debug/AndroidManifest.xml` and `app/src/personal/AndroidManifest.xml` (the sideloaded `personal` flavor, AI-053). It must never appear in the `play` flavor. Verify with `./gradlew.bat :app:processPlayReleaseManifest --offline -q` and grep `app/build/intermediates/merged_manifests/playRelease` after any manifest change.
 - Raw SMS text must not be persisted, exported or logged by the analyzer. Only masked templates leave the device, and the account holder's own name must be masked before sharing.
 - Test fixtures derived from real messages must be scrubbed (names, account numbers, amounts) before being committed.
 

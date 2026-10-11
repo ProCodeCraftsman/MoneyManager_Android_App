@@ -70,8 +70,24 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // "play" is the store build with no SMS permission. "personal" is the sideloaded build that may read the
+    // inbox (AI-053). Both share one applicationId so the same data stays in place when switching builds.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            isDefault = true
+            buildConfigField("boolean", "SMS_CAPTURE", "false")
+        }
+        create("personal") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SMS_CAPTURE", "true")
+        }
+    }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

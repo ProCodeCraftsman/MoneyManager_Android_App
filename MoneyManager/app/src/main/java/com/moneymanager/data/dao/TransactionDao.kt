@@ -251,4 +251,33 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions WHERE emiId = :emiId AND postedToBalance = 0")
     suspend fun deleteUnpostedInstallmentsByEmi(emiId: Long)
+
+    /** Saved transactions of this amount within a window; used to tell an SMS that is already entered by hand. */
+    @Query("SELECT COUNT(*) FROM transactions WHERE ABS(amount - :amount) < 0.005 AND date BETWEEN :from AND :to AND isSplitParent = 0")
+    suspend fun countNearAmount(amount: Double, from: Long, to: Long): Int
+
+    /** Saved rows with their account type and category name, for matching against SMS (F08 L1). Split parents are skipped; their children carry the amounts. */
+    @Query("""
+        SELECT t.id AS id, t.type AS type, t.amount AS amount, t.date AS date,
+               t.categoryId AS categoryId, c.name AS categoryName,
+               t.accountId AS accountId, a.name AS accountName, a.type AS accountType
+        FROM transactions t
+        INNER JOIN accounts a ON a.id = t.accountId
+        LEFT JOIN categories c ON c.id = t.categoryId
+        WHERE t.date BETWEEN :from AND :to AND t.isSplitParent = 0
+        ORDER BY t.date
+    """)
+    suspend fun getRowsForHistoryJoin(from: Long, to: Long): List<HistoryJoinRow>
 }
+
+data class HistoryJoinRow(
+    val id: Long,
+    val type: String,
+    val amount: Double,
+    val date: Long,
+    val categoryId: Long?,
+    val categoryName: String?,
+    val accountId: Long,
+    val accountName: String,
+    val accountType: String,
+)

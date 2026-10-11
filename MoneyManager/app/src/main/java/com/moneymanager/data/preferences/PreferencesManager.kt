@@ -385,6 +385,24 @@ class PreferencesManager(private val context: Context) {
     suspend fun setSmsAccountLink(linkKey: String, accountId: Long) {
         context.dataStore.edit { it[longPreferencesKey(SMS_LINK_PREFIX + linkKey)] = accountId }
     }
+
+    /** Newest SMS date the inbox scanner has fully processed (F07 scan cursor). Not backed up: see F07 risks. */
+    suspend fun getCaptureLastScanned(): Long? = context.dataStore.data.first()[CAPTURE_LAST_SCANNED]
+
+    suspend fun setCaptureLastScanned(time: Long) {
+        context.dataStore.edit { it[CAPTURE_LAST_SCANNED] = time }
+    }
+
+    /** Optional floor chosen by the user for the inbox scan; null means the 31-day cap alone applies. */
+    suspend fun getCaptureStartDate(): Long? = context.dataStore.data.first()[CAPTURE_START_DATE]
+
+    suspend fun setCaptureStartDate(time: Long?) {
+        context.dataStore.edit { prefs ->
+            if (time == null) prefs.remove(CAPTURE_START_DATE) else prefs[CAPTURE_START_DATE] = time
+        }
+    }
 }
 
 private const val SMS_LINK_PREFIX = "sms_account_link:"
+private val CAPTURE_LAST_SCANNED = longPreferencesKey("capture_last_scanned")
+private val CAPTURE_START_DATE = longPreferencesKey("capture_start_date")
