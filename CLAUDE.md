@@ -43,7 +43,7 @@ Run from `MoneyManager/`:
 ## Conventions
 
 - Match the surrounding code: naming, comment density, idiom. Comments explain why, not what.
-- Commits: conventional prefix (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`), one logical change per commit, imperative summary. Only commit when asked.
+- Commits: after a change is verified (compile and the relevant unit tests pass, or say which check was not run), commit all of its changes. Conventional prefix (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`), one logical change per commit, imperative summary. Stage paths explicitly. Never commit ignored or private files (see Privacy rules and `.gitignore`). Do not push unless asked.
 - Any Room schema change needs a migration, a version bump, and a backup/export format update (JSON backup, CSV bundle, Drive backup). See the data-fidelity notes in memory before touching these.
 - Money amounts are `Double` in entities today; do not round-trip through strings.
 - Transaction types are `income`, `expense`, `savings`, `transfer`, `lend`, `borrow` (`domain/ai/TransactionType`). Account types are `bank`, `cash`, `credit`, `savings`, `peer`.
