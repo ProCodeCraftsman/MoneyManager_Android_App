@@ -44,13 +44,14 @@ object SmsMasker {
         val words = names.flatMap { it.split(whitespace) }.filter { it.isNotBlank() }
         val longWords = words.filter { it.length >= 2 }.distinct()
         // Banks print the same name as "SWARAJ K S", "SWARAJKS" or "KS": mask the whole phrase with
-        // optional gaps, then any run of 2+ trailing initials on its own.
+        // optional gaps, then any run of 2+ trailing initials on its own. A title can be glued on ("MRSWARAJKS").
         val phrase = words.joinToString("""\s*""") { Regex.escape(it) }
         val initials = words.reversed().takeWhile { it.length == 1 }.reversed()
+        val title = """(?:mrs?|ms|dr|shri|smt)?"""
         val patterns = buildList {
-            if (words.size >= 2) add("""\b$phrase\b""")
+            if (words.size >= 2) add("""\b$title$phrase\b""")
             if (initials.size >= 2) add("""\b${initials.joinToString("""\s?""") { Regex.escape(it) }}\b""")
-            if (longWords.isNotEmpty()) add("""\b(?:${longWords.joinToString("|") { Regex.escape(it) }})\b""")
+            if (longWords.isNotEmpty()) add("""\b$title(?:${longWords.joinToString("|") { Regex.escape(it) }})\b""")
         }
         for (p in patterns) s = Regex("(?i)$p").replace(s, "<NAME>")
         s = greetingName.replace(s) { "${it.groupValues[1]} <NAME>" }

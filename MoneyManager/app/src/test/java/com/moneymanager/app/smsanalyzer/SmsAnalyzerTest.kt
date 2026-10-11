@@ -123,6 +123,8 @@ class SmsAnalyzerTest {
         assertEquals("To <NAME> On", SmsMasker.mask("To SWARAJ K S On", names))
         assertEquals("Info <NAME>. Avl", SmsMasker.mask("Info SWARAJKS. Avl", names))
         assertEquals("Hello <NAME> now", SmsMasker.mask("Hello KS now", names))
+        assertEquals("delivered to <NAME> At", SmsMasker.mask("delivered to MRSWARAJKS At", names))
+        assertEquals("Dear <NAME> hi", SmsMasker.mask("Dear MrSwaraj hi", names))
     }
 
     @Test
