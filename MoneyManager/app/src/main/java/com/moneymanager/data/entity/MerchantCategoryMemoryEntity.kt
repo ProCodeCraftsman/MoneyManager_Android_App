@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "merchant_category_memory")
 data class MerchantCategoryMemoryEntity(
     @PrimaryKey
-    val merchantKey: String,     // normalized: lowercase alphanumeric, max 40 chars
+    val merchantKey: String,     // MerchantKey.canonical: lowercase alphanumeric, max 40 chars (older rows: legacy key)
     val categoryId: Long,
     val categoryName: String,    // denormalized — avoids join at lookup time
     val typeId: String? = null,  // "expense" / "income" / "transfer" — stored for fast-path draft

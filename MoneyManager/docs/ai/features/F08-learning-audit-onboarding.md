@@ -97,7 +97,7 @@ Non-goals:
 |---|---|---|---|
 | L1 | SMS ↔ transaction join engine (pure) + coverage figure | Unit tests on scrubbed fixtures; on the phone: labels found, coverage recorded here (counts only) | Built (9 unit tests; not run on the phone) |
 | L2 | "Learned from your history" confirm screen, writes memory + links | Phone: memory filled; next F07 scan shows the learned share of categories | Built (screen not seen on the phone) |
-| L4 | Merchant key normalisation with alias read | Unit tests over real-shaped keys (scrubbed) | Not started |
+| L4 | Merchant key normalisation with alias read | Unit tests over real-shaped keys (scrubbed) | Built (`MerchantKey`, 7 + 4 unit tests; not on the phone) |
 | A1 | Deterministic checks A1–A8 (pure) | Unit tests per check incl. the daily-tea repeat case | Not started |
 | A2 | Audit worker + "Check these" section + dismiss fingerprints + backup of dismissals | Phone: 2 weeks, findings precision logged | Not started |
 | L3 | Teach screen with batched model suggestions | Parser tests; phone | Not started |
@@ -129,3 +129,4 @@ Everything.
 - 2026-10-11 (L1 built): a pair is kept only if it is unique on both sides: the SMS has exactly one saved candidate (same type, same amount to the paisa, within a day, any account) and that row is not the candidate of another SMS. Identical same-day purchases therefore teach nothing. Merchant labels need 2+ kept pairs and a 0.6 share; source labels come only from non-cash rows, since a cash row says nothing about the SMS source.
 - 2026-10-11 (L1 built): the join reads the last 6 months of SMS (newest 5,000) through the same rules-only classifier as the scanner, and writes nothing. Coverage counts non-cash bank, card, savings and transfer rows only.
 - 2026-10-11 (L2 built): the confirm screen pre-ticks only labels that are unanimous with at least 3 agreeing pairs. Everything else starts unticked. Only ticked labels are written (merchant memory via `record`, account links via `learn`). The entry is the existing AI tile stack, gated on `BuildConfig.SMS_CAPTURE` so the play build never shows it.
+- 2026-10-12 (L4 built): one key for memory, history and the join (`MerchantKey.canonical`). No migration: writes use the canonical key, reads try it and then the legacy key. Existing rows whose legacy key differs from the canonical one stay where they are; a new save under the canonical key adds a second row, and the canonical row wins on lookup.

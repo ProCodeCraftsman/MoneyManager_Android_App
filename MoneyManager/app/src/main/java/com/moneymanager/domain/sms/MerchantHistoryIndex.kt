@@ -47,7 +47,7 @@ class MerchantHistoryIndex(rows: List<HistoryRow>) {
         private const val MIN_PREFIX = 5
         private const val MIN_SHARE = 0.6
 
-        /** Same normalisation as the merchant-category memory so the two agree on keys. */
-        fun normalize(raw: String): String = raw.lowercase().replace(Regex("[^a-z0-9]"), "").take(40)
+        /** Same key as the merchant-category memory and the SMS join, so all three agree on a merchant. */
+        fun normalize(raw: String): String = MerchantKey.canonical(raw)
     }
 }

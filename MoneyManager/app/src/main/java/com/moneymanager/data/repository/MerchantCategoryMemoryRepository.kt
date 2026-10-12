@@ -5,6 +5,7 @@ import com.moneymanager.data.dao.TransactionDao
 import com.moneymanager.data.entity.MerchantCategoryMemoryEntity
 import com.moneymanager.domain.sms.HistoryRow
 import com.moneymanager.domain.sms.MerchantHistoryIndex
+import com.moneymanager.domain.sms.MerchantKey
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,11 +20,14 @@ class MerchantCategoryMemoryRepository @Inject constructor(
     /**
      * Look up cached category for a merchant. Returns null if unknown or key is too short.
      * Call this BEFORE triggering the AI inference — a hit means we can skip the AI call.
+     * Entries written before [MerchantKey] existed sit under the legacy key, so that is read as a fallback.
      */
     suspend fun lookup(merchantHint: String): MerchantCategoryMemoryEntity? {
         val key = normalize(merchantHint)
         if (key.length < 3) return null
-        return dao.findByKey(key)
+        return dao.findByKey(key) ?: MerchantKey.legacy(merchantHint)
+            .takeIf { it != key && it.length >= 3 }
+            ?.let { dao.findByKey(it) }
     }
 
     /**
@@ -77,7 +81,7 @@ class MerchantCategoryMemoryRepository @Inject constructor(
         }
     }
 
-    private fun normalize(raw: String): String = MerchantHistoryIndex.normalize(raw)
+    private fun normalize(raw: String): String = MerchantKey.canonical(raw)
 
     private companion object {
         const val HISTORY_TTL_MS = 60_000L
