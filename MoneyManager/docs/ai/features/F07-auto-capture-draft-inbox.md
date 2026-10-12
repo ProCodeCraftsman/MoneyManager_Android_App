@@ -1,6 +1,6 @@
 # F07 Automatic capture and draft inbox
 
-State: In progress (E1 done, E2 built, E4 built, E5 to E7 built with gaps, see phases) | Packages: `app/src/personal` (new flavor), `domain/ai`, `domain/sms`, `data/` (ledger table), `app/ui/capture` (new hub + inbox), `app/ui/aidraft` | Depends on: F01, F04 (AI-010), F06. Learning and audit on top of this: F08.
+State: In progress (E1 done, E2 built, E4 built, E5 to E7 built with gaps, E8 and E9 built, see phases) | Packages: `app/src/personal` (new flavor), `domain/ai`, `domain/sms`, `data/` (ledger table), `app/ui/capture` (new hub + inbox), `app/ui/aidraft` | Depends on: F01, F04 (AI-010), F06. Learning and audit on top of this: F08.
 
 ## Goal and non-goals
 Goal: bank, card and UPI SMS become reviewable drafts (amount, account, category, date, short note) without copy-paste. Duplicates of one spend collapse into one draft. The user clears the day's drafts in seconds, in bulk or one by one. Non-goals: auto-saving (policy stays review, see F04), shipping `READ_SMS`/`RECEIVE_SMS` in the Play release.
@@ -97,8 +97,8 @@ Trigger (app open | reminder worker | manual "Scan now")
 | E5 | Semantic dedup (F06 D1 + ref matching + transfer pairing, against manual/recurring/EMI) | Unit tests incl. repeat-payment cases | Built (AI-054, 2026-10-12): ref, saved, pending and uncertain matches; 11 dedup + 4 scanner unit tests. Not built: transfer pairing, check at save time. Not on the phone |
 | E6 | Account Sources screen (map / create account) + balance cross-check | Phone, real sources | Built (AI-055, 2026-10-12): map or create, applied to pending drafts; grouping unit-tested. Balance cross-check not built. Not on the phone |
 | E7 | Capture hub screen (replaces the dropdown) + draft inbox with the bulk-approve rules, inline category fix, reject / always-ignore, undo | Phone: a week of real use, zero duplicate drafts, daily review under 10 s | Built (AI-056, 2026-10-12): hub, inbox, bulk approve of ready rows, undo, reject, merge / keep both, category fix. Not built: always-ignore, paste-text tile. Not on the phone |
-| E8 | Scan on app open + home banner with dismiss / don't show | Phone | Not started |
-| E9 | Noon / evening reminder worker: scan first, notify only if count > 0, reboot reschedule, notification permission, battery tip | Notifications seen on the S24 over 3 days | Not started |
+| E8 | Scan on app open + home banner with dismiss / don't show | Phone | Built (AI-058, 2026-10-12): banner, dismiss for today, don't show again; policy unit-tested (`CaptureBannerPolicyTest`). Not on the phone |
+| E9 | Noon / evening reminder worker: scan first, notify only if count > 0, reboot reschedule, notification permission, battery tip | Notifications seen on the S24 over 3 days | Built (AI-059, 2026-10-12): worker, boot and update re-arm, toggle in Settings; schedule unit-tested (`CaptureReminderScheduleTest`). Not on the phone |
 | E10 | Model best-guess for missing fields, batched after scan (multiple choice, verify, timeout, parser tests) | Unit tests; E2B check on phone; kill rule from AI-004 respected | Not started |
 | E11 | Real-time `RECEIVE_SMS` receiver into the same scanner | Phone | Idea |
 
