@@ -6,7 +6,7 @@ State: Planned (SMS-specific version exists inside `AiAgent`) | Packages: `domai
 Every capture source produces the same thing: a `TransactionDraft` that went through the same Verify, Resolve and Learn stages and obeys one commit policy. New sources add an adapter, not a new flow.
 
 ## Current state
-`AiAgent.processText` branches on `sourceType == "SMS"`. The model-free SMS stages (reject, rule engine, `SmsVerifier`, account links, memory category) now live in `SmsDraftPipeline` (AI-010 part 1); `AiAgent` still does the model category pick and the text fallback. Voice and image use older paths and do not get Verify or learned links. `autoCommit` is a flag chosen by the caller.
+`AiAgent.processText` branches on `sourceType == "SMS"`. The model-free SMS stages (reject, rule engine, `SmsVerifier`, account links, memory category) now live in `SmsDraftPipeline` (AI-010); `DraftLearning` writes merchant memory and account links on save; `AiAgent` still does the model category pick and the text fallback. Voice and image use older paths and do not get Verify or learned links. `autoCommit` is a flag chosen by the caller.
 
 ## Design
 ```
@@ -26,7 +26,7 @@ Learn      on save: merchant memory, account links, edit tracking (F05)
 ## Phases
 | Phase | Scope | Exit check | Status |
 |---|---|---|---|
-| P1 | Extract stages from `AiAgent`, SMS behaviour unchanged (AI-010) | Existing SMS tests pass untouched | Built (part 1: `SmsDraftPipeline` holds the model-free SMS stages; AiAgent keeps merchant cache, model calls and status events) |
+| P1 | Extract stages from `AiAgent`, SMS behaviour unchanged (AI-010) | Existing SMS tests pass untouched | Built 2026-10-12: `SmsDraftPipeline` holds the model-free SMS stages (verify, account links, account resolve, memory category); `DraftLearning` is the Learn stage used by the add screen and history confirm; AiAgent keeps the merchant-cache fast path, model calls and status events |
 | P2 | `CapturedInput` adapters (AI-011) | SMS and TEXT on adapters | Not started |
 | P3 | Commit policy (AI-012) | VOICE hard-coding removed; policy unit-tested | Not started |
 | P4 | Backup of learned data (AI-013) | Round-trip test on export/import | Not started |

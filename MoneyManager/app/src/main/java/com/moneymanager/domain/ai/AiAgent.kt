@@ -75,7 +75,7 @@ class AiAgent @Inject constructor(
             emit(AgentStatus.Progress(AgentStep.SEARCHING_CACHE, hint))
             val cached = withContext(Dispatchers.IO) { merchantMemory.lookup(hint) }
             if (cached != null) {
-                val fastDraft = SmsDraftMapper.withAccountFromSms(
+                val fastDraft = smsPipeline.resolveAccount(
                     TransactionDraft(
                         amount = pre.amount,
                         typeId = pre.typeId ?: cached.typeId,
@@ -111,7 +111,7 @@ class AiAgent @Inject constructor(
         
         result.fold(
             onSuccess = { draft ->
-                val finalDraft = SmsDraftMapper.withAccountFromSms(
+                val finalDraft = smsPipeline.resolveAccount(
                     draft.copy(
                         receiptPath = attachmentPath ?: draft.receiptPath,
                         merchantHint = pre.merchantHint ?: draft.merchantHint,

@@ -2,8 +2,7 @@ package com.moneymanager.app.ui.learn
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
-import com.moneymanager.data.repository.SmsAccountLinkRepository
+import com.moneymanager.domain.ai.DraftLearning
 import com.moneymanager.domain.learn.HistoryLabels
 import com.moneymanager.domain.learn.LearnFromHistoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,8 +33,7 @@ data class LearnFromHistoryUiState(
 @HiltViewModel
 class LearnFromHistoryViewModel @Inject constructor(
     private val learnFromHistory: LearnFromHistoryUseCase,
-    private val merchantMemory: MerchantCategoryMemoryRepository,
-    private val accountLinks: SmsAccountLinkRepository,
+    private val draftLearning: DraftLearning,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LearnFromHistoryUiState())
@@ -74,8 +72,8 @@ class LearnFromHistoryViewModel @Inject constructor(
         val sources = labels.sources.filter { it.sourceKey in state.sourcePicks }
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                merchants.forEach { merchantMemory.record(it.merchantHint, it.categoryId, it.categoryName, it.typeId) }
-                sources.forEach { accountLinks.learn(it.sourceKey, it.accountId) }
+                merchants.forEach { draftLearning.learnMerchant(it.merchantHint, it.categoryId, it.categoryName, it.typeId) }
+                sources.forEach { draftLearning.learnSourceAccount(it.sourceKey, it.accountId) }
             }
             _uiState.update { it.copy(phase = LearnPhase.Saved, savedCount = merchants.size + sources.size) }
         }

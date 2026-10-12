@@ -63,6 +63,17 @@ class SmsDraftPipeline @Inject constructor(
         return SmsRuleOutcome.Unmatched(parsed, links)
     }
 
+    /**
+     * Account stage for drafts that did not come from [SmsDraftMapper.toDraft] (merchant cache, model). Attaches the
+     * link key so a save still teaches the app, even when no account matches.
+     */
+    fun resolveAccount(
+        draft: TransactionDraft,
+        parsed: ParsedSms?,
+        accounts: List<AccountEntry>,
+        links: SmsAccountLinks,
+    ): TransactionDraft = SmsDraftMapper.withAccountFromSms(draft, parsed, accounts, links)
+
     /** Fills the category from the on-device merchant memory when the merchant has been seen before. */
     suspend fun withCategoryFromMemory(draft: TransactionDraft): TransactionDraft {
         val needsCategory = SmsDraftMapper.needsCategory(draft.typeId)

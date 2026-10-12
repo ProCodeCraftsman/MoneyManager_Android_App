@@ -12,9 +12,8 @@ import com.moneymanager.data.entity.PeerContact
 import com.moneymanager.data.entity.TagEntity
 import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.data.preferences.PreferencesManager
-import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
-import com.moneymanager.data.repository.SmsAccountLinkRepository
 import com.moneymanager.data.repository.DraftEditStatsRepository
+import com.moneymanager.domain.ai.DraftLearning
 import com.moneymanager.domain.account.observeAccountUsage
 import com.moneymanager.domain.capture.CaptureReview
 import com.moneymanager.domain.repository.AccountRepository
@@ -37,8 +36,7 @@ class AddTransactionViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val peerContactRepository: PeerContactRepository,
     private val preferencesManager: PreferencesManager,
-    private val merchantMemory: MerchantCategoryMemoryRepository,
-    private val smsAccountLinks: SmsAccountLinkRepository,
+    private val draftLearning: DraftLearning,
     private val emiDao: com.moneymanager.data.dao.EmiDao,
     private val captureReview: CaptureReview,
     private val draftEditStats: DraftEditStatsRepository,
@@ -177,7 +175,7 @@ class AddTransactionViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val categoryName = uiState.value.categories
                 .firstOrNull { it.id == categoryId }?.name ?: ""
-            merchantMemory.record(merchantHint, categoryId, categoryName, typeId)
+            draftLearning.learnMerchant(merchantHint, categoryId, categoryName, typeId)
         }
     }
 
@@ -185,9 +183,7 @@ class AddTransactionViewModel @Inject constructor(
     // SMS source, so the next message from it needs no account edit. A card repayment's SMS describes the card,
     // which is the destination of the transfer.
     fun recordSmsAccountLink(linkKey: String, tx: TransactionEntity) {
-        val accountId = if (tx.type == "transfer") tx.toAccountId else tx.accountId
-        if (accountId == null) return
-        viewModelScope.launch(Dispatchers.IO) { smsAccountLinks.learn(linkKey, accountId) }
+        viewModelScope.launch(Dispatchers.IO) { draftLearning.learnFromSave(linkKey, tx) }
     }
 
     private suspend fun updatePeerBalance(tx: TransactionEntity, reverse: Boolean) {
