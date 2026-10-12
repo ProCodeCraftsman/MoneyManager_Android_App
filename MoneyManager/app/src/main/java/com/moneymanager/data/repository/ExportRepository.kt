@@ -99,6 +99,10 @@ class ExportRepository @Inject constructor(
         put("smsAccountLinks", JSONObject().apply {
             preferencesManager.getSmsAccountLinks().forEach { (linkKey, accountId) -> put(linkKey, accountId) }
         })
+        // "It's correct" choices from the audit (F08 A2). Losing them would bring back findings the user already closed.
+        put("auditDismissed", JSONArray().apply {
+            preferencesManager.getAuditDismissed().forEach { put(it) }
+        })
     }
 
     private suspend fun exportMerchantMemory(): JSONArray = JSONArray().apply {
@@ -191,6 +195,12 @@ class ExportRepository @Inject constructor(
     private suspend fun importSettings(settings: JSONObject) {
         settings.optJSONObject("smsAccountLinks")?.let { links ->
             try { importSmsAccountLinks(links) } catch (_: Exception) { }
+        }
+        settings.optJSONArray("auditDismissed")?.let { dismissed ->
+            try {
+                val restored = (0 until dismissed.length()).map { dismissed.getString(it) }
+                preferencesManager.setAuditDismissed(preferencesManager.getAuditDismissed() + restored)
+            } catch (_: Exception) { }
         }
         val defaults = settings.optJSONObject("defaultAccounts") ?: return
         defaults.keys().forEach { slotKey ->

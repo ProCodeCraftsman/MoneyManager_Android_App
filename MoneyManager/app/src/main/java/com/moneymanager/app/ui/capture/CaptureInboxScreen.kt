@@ -148,26 +148,22 @@ fun CaptureInboxScreen(
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
-            if (state.rows.isEmpty() && !state.scanning) {
-                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                    Text(
-                        "Nothing to review. Bank and card messages show up here once they are read.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                }
-            } else {
-                InboxList(
-                    rows = state.rows,
-                    currency = state.currency,
-                    onEdit = { row -> onEditDraft(row.draft.copy(captureId = row.ledgerId)) },
-                    onApprove = viewModel::approve,
-                    onReject = viewModel::reject,
-                    onMerge = viewModel::merge,
-                    onKeepBoth = viewModel::keepBoth,
-                    onPickCategory = { categoryFor = it },
-                )
-            }
+            InboxList(
+                rows = state.rows,
+                currency = state.currency,
+                empty = state.rows.isEmpty() && state.audit.isEmpty() && !state.scanning,
+                audit = state.audit,
+                auditChecking = state.auditChecking,
+                onCheck = viewModel::checkEntries,
+                onAuditFix = viewModel::applyAuditFix,
+                onAuditDismiss = viewModel::dismissAudit,
+                onEdit = { row -> onEditDraft(row.draft.copy(captureId = row.ledgerId)) },
+                onApprove = viewModel::approve,
+                onReject = viewModel::reject,
+                onMerge = viewModel::merge,
+                onKeepBoth = viewModel::keepBoth,
+                onPickCategory = { categoryFor = it },
+            )
         }
     }
 
@@ -188,6 +184,12 @@ fun CaptureInboxScreen(
 private fun InboxList(
     rows: List<PendingCapture>,
     currency: String,
+    empty: Boolean,
+    audit: List<AuditItem>,
+    auditChecking: Boolean,
+    onCheck: () -> Unit,
+    onAuditFix: (AuditItem) -> Unit,
+    onAuditDismiss: (AuditItem) -> Unit,
     onEdit: (PendingCapture) -> Unit,
     onApprove: (PendingCapture) -> Unit,
     onReject: (PendingCapture) -> Unit,
@@ -198,6 +200,38 @@ private fun InboxList(
     val zone = ZoneId.systemDefault()
     val byDay = rows.groupBy { Instant.ofEpochMilli(it.messageDate).atZone(zone).toLocalDate() }
     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+        item(key = "audit-header") {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Check these",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onCheck, enabled = !auditChecking) {
+                    Text(if (auditChecking) "Checking…" else "Check now")
+                }
+            }
+        }
+        items(audit, key = { it.finding.fingerprint }) { item ->
+            AuditRow(
+                item = item,
+                onFix = { onAuditFix(item) },
+                onDismiss = { onAuditDismiss(item) },
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        if (empty) {
+            item(key = "empty") {
+                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        "Nothing to review. Bank and card messages show up here once they are read.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+            }
+        }
         byDay.forEach { (day, dayRows) ->
             item(key = "day-$day") {
                 Text(
@@ -280,6 +314,28 @@ private fun InboxRow(
                     TextButton(onClick = onMerge) { Text("Merge") }
                     TextButton(onClick = onKeepBoth) { Text("Keep both") }
                 }
+            }
+        }
+    }
+}
+
+/** A "Check these" card. Nothing changes until the user taps the fix or "It's correct". */
+@Composable
+private fun AuditRow(item: AuditItem, onFix: () -> Unit, onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(
+                item.detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item.fixLabel?.let { label -> TextButton(onClick = onFix) { Text(label) } }
+                TextButton(onClick = onDismiss) { Text("It's correct") }
             }
         }
     }

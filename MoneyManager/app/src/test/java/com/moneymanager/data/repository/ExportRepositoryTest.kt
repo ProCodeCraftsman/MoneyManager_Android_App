@@ -99,6 +99,7 @@ class ExportRepositoryTest {
         runBlocking {
             `when`(preferencesManager.getDefaultAccounts()).thenReturn(emptyMap())
             `when`(preferencesManager.getSmsAccountLinks()).thenReturn(emptyMap())
+            `when`(preferencesManager.getAuditDismissed()).thenReturn(emptySet())
             `when`(merchantMemoryDao.getAll()).thenReturn(emptyList())
             `when`(capturedMessageDao.getAll()).thenReturn(emptyList())
         }

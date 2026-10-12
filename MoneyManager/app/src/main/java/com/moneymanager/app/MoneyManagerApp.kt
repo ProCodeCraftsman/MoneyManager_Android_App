@@ -5,6 +5,7 @@ import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import com.moneymanager.app.ui.util.AppLockManager
 import com.moneymanager.data.ai.DeviceCapabilityManager
+import com.moneymanager.data.audit.AuditScheduler
 import com.moneymanager.data.capture.CaptureReminderScheduler
 import com.moneymanager.data.backup.BackupScheduler
 import com.moneymanager.data.seed.CategorySeeder
@@ -29,6 +30,7 @@ class MoneyManagerApp : Application(), Configuration.Provider {
     @Inject lateinit var emiPostingScheduler: EmiPostingScheduler
     @Inject lateinit var categoryRepository: CategoryRepository
     @Inject lateinit var captureReminderScheduler: CaptureReminderScheduler
+    @Inject lateinit var auditScheduler: AuditScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -49,6 +51,8 @@ class MoneyManagerApp : Application(), Configuration.Provider {
             recurringScheduler.schedule()
             emiPostingScheduler.schedule()
             captureReminderScheduler.reschedule()
+            // The findings are only shown in the SMS inbox, so the nightly check runs in that build alone.
+            if (BuildConfig.SMS_CAPTURE) auditScheduler.schedule()
         }
     }
 }

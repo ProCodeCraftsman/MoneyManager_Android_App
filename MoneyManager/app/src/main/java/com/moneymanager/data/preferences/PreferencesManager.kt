@@ -430,6 +430,22 @@ class PreferencesManager(private val context: Context) {
         context.dataStore.edit { it[CAPTURE_BATTERY_TIP_SHOWN] = true }
     }
 
+    /** Fingerprints of audit findings the user marked "It's correct" (F08 A2). Backed up in the JSON settings block. */
+    val auditDismissed: Flow<Set<String>> = context.dataStore.data.map { it[AUDIT_DISMISSED] ?: emptySet() }
+
+    suspend fun getAuditDismissed(): Set<String> = context.dataStore.data.first()[AUDIT_DISMISSED] ?: emptySet()
+
+    suspend fun setAuditDismissed(fingerprints: Set<String>) {
+        context.dataStore.edit { it[AUDIT_DISMISSED] = fingerprints }
+    }
+
+    /** The findings the inbox shows, as JSON, written by the audit worker. A cache: recomputed on every run, not backed up. */
+    val auditFindingsJson: Flow<String?> = context.dataStore.data.map { it[AUDIT_FINDINGS] }
+
+    suspend fun setAuditFindingsJson(json: String) {
+        context.dataStore.edit { it[AUDIT_FINDINGS] = json }
+    }
+
     /** Per-source draft edit counts (AI-014), serialized by DraftEditStatsRepository. Field names only, no values. */
     suspend fun getDraftEditStatsJson(): String? = context.dataStore.data.first()[DRAFT_EDIT_STATS]
 
@@ -445,4 +461,6 @@ private val CAPTURE_REMINDERS_ENABLED = booleanPreferencesKey("capture_reminders
 private val CAPTURE_BANNER_DISMISSED_DAY = longPreferencesKey("capture_banner_dismissed_day")
 private val CAPTURE_BANNER_HIDDEN = booleanPreferencesKey("capture_banner_hidden")
 private val CAPTURE_BATTERY_TIP_SHOWN = booleanPreferencesKey("capture_battery_tip_shown")
+private val AUDIT_DISMISSED = stringSetPreferencesKey("audit_dismissed")
+private val AUDIT_FINDINGS = stringPreferencesKey("audit_findings")
 private val DRAFT_EDIT_STATS = stringPreferencesKey("draft_edit_stats")
