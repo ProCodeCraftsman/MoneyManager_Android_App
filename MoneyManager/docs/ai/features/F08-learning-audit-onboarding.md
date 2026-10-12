@@ -98,7 +98,7 @@ Non-goals:
 | L1 | SMS ↔ transaction join engine (pure) + coverage figure | Unit tests on scrubbed fixtures; on the phone: labels found, coverage recorded here (counts only) | Built (9 unit tests; not run on the phone) |
 | L2 | "Learned from your history" confirm screen, writes memory + links | Phone: memory filled; next F07 scan shows the learned share of categories | Built (screen not seen on the phone) |
 | L4 | Merchant key normalisation with alias read | Unit tests over real-shaped keys (scrubbed) | Built (`MerchantKey`, 7 + 4 unit tests; not on the phone) |
-| A1 | Deterministic checks A1–A8 (pure) | Unit tests per check incl. the daily-tea repeat case | Not started |
+| A1 | Deterministic checks A1–A8 (pure) | Unit tests per check incl. the daily-tea repeat case | Built (`AuditChecks`, 17 unit tests; wiring in A2) |
 | A2 | Audit worker + "Check these" section + dismiss fingerprints + backup of dismissals | Phone: 2 weeks, findings precision logged | Not started |
 | L3 | Teach screen with batched model suggestions | Parser tests; phone | Not started |
 | L5 | Correction-aware memory (needs AI-014) | Unit tests | Not started |
@@ -130,3 +130,4 @@ Everything.
 - 2026-10-11 (L1 built): the join reads the last 6 months of SMS (newest 5,000) through the same rules-only classifier as the scanner, and writes nothing. Coverage counts non-cash bank, card, savings and transfer rows only.
 - 2026-10-11 (L2 built): the confirm screen pre-ticks only labels that are unanimous with at least 3 agreeing pairs. Everything else starts unticked. Only ticked labels are written (merchant memory via `record`, account links via `learn`). The entry is the existing AI tile stack, gated on `BuildConfig.SMS_CAPTURE` so the play build never shows it.
 - 2026-10-12 (L4 built): one key for memory, history and the join (`MerchantKey.canonical`). No migration: writes use the canonical key, reads try it and then the legacy key. Existing rows whose legacy key differs from the canonical one stay where they are; a new save under the canonical key adds a second row, and the canonical row wins on lookup.
+- 2026-10-12 (A1 built): checks are pure over `AuditTxn` rows that AI-074 fills. Deviations from the table above: A2's category check is per transaction (p95 of 10+ rows, 5x), not per month; A4 recency and A8 age use `createdAt` because the transaction row has no `updatedAt`, so an edit does not re-open a row; A5 skips a same-amount merchant that repeats on 3+ distinct days; A6 compares only when the SMS balance is not older than the account's newest row; A8 covers the no-category case only (needsReview is not stored on the row).
