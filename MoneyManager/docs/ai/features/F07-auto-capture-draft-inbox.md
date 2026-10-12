@@ -1,6 +1,6 @@
 # F07 Automatic capture and draft inbox
 
-State: In progress (E1 done, E2 built, E4 built) | Packages: `app/src/personal` (new flavor), `domain/ai`, `domain/sms`, `data/` (ledger table), `app/ui/capture` (new hub + inbox), `app/ui/aidraft` | Depends on: F01, F04 (AI-010), F06. Learning and audit on top of this: F08.
+State: In progress (E1 done, E2 built, E4 built, E5 to E7 built with gaps, see phases) | Packages: `app/src/personal` (new flavor), `domain/ai`, `domain/sms`, `data/` (ledger table), `app/ui/capture` (new hub + inbox), `app/ui/aidraft` | Depends on: F01, F04 (AI-010), F06. Learning and audit on top of this: F08.
 
 ## Goal and non-goals
 Goal: bank, card and UPI SMS become reviewable drafts (amount, account, category, date, short note) without copy-paste. Duplicates of one spend collapse into one draft. The user clears the day's drafts in seconds, in bulk or one by one. Non-goals: auto-saving (policy stays review, see F04), shipping `READ_SMS`/`RECEIVE_SMS` in the Play release.
@@ -10,7 +10,7 @@ What decides success, in order: capture completeness, zero duplicates, learned m
 ## Current state
 - No automatic capture. `SmsPickerScreen` reads the inbox (latest 50), but `READ_SMS` is declared only in `app/src/debug`.
 - Drafts are navigation arguments, never persisted. `captured_messages` (E2) has a writer now: the inbox scanner (E4), rules only, no UI yet.
-- The AI entry point is a dropdown on `TransactionsScreen` (SMS, receipt, voice).
+- The AI entry point is the **Add from…** hub (AI-056) on `TransactionsScreen`; the old dropdown is gone. The inbox, account sources and edit stats are reached from there.
 - Learning on save exists: `AddTransactionViewModel.recordMerchantCategory` and `recordSmsAccountLink`. It is the only writer of merchant memory: `AiAgent` no longer records the model's category before the user saves (AI-006, fixed 2026-10-11).
 - DB is SQLCipher-encrypted with a Keystore-bound key (see Risks).
 
@@ -94,9 +94,9 @@ Trigger (app open | reminder worker | manual "Scan now")
 | E2 | `captured_messages` table (ledger and pending draft in one), migration 18->19, JSON/Drive + CSV backup of it plus learned SMS links and merchant memory (AI-013) | Round-trip tests; migration applied on the phone with the JSON backup in hand | Built (unit tests; migration not yet run on the device) |
 | E3 | Share-sheet target feeding the draft flow | Unit tests + phone | Not started |
 | E4 | `personal` flavor + inbox scanner (cursor window, anchor fallback, caps), rules only, writes pending ledger rows | Scanner unit tests incl. out-of-order and no-cursor cases; merged release manifest has no SMS permission; phone | Built (9 scanner/planner unit tests; play release manifest has no SMS permission; not run on the phone: no trigger yet, arrives with AI-058) |
-| E5 | Semantic dedup (F06 D1 + ref matching + transfer pairing, against manual/recurring/EMI) | Unit tests incl. repeat-payment cases | Not started |
-| E6 | Account Sources screen (map / create account) + balance cross-check | Phone, real sources | Not started |
-| E7 | Capture hub screen (replaces the dropdown) + draft inbox with the bulk-approve rules, inline category fix, reject / always-ignore, undo | Phone: a week of real use, zero duplicate drafts, daily review under 10 s | Not started |
+| E5 | Semantic dedup (F06 D1 + ref matching + transfer pairing, against manual/recurring/EMI) | Unit tests incl. repeat-payment cases | Built (AI-054, 2026-10-12): ref, saved, pending and uncertain matches; 11 dedup + 4 scanner unit tests. Not built: transfer pairing, check at save time. Not on the phone |
+| E6 | Account Sources screen (map / create account) + balance cross-check | Phone, real sources | Built (AI-055, 2026-10-12): map or create, applied to pending drafts; grouping unit-tested. Balance cross-check not built. Not on the phone |
+| E7 | Capture hub screen (replaces the dropdown) + draft inbox with the bulk-approve rules, inline category fix, reject / always-ignore, undo | Phone: a week of real use, zero duplicate drafts, daily review under 10 s | Built (AI-056, 2026-10-12): hub, inbox, bulk approve of ready rows, undo, reject, merge / keep both, category fix. Not built: always-ignore, paste-text tile. Not on the phone |
 | E8 | Scan on app open + home banner with dismiss / don't show | Phone | Not started |
 | E9 | Noon / evening reminder worker: scan first, notify only if count > 0, reboot reschedule, notification permission, battery tip | Notifications seen on the S24 over 3 days | Not started |
 | E10 | Model best-guess for missing fields, batched after scan (multiple choice, verify, timeout, parser tests) | Unit tests; E2B check on phone; kill rule from AI-004 respected | Not started |
@@ -147,3 +147,9 @@ Everything.
 - 2026-10-11: the model's category guess must not be written to merchant memory before the user saves (AI-006); memory learns from saves only (README principle 5).
 - 2026-10-11 (E4 built): the window is read oldest first, not newest first as first planned. A capped newest-first read would leave the cursor past messages it never read; oldest first with the cursor at the last message read cannot skip anything. The anchor walk (no cursor) stays newest first, because it has to stop early.
 - 2026-10-11 (E4 built): the `personal` flavor shares the `com.moneymanager.app` applicationId with `play`, so switching builds keeps the data. `play` is the default flavor; `personal` gets the READ_SMS manifest and the real `SmsInbox`, while `play` binds an inbox that always returns nothing.
+- 2026-10-12 (E5 built): dedup order is reference number, then saved transactions, then pending drafts, then uncertain. A saved match needs the same type, amount within 48 h, the same account (or an unknown draft account) and a merchant match of at least four letters. Amount and window without a merchant match are shown as "maybe duplicate", never hidden. A saved transaction can be claimed by one ledger row only, so repeat payments do not hide each other.
+- 2026-10-12 (E5 gap): transfer pairing (own-account debit and credit as one transfer) is not built. Without it, both sides of an own-account move appear as separate drafts.
+- 2026-10-12 (E6 built): sources are mapped by the existing SMS account links (`PreferencesManager`), not a new table. A created account opens at zero; the balance cross-check needs the SMS balance kept on the draft, which is not built.
+- 2026-10-12 (E7 built): only expense and income rows with a category, an account, no flags and no open duplicate question are approved in bulk. Transfers, lend/borrow and anything with a flag always need a look. Undo covers the last approve action only; it deletes the created transactions, reverses their balances, and puts the rows back in the inbox.
+- 2026-10-12 (E7 gap): the always-ignore list and the paste-text tile are not built. The SMS tile opens the inbox, which scans on open; there is no separate scan step before it.
+- 2026-10-12 (AI-014 built): edit tracking stores field names and counts per source in DataStore, not in Room, so it needs no migration and is not in backups. Only saves from a capture source are counted.

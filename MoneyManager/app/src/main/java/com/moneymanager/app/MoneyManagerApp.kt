@@ -5,6 +5,7 @@ import androidx.work.Configuration
 import androidx.hilt.work.HiltWorkerFactory
 import com.moneymanager.app.ui.util.AppLockManager
 import com.moneymanager.data.ai.DeviceCapabilityManager
+import com.moneymanager.data.capture.CaptureReminderScheduler
 import com.moneymanager.data.backup.BackupScheduler
 import com.moneymanager.data.seed.CategorySeeder
 import com.moneymanager.data.worker.EmiPostingScheduler
@@ -27,6 +28,7 @@ class MoneyManagerApp : Application(), Configuration.Provider {
     @Inject lateinit var recurringScheduler: RecurringScheduler
     @Inject lateinit var emiPostingScheduler: EmiPostingScheduler
     @Inject lateinit var categoryRepository: CategoryRepository
+    @Inject lateinit var captureReminderScheduler: CaptureReminderScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -46,6 +48,7 @@ class MoneyManagerApp : Application(), Configuration.Provider {
             backupScheduler.initialize()
             recurringScheduler.schedule()
             emiPostingScheduler.schedule()
+            captureReminderScheduler.reschedule()
         }
     }
 }

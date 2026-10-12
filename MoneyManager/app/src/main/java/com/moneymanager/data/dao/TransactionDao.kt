@@ -256,6 +256,19 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions WHERE ABS(amount - :amount) < 0.005 AND date BETWEEN :from AND :to AND isSplitParent = 0")
     suspend fun countNearAmount(amount: Double, from: Long, to: Long): Int
 
+    /**
+     * Candidates for SMS duplicate checks (AI-054): not split children, and not already claimed by a captured
+     * message, so one saved spend can absorb at most one SMS.
+     */
+    @Query("""
+        SELECT * FROM transactions
+        WHERE ABS(amount - :amount) < 0.005 AND date BETWEEN :from AND :to
+          AND isSplitChild = 0
+          AND id NOT IN (SELECT transactionId FROM captured_messages WHERE transactionId IS NOT NULL)
+        ORDER BY date
+    """)
+    suspend fun findUnclaimedNearAmount(amount: Double, from: Long, to: Long): List<TransactionEntity>
+
     /** Saved rows with their account type and category name, for matching against SMS (F08 L1). Split parents are skipped; their children carry the amounts. */
     @Query("""
         SELECT t.id AS id, t.type AS type, t.amount AS amount, t.date AS date,

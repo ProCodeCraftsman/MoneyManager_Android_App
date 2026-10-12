@@ -12,7 +12,9 @@ import com.moneymanager.data.backup.DriveAuthState
 import com.moneymanager.data.backup.DriveBackupKeyManager
 import com.moneymanager.data.backup.DriveBackupManager
 import com.moneymanager.data.backup.EncryptionHelper
+import com.moneymanager.data.capture.CaptureReminderScheduler
 import com.moneymanager.data.preferences.PreferencesManager
+import com.moneymanager.domain.capture.SmsInbox
 import com.moneymanager.data.repository.ExportRepository
 import com.moneymanager.data.repository.ExportType
 import com.moneymanager.data.repository.ExportResult
@@ -28,6 +30,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -51,7 +54,17 @@ class SettingsViewModel @Inject constructor(
     private val backupScheduler: BackupScheduler,
     private val categoryRepository: CategoryRepository,
     private val localBackupManager: com.moneymanager.data.backup.LocalBackupManager,
+    private val smsInbox: SmsInbox,
+    private val captureReminderScheduler: CaptureReminderScheduler,
 ) : ViewModel() {
+
+    /** False in builds that cannot read the inbox (play); the reminder row is then hidden. */
+    val captureInboxAvailable: Boolean = smsInbox.isAvailable
+    val captureRemindersEnabled: StateFlow<Boolean> = preferencesManager.captureRemindersEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private val _captureBatteryTip = MutableStateFlow(false)
+    val captureBatteryTip: StateFlow<Boolean> = _captureBatteryTip
 
     private val importResult = MutableStateFlow<ImportResult?>(null)
     private val exportResult = MutableStateFlow<ExportResult?>(null)
@@ -203,6 +216,22 @@ class SettingsViewModel @Inject constructor(
 
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch { preferencesManager.setBiometricEnabled(enabled) }
+    }
+
+    /** Callers must have READ_SMS and notification permission first; the screen asks for both. */
+    fun setCaptureRemindersEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setCaptureRemindersEnabled(enabled)
+            captureReminderScheduler.reschedule()
+            if (enabled && !preferencesManager.isCaptureBatteryTipShown()) {
+                preferencesManager.setCaptureBatteryTipShown()
+                _captureBatteryTip.value = true
+            }
+        }
+    }
+
+    fun dismissCaptureBatteryTip() {
+        _captureBatteryTip.value = false
     }
 
     fun setAutoLockMinutes(minutes: Int) {

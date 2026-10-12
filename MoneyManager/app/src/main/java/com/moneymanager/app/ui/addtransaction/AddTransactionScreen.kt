@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.moneymanager.app.ui.dialogs.AddEditTransactionDialog
 import com.moneymanager.domain.ai.TransactionDraft
+import com.moneymanager.domain.capture.DraftEdits
 
 @Composable
 fun AddTransactionScreen(
@@ -39,8 +40,12 @@ fun AddTransactionScreen(
             initialDraft = initialDraft,
             onDraftDismiss = onDraftDismiss,
             onConfirm = { tx, children ->
-                if (children != null) viewModel.addSplitTransaction(tx, children)
-                else viewModel.addTransaction(tx)
+                if (children != null) viewModel.addSplitTransaction(tx, children, initialDraft?.captureId)
+                else viewModel.addTransaction(tx, initialDraft?.captureId)
+                // Edit tracking (AI-014): only drafts from a capture source are counted.
+                if (initialDraft?.sourceType != null) {
+                    viewModel.recordDraftSave(initialDraft.sourceType, DraftEdits.changedFields(initialDraft, tx))
+                }
                 // Correction learning: record what the user actually saved so future
                 // same-merchant lookups reflect real preferences, not just AI guesses.
                 val hint = initialDraft?.merchantHint

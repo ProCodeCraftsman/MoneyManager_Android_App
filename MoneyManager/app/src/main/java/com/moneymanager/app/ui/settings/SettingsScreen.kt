@@ -37,6 +37,7 @@ import com.moneymanager.app.ui.components.ScrollToTopBox
 import com.moneymanager.app.ui.settings.backup.DriveBackupSection
 import com.moneymanager.app.ui.theme.AppTheme
 import com.moneymanager.app.ui.util.Permissions
+import android.os.Build
 import com.moneymanager.data.repository.ExportType
 import java.text.SimpleDateFormat
 import java.util.*
@@ -314,6 +315,58 @@ fun SettingsScreen(
                         },
                         onClick = onNavigateToAiHistory
                     )
+                }
+
+                if (viewModel.captureInboxAvailable) {
+                    item {
+                        val remindersEnabled by viewModel.captureRemindersEnabled.collectAsStateWithLifecycle()
+                        val showBatteryTip by viewModel.captureBatteryTip.collectAsStateWithLifecycle()
+                        val permissionLauncher = rememberLauncherForActivityResult(
+                            ActivityResultContracts.RequestMultiplePermissions()
+                        ) { results ->
+                            if (results.values.all { it }) viewModel.setCaptureRemindersEnabled(true)
+                        }
+
+                        SettingsRow(
+                            icon = Icons.Default.NotificationsActive,
+                            title = "SMS spend reminders",
+                            subtitle = "Noon and 9 pm, only when bank SMS spends are waiting. Set the app's battery to Unrestricted for reliable timing.",
+                            trailing = {
+                                Switch(
+                                    checked = remindersEnabled,
+                                    onCheckedChange = { wantOn ->
+                                        if (!wantOn) {
+                                            viewModel.setCaptureRemindersEnabled(false)
+                                        } else {
+                                            val needed = buildList {
+                                                add(Permissions.READ_SMS)
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                                    add(android.Manifest.permission.POST_NOTIFICATIONS)
+                                                }
+                                            }
+                                            permissionLauncher.launch(needed.toTypedArray())
+                                        }
+                                    }
+                                )
+                            }
+                        )
+
+                        if (showBatteryTip) {
+                            AlertDialog(
+                                onDismissRequest = viewModel::dismissCaptureBatteryTip,
+                                title = { Text("Keep reminders on time") },
+                                text = {
+                                    Text(
+                                        "Samsung can stop background work. Set this app's battery to Unrestricted " +
+                                            "and turn off \"Put unused apps to sleep\". The app also scans every time you open it."
+                                    )
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = viewModel::dismissCaptureBatteryTip) { Text("OK") }
+                                },
+                            )
+                        }
+                    }
                 }
 
                 item {

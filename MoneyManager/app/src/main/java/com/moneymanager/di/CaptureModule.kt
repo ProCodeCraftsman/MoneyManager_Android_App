@@ -1,6 +1,7 @@
 package com.moneymanager.di
 
 import com.moneymanager.data.repository.CaptureRepository
+import com.moneymanager.domain.capture.CaptureReview
 import com.moneymanager.domain.capture.CaptureStore
 import com.moneymanager.domain.learn.SavedHistory
 import dagger.Binds
@@ -15,6 +16,9 @@ abstract class CaptureModule {
 
     @Binds
     abstract fun bindCaptureStore(impl: CaptureRepository): CaptureStore
+
+    @Binds
+    abstract fun bindCaptureReview(impl: CaptureRepository): CaptureReview
 
     @Binds
     abstract fun bindSavedHistory(impl: CaptureRepository): SavedHistory

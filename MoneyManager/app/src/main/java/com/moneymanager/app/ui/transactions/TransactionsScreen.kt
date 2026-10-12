@@ -1,6 +1,5 @@
 package com.moneymanager.app.ui.transactions
 
-import android.speech.SpeechRecognizer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
@@ -93,6 +92,9 @@ import com.moneymanager.app.ui.components.TransactionsFilterControlsSheet
 import com.moneymanager.app.ui.dialogs.AddEditTransactionDialog
 import com.moneymanager.app.ui.transactions.components.AiDownloadConsentDialog
 import com.moneymanager.app.ui.transactions.components.DownloadProgressBanner
+import com.moneymanager.app.ui.capture.CaptureBanner
+import com.moneymanager.app.ui.capture.CaptureBannerViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.moneymanager.app.ui.transactions.components.TransactionItem
 import com.moneymanager.app.ui.dialogs.SplitRowData
 import com.moneymanager.app.ui.util.CurrencyUtils
@@ -117,12 +119,11 @@ fun TransactionsScreen(
     initialCategoryId: Long? = null,
     initialPeerId: Long? = null,
     isAiAssistAvailable: Boolean = false,
-    onNavigateToAiDraftSms: () -> Unit = {},
-    onNavigateToAiDraftReceipt: () -> Unit = {},
-    onNavigateToAiDraftVoice: () -> Unit = {},
-    onNavigateToLearnFromHistory: () -> Unit = {}
+    onNavigateToAddFrom: () -> Unit = {},
+    captureBannerViewModel: CaptureBannerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val captureBanner by captureBannerViewModel.state.collectAsStateWithLifecycle()
 
     // Download consent + progress state (Phase 40 — additive)
     val showDownloadConsent by viewModel.showDownloadConsentDialog.collectAsStateWithLifecycle()
@@ -168,7 +169,6 @@ fun TransactionsScreen(
     val isScrolled by remember {
         derivedStateOf { lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 50 }
     }
-    var aiDraftExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(initialType != null) }
     var editingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var viewingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
@@ -313,7 +313,6 @@ fun TransactionsScreen(
     }
 
     LaunchedEffect(showAddDialog) {
-        if (showAddDialog) aiDraftExpanded = false
     }
 
     val activeFilterCount = listOfNotNull(
@@ -492,56 +491,15 @@ fun TransactionsScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = Alignment.End
             ) {
-                if (isAiAssistAvailable) {
-                    AnimatedVisibility(
-                        visible = aiDraftExpanded,
-                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SmallFloatingActionButton(
-                                onClick = { onNavigateToAiDraftSms(); aiDraftExpanded = false },
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ) {
-                                Icon(Icons.Default.Sms, contentDescription = "AI Draft from SMS")
-                            }
-                            if (uiState.imageAttachmentsEnabled) {
-                                SmallFloatingActionButton(
-                                    onClick = { onNavigateToAiDraftReceipt(); aiDraftExpanded = false },
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                ) {
-                                    Icon(Icons.Default.Receipt, contentDescription = "AI Draft from Receipt")
-                                }
-                            }
-                            if (SpeechRecognizer.isRecognitionAvailable(LocalContext.current)) {
-                                SmallFloatingActionButton(
-                                    onClick = { onNavigateToAiDraftVoice(); aiDraftExpanded = false },
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                ) {
-                                    Icon(Icons.Default.Mic, contentDescription = "AI Draft from Voice")
-                                }
-                            }
-                            if (BuildConfig.SMS_CAPTURE) {
-                                SmallFloatingActionButton(
-                                    onClick = { onNavigateToLearnFromHistory(); aiDraftExpanded = false },
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                ) {
-                                    Icon(Icons.Default.History, contentDescription = "Learn from history")
-                                }
-                            }
-                        }
-                    }
+                // AI-056: one entry point for SMS, receipt, voice and history tools; the inbox needs no model.
+                if (isAiAssistAvailable || BuildConfig.SMS_CAPTURE) {
                     FloatingActionButton(
-                        onClick = { aiDraftExpanded = !aiDraftExpanded },
+                        onClick = onNavigateToAddFrom,
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                         shape = CircleShape
                     ) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = "AI Draft Options")
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Add from")
                     }
                 }
                 FloatingActionButton(
@@ -604,6 +562,15 @@ fun TransactionsScreen(
                                 progress = downloadProgress,
                                 captionText = downloadProgressCaption,
                                 percentText = downloadProgressPercent
+                            )
+                        }
+
+                        // AI-058: "N new from SMS" banner, scrolls away like the download banner
+                        item(key = "capture_banner") {
+                            CaptureBanner(
+                                state = captureBanner,
+                                onDismissForToday = captureBannerViewModel::dismissForToday,
+                                onDontShowAgain = captureBannerViewModel::dontShowAgain
                             )
                         }
 

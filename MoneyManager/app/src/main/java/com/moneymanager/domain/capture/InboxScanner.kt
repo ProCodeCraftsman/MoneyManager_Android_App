@@ -13,11 +13,14 @@ data class ScanReport(
     val unmatched: Int,
     val notTransactions: Int,
     val capped: Boolean,
+    val duplicates: Int = 0,
 )
 
 /**
- * Reads the inbox window, runs the model-free SMS stages on each message and writes pending ledger rows for
- * verified rule matches (F07 E4). Unmatched messages are left for the interactive flow; no model runs here.
+ * Reads the inbox window, runs the model-free SMS stages on each message and writes ledger rows for verified rule
+ * matches (F07 E4). A draft that is the same spend as one already recorded is stored as saved or merged and is not
+ * shown; an uncertain one is shown with a "possible duplicate" flag (F07 E5). Unmatched messages are left for the
+ * interactive flow; no model runs here.
  *
  * Messages in the cursor window are read oldest first. If the cap cuts the window short, the cursor stops at the
  * last message read, so the next scan picks up where this one ended and nothing older is skipped.
@@ -38,6 +41,7 @@ class InboxScanner(
         var alreadyCaptured = 0
         var unmatched = 0
         var notTransactions = 0
+        var duplicates = 0
         var knownRun = 0
         var newestProcessed: Long? = null
 
@@ -52,17 +56,17 @@ class InboxScanner(
                     is SmsRuleOutcome.NotATransaction -> notTransactions++
                     is SmsRuleOutcome.Draft -> {
                         val draft = outcome.draft.copy(sourceType = SOURCE_TYPE)
-                        val row = CapturedMessageEntity(
-                            messageHash = hash,
-                            refHash = outcome.reference?.let { CaptureHash.reference(it) },
-                            amount = draft.amount,
-                            messageDate = message.date,
-                            sourceKey = draft.accountLink,
-                            draftJson = JSON.encodeToString(TransactionDraft.serializer(), draft),
-                        )
-                        if (store.insertPending(row)) {
-                            newDrafts++
-                            knownRun = if (store.hasSavedTransactionNear(draft.amount ?: 0.0, message.date)) knownRun + 1 else 0
+                        val refHash = outcome.reference?.let { CaptureHash.reference(it) }
+                        val verdict = verdictFor(draft, refHash, message.date)
+                        val row = rowFor(hash, refHash, draft, message.date, verdict)
+                        if (store.insertRow(row)) {
+                            when (verdict) {
+                                is DedupVerdict.New, is DedupVerdict.Uncertain -> newDrafts++
+                                is DedupVerdict.SavedMatch, is DedupVerdict.PendingMatch -> duplicates++
+                            }
+                            val amount = draft.amount ?: 0.0
+                            val known = verdict !is DedupVerdict.New || store.hasSavedTransactionNear(amount, message.date)
+                            knownRun = if (known) knownRun + 1 else 0
                         } else {
                             alreadyCaptured++
                             knownRun++
@@ -90,8 +94,53 @@ class InboxScanner(
             unmatched = unmatched,
             notTransactions = notTransactions,
             capped = messages.size >= CaptureScanPlanner.MAX_MESSAGES,
+            duplicates = duplicates,
         )
     }
+
+    private suspend fun verdictFor(draft: TransactionDraft, refHash: String?, receivedAt: Long): DedupVerdict {
+        val amount = draft.amount
+        val date = draft.date ?: receivedAt
+        val dedupDraft = DedupDraft(draft.typeId, amount ?: 0.0, date, draft.accountId, draft.merchantHint)
+        return CaptureDedup.classify(
+            draft = dedupDraft,
+            ref = refHash?.let { store.ledgerRowWithRef(it) },
+            savedNear = amount?.let { store.savedCandidatesNear(it, date) }.orEmpty(),
+            pendingNear = amount?.let { store.pendingCandidatesNear(it, date) }.orEmpty(),
+        )
+    }
+
+    private fun rowFor(
+        hash: String,
+        refHash: String?,
+        draft: TransactionDraft,
+        messageDate: Long,
+        verdict: DedupVerdict,
+    ): CapturedMessageEntity {
+        val base = CapturedMessageEntity(
+            messageHash = hash,
+            refHash = refHash,
+            amount = draft.amount,
+            messageDate = messageDate,
+            sourceKey = draft.accountLink,
+        )
+        return when (verdict) {
+            is DedupVerdict.New -> base.copy(draftJson = encode(draft))
+            is DedupVerdict.Uncertain -> base.copy(
+                draftJson = encode(draft.copy(flags = draft.flags + "${CaptureFlags.MAYBE_DUPLICATE}${verdict.transactionId}")),
+            )
+            is DedupVerdict.SavedMatch -> base.copy(
+                status = CapturedMessageEntity.STATUS_SAVED,
+                transactionId = verdict.transactionId,
+            )
+            is DedupVerdict.PendingMatch -> base.copy(
+                status = CapturedMessageEntity.STATUS_MERGED,
+                mergedIntoId = verdict.ledgerId,
+            )
+        }
+    }
+
+    private fun encode(draft: TransactionDraft): String = JSON.encodeToString(TransactionDraft.serializer(), draft)
 
     private companion object {
         const val SOURCE_TYPE = "SMS"

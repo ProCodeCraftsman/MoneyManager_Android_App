@@ -36,6 +36,15 @@ interface CapturedMessageDao {
     @Query("SELECT * FROM captured_messages WHERE status = 'pending' ORDER BY messageDate DESC")
     fun observePending(): Flow<List<CapturedMessageEntity>>
 
+    @Query("SELECT COUNT(*) FROM captured_messages WHERE status = 'pending'")
+    fun observePendingCount(): Flow<Int>
+
+    @Query("SELECT * FROM captured_messages WHERE status = 'pending' ORDER BY messageDate DESC")
+    suspend fun getPending(): List<CapturedMessageEntity>
+
+    @Query("UPDATE captured_messages SET draftJson = :draftJson, updatedAt = :now WHERE id = :id")
+    suspend fun updateDraftJson(id: Long, draftJson: String, now: Long = System.currentTimeMillis())
+
     @Query("SELECT * FROM captured_messages ORDER BY id")
     suspend fun getAll(): List<CapturedMessageEntity>
 

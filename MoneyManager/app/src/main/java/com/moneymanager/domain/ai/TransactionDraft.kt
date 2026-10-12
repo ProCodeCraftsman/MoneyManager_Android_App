@@ -36,6 +36,8 @@ data class TransactionDraft(
     val flags: List<String> = emptyList(),
     // Which SMS account source this draft came from (SmsAccountLinks.keyFor); lets a save teach the app the link.
     val accountLink: String? = null,
+    // Ledger row of a captured SMS draft opened from the inbox; saving the draft closes that row (AI-056).
+    val captureId: Long? = null,
 ) : Parcelable {
     fun isHighConfidence(): Boolean {
         if (needsReview) return false

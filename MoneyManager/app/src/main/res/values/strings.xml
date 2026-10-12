@@ -79,4 +79,15 @@
     <string name="backup_failed_generic">An error occurred during backup. Tap to try again.</string>
     <string name="backup_notification_channel_name">Backup status</string>
     <string name="backup_notification_channel_description">Notifications about backup success or failure</string>
+    <string name="capture_reminder_channel_name">SMS spend reminders</string>
+    <string name="capture_reminder_channel_description">Noon and evening reminder when bank SMS spends are waiting for review</string>
+    <plurals name="capture_reminder_title">
+        <item quantity="one">1 new spend to review</item>
+        <item quantity="other">%d new spends to review</item>
+    </plurals>
+    <plurals name="capture_banner_title">
+        <item quantity="one">1 new from SMS</item>
+        <item quantity="other">%d new from SMS</item>
+    </plurals>
+    <string name="capture_reminder_text">Open Money Manager to approve or fix them.</string>
 </resources>

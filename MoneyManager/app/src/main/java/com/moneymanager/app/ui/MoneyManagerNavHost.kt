@@ -38,6 +38,10 @@ import com.moneymanager.app.ui.addtransaction.AddTransactionScreen
 import com.moneymanager.app.ui.aidraft.AiDraftViewModel
 import com.moneymanager.app.ui.aidraft.AiHistoryScreen
 import com.moneymanager.app.ui.learn.LearnFromHistoryScreen
+import com.moneymanager.app.ui.capture.AccountSourcesScreen
+import com.moneymanager.app.ui.capture.AddFromScreen
+import com.moneymanager.app.ui.capture.CaptureInboxScreen
+import com.moneymanager.app.ui.capture.DraftEditStatsScreen
 import com.moneymanager.app.ui.aimodels.AiModelsScreen
 import com.moneymanager.app.ui.aimodels.AllowlistManagerScreen
 import com.moneymanager.app.ui.aidraft.ReceiptScanScreen
@@ -122,6 +126,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object AiDraftVoice : Screen("ai_draft_voice", "AI Draft from Voice", null)
     data object AiHistory : Screen("ai_history", "AI Conversation History", null)
     data object LearnFromHistory : Screen("learn_from_history", "Learn from history", null)
+    data object AddFrom : Screen("add_from", "Add from", null)
+    data object CaptureInbox : Screen("capture_inbox", "SMS inbox", null)
+    data object AccountSources : Screen("account_sources", "Account sources", null)
+    data object DraftEditStats : Screen("draft_edit_stats", "Draft edit stats", null)
     data object AiModels : Screen("ai_models", "AI Models", null)
     data object AllowlistManager : Screen("allowlist_manager", "Model Allowlist", null)
     data object AddTransaction : Screen("add_transaction?type={type}", "Add Transaction", null)
@@ -282,10 +290,7 @@ fun MoneyManagerNavHost(
                         initialCategoryId = categoryId,
                         initialPeerId = peerId,
                         isAiAssistAvailable = isAiAvailable,
-                        onNavigateToAiDraftSms = { navController.navigate(Screen.AiDraftSms.route) },
-                        onNavigateToAiDraftReceipt = { navController.navigate(Screen.AiDraftReceipt.route) },
-                        onNavigateToAiDraftVoice = { navController.navigate(Screen.AiDraftVoice.route) },
-                        onNavigateToLearnFromHistory = { navController.navigate(Screen.LearnFromHistory.route) }
+                        onNavigateToAddFrom = { navController.navigate(Screen.AddFrom.route) }
                     )
                 }
                 composable(Screen.Budgets.route) {
@@ -461,6 +466,32 @@ fun MoneyManagerNavHost(
                 }
                 composable(Screen.LearnFromHistory.route) {
                     LearnFromHistoryScreen(onNavigateBack = { navController.popBackStack() })
+                }
+                composable(Screen.AddFrom.route) {
+                    AddFromScreen(
+                        onNavigateBack = { navController.popBackStack() },
+                        onOpenSmsInbox = { navController.navigate(Screen.CaptureInbox.route) },
+                        onOpenReceipt = { navController.navigate(Screen.AiDraftReceipt.route) },
+                        onOpenVoice = { navController.navigate(Screen.AiDraftVoice.route) },
+                        onOpenLearnFromHistory = { navController.navigate(Screen.LearnFromHistory.route) },
+                        onOpenAccountSources = { navController.navigate(Screen.AccountSources.route) },
+                        onOpenEditStats = { navController.navigate(Screen.DraftEditStats.route) },
+                    )
+                }
+                composable(Screen.CaptureInbox.route) {
+                    CaptureInboxScreen(
+                        onNavigateBack = { navController.popBackStack() },
+                        onEditDraft = { draft ->
+                            navController.currentBackStackEntry?.savedStateHandle?.set("ai_draft", draft)
+                            navController.navigate("add_transaction?type=${draft.typeId ?: ""}")
+                        },
+                    )
+                }
+                composable(Screen.AccountSources.route) {
+                    AccountSourcesScreen(onNavigateBack = { navController.popBackStack() })
+                }
+                composable(Screen.DraftEditStats.route) {
+                    DraftEditStatsScreen(onNavigateBack = { navController.popBackStack() })
                 }
                 composable(Screen.AiHistory.route) {
                     AiHistoryScreen(

@@ -401,8 +401,48 @@ class PreferencesManager(private val context: Context) {
             if (time == null) prefs.remove(CAPTURE_START_DATE) else prefs[CAPTURE_START_DATE] = time
         }
     }
+
+    /** Noon / evening SMS reminders (F07 E9). Off by default; enabling asks for notification permission first. */
+    val captureRemindersEnabled: Flow<Boolean> = context.dataStore.data.map { it[CAPTURE_REMINDERS_ENABLED] ?: false }
+
+    suspend fun setCaptureRemindersEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[CAPTURE_REMINDERS_ENABLED] = enabled }
+    }
+
+    /** Local epoch day on which the home banner was dismissed with ✕. */
+    val captureBannerDismissedDay: Flow<Long?> = context.dataStore.data.map { it[CAPTURE_BANNER_DISMISSED_DAY] }
+
+    suspend fun setCaptureBannerDismissedDay(epochDay: Long) {
+        context.dataStore.edit { it[CAPTURE_BANNER_DISMISSED_DAY] = epochDay }
+    }
+
+    /** "Don't show this" on the home banner. */
+    val captureBannerHidden: Flow<Boolean> = context.dataStore.data.map { it[CAPTURE_BANNER_HIDDEN] ?: false }
+
+    suspend fun setCaptureBannerHidden(hidden: Boolean) {
+        context.dataStore.edit { it[CAPTURE_BANNER_HIDDEN] = hidden }
+    }
+
+    /** The one-time "set battery to Unrestricted" tip, shown after reminders are first enabled. */
+    suspend fun isCaptureBatteryTipShown(): Boolean = context.dataStore.data.first()[CAPTURE_BATTERY_TIP_SHOWN] ?: false
+
+    suspend fun setCaptureBatteryTipShown() {
+        context.dataStore.edit { it[CAPTURE_BATTERY_TIP_SHOWN] = true }
+    }
+
+    /** Per-source draft edit counts (AI-014), serialized by DraftEditStatsRepository. Field names only, no values. */
+    suspend fun getDraftEditStatsJson(): String? = context.dataStore.data.first()[DRAFT_EDIT_STATS]
+
+    suspend fun setDraftEditStatsJson(json: String) {
+        context.dataStore.edit { it[DRAFT_EDIT_STATS] = json }
+    }
 }
 
 private const val SMS_LINK_PREFIX = "sms_account_link:"
 private val CAPTURE_LAST_SCANNED = longPreferencesKey("capture_last_scanned")
 private val CAPTURE_START_DATE = longPreferencesKey("capture_start_date")
+private val CAPTURE_REMINDERS_ENABLED = booleanPreferencesKey("capture_reminders_enabled")
+private val CAPTURE_BANNER_DISMISSED_DAY = longPreferencesKey("capture_banner_dismissed_day")
+private val CAPTURE_BANNER_HIDDEN = booleanPreferencesKey("capture_banner_hidden")
+private val CAPTURE_BATTERY_TIP_SHOWN = booleanPreferencesKey("capture_battery_tip_shown")
+private val DRAFT_EDIT_STATS = stringPreferencesKey("draft_edit_stats")

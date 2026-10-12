@@ -39,12 +39,21 @@ class InboxScannerTest {
         val captured: MutableSet<String> = mutableSetOf(),
         var cursor: ScanCursor = ScanCursor(null, null),
         val savedNear: MutableSet<Long> = mutableSetOf(),
+        val savedCandidates: List<CaptureCandidate> = emptyList(),
+        val pendingCandidates: List<CaptureCandidate> = emptyList(),
+        val refMatches: Map<String, LedgerMatch> = emptyMap(),
     ) : CaptureStore {
         val rows = mutableListOf<CapturedMessageEntity>()
 
+        override suspend fun ledgerRowWithRef(refHash: String) = refMatches[refHash]
+
+        override suspend fun savedCandidatesNear(amount: Double, date: Long) = savedCandidates
+
+        override suspend fun pendingCandidatesNear(amount: Double, date: Long) = pendingCandidates
+
         override suspend fun isCaptured(messageHash: String) = messageHash in captured
 
-        override suspend fun insertPending(message: CapturedMessageEntity): Boolean {
+        override suspend fun insertRow(message: CapturedMessageEntity): Boolean {
             if (message.messageHash in captured) return false
             captured += message.messageHash
             rows += message
@@ -61,6 +70,8 @@ class InboxScannerTest {
             savedNear.any { kotlin.math.abs(it - date) <= DAY }
 
         override suspend fun activeAccounts() = listOf(AccountEntry(1, "HDFC Bank", "bank"))
+
+        override fun observePendingCount() = kotlinx.coroutines.flow.flowOf(0)
     }
 
     private fun draftOutcome(amount: Double = 250.0, date: Long = 0L) = SmsRuleOutcome.Draft(
@@ -221,6 +232,58 @@ class InboxScannerTest {
         assertFalse(CaptureHash.message("A", "x", 1L) == CaptureHash.message("A", "x", 2L))
         assertFalse(CaptureHash.message(null, "x", 1L) == CaptureHash.message("A", "x", 1L))
         assertEquals(CaptureHash.reference(" abc12 "), CaptureHash.reference("ABC12"))
+    }
+
+    @Test
+    fun `same spend as a saved transaction is stored as saved and not shown as a draft`() = runTest {
+        val message = sms(now - HOUR)
+        val store = FakeStore(savedCandidates = listOf(CaptureCandidate(77, "expense", 250.0, now - HOUR, 1, "Swiggy order")))
+        val report = scanner(FakeInbox(listOf(message)), store, { draftOutcome(date = now - HOUR) }).scan(now)
+
+        assertEquals(0, report.newDrafts)
+        assertEquals(1, report.duplicates)
+        val row = store.rows.single()
+        assertEquals(CapturedMessageEntity.STATUS_SAVED, row.status)
+        assertEquals(77L, row.transactionId)
+        assertEquals(null, row.draftJson)
+    }
+
+    @Test
+    fun `same spend as a pending draft is stored as merged into it`() = runTest {
+        val message = sms(now - HOUR)
+        val store = FakeStore(pendingCandidates = listOf(CaptureCandidate(12, "expense", 250.0, now - HOUR, 1, "SWIGGY")))
+        val report = scanner(FakeInbox(listOf(message)), store, { draftOutcome(date = now - HOUR) }).scan(now)
+
+        assertEquals(0, report.newDrafts)
+        assertEquals(1, report.duplicates)
+        val row = store.rows.single()
+        assertEquals(CapturedMessageEntity.STATUS_MERGED, row.status)
+        assertEquals(12L, row.mergedIntoId)
+    }
+
+    @Test
+    fun `uncertain match stays in the inbox with a maybe-duplicate flag`() = runTest {
+        val message = sms(now - HOUR)
+        // Same amount and window, but no merchant match: shown, never hidden.
+        val store = FakeStore(savedCandidates = listOf(CaptureCandidate(77, "expense", 250.0, now - HOUR, 1, "")))
+        val report = scanner(FakeInbox(listOf(message)), store, { draftOutcome(date = now - HOUR) }).scan(now)
+
+        assertEquals(1, report.newDrafts)
+        assertEquals(0, report.duplicates)
+        val row = store.rows.single()
+        assertEquals(CapturedMessageEntity.STATUS_PENDING, row.status)
+        assertTrue(row.draftJson!!.contains("maybe_dup:77"))
+    }
+
+    @Test
+    fun `reference number already in the ledger wins over everything else`() = runTest {
+        val message = sms(now - HOUR)
+        val refHash = CaptureHash.reference("123456789012")
+        val store = FakeStore(refMatches = mapOf(refHash to LedgerMatch(ledgerId = 5, transactionId = 99)))
+        val report = scanner(FakeInbox(listOf(message)), store, { draftOutcome(date = now - HOUR) }).scan(now)
+
+        assertEquals(1, report.duplicates)
+        assertEquals(99L, store.rows.single().transactionId)
     }
 
     private companion object {

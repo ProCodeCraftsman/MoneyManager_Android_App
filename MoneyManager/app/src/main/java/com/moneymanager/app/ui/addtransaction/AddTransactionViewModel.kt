@@ -14,7 +14,9 @@ import com.moneymanager.data.entity.TransactionEntity
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
 import com.moneymanager.data.repository.SmsAccountLinkRepository
+import com.moneymanager.data.repository.DraftEditStatsRepository
 import com.moneymanager.domain.account.observeAccountUsage
+import com.moneymanager.domain.capture.CaptureReview
 import com.moneymanager.domain.repository.AccountRepository
 import com.moneymanager.domain.repository.CategoryRepository
 import com.moneymanager.domain.repository.GoalRepository
@@ -38,6 +40,8 @@ class AddTransactionViewModel @Inject constructor(
     private val merchantMemory: MerchantCategoryMemoryRepository,
     private val smsAccountLinks: SmsAccountLinkRepository,
     private val emiDao: com.moneymanager.data.dao.EmiDao,
+    private val captureReview: CaptureReview,
+    private val draftEditStats: DraftEditStatsRepository,
 ) : AndroidViewModel(application) {
 
     val uiState: StateFlow<AddTransactionUiState> = combine(
@@ -93,19 +97,27 @@ class AddTransactionViewModel @Inject constructor(
         initialValue = AddTransactionUiState(),
     )
 
-    fun addTransaction(transaction: TransactionEntity) {
+    /** [captureId] is the inbox row this save came from; saving closes that row so it leaves the inbox (AI-056). */
+    fun addTransaction(transaction: TransactionEntity, captureId: Long? = null) {
         viewModelScope.launch {
             if (transaction.type == "transfer") {
                 val toId = transaction.toAccountId ?: return@launch
-                transactionRepository.insertTransaction(transaction)
+                val id = transactionRepository.insertTransaction(transaction)
+                captureId?.let { captureReview.markSaved(it, id) }
                 accountRepository.updateAccountBalance(transaction.accountId, -transaction.amount)
                 accountRepository.updateAccountBalance(toId, transaction.amount)
             } else {
-                transactionRepository.insertTransaction(transaction)
+                val id = transactionRepository.insertTransaction(transaction)
+                captureId?.let { captureReview.markSaved(it, id) }
                 adjustBalance(transaction, reverse = false)
                 updatePeerBalance(transaction, reverse = false)
             }
         }
+    }
+
+    /** Edit tracking (AI-014): which fields the user changed on a captured draft before saving. Names only. */
+    fun recordDraftSave(sourceType: String, changedFields: List<String>) {
+        viewModelScope.launch(Dispatchers.IO) { draftEditStats.record(sourceType, changedFields) }
     }
 
     fun addEmiExpense(
@@ -135,9 +147,10 @@ class AddTransactionViewModel @Inject constructor(
         }
     }
 
-    fun addSplitTransaction(parent: TransactionEntity, children: List<TransactionEntity>) {
+    fun addSplitTransaction(parent: TransactionEntity, children: List<TransactionEntity>, captureId: Long? = null) {
         viewModelScope.launch {
             val parentId = transactionRepository.insertTransaction(parent.copy(isSplitParent = true))
+            captureId?.let { captureReview.markSaved(it, parentId) }
             children.forEach { child ->
                 transactionRepository.insertTransaction(child.copy(isSplitChild = true, parentTransactionId = parentId))
             }

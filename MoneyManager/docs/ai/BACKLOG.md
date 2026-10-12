@@ -1,7 +1,7 @@
 # AI backlog
 
 Ordered. Top of each section is next. Detail lives in `features/`. Status words are defined in `README.md`.
-Last reviewed: 2026-10-11.
+Last reviewed: 2026-10-12.
 
 ## Execution order (across sections)
 
@@ -29,7 +29,7 @@ Last reviewed: 2026-10-11.
 | AI-011 | `CapturedInput` adapter type per source (SMS, VOICE, IMAGE, TEXT) with source-specific normalise + verify | F04 | M | Planned | AI-010 |
 | AI-012 | Auto-commit policy object (per source, confidence thresholds, kill switch in Settings); remove the hard-coded `autoCommit = sourceType == "VOICE"` in `AiDraftViewModel` | F04 | S | Planned | AI-010 |
 | AI-013 | Include learned account links and SMS-related learned data in backup/export (JSON, CSV bundle, Drive) | F04 | M | Built | Done inside AI-051 (links, merchant memory, ledger); unit tests only |
-| AI-014 | Edit-tracking: record which fields the user changed before saving a draft (field names + source only, no values); show per-source zero-edit rate in a debug screen | F05 | M | Planned | AI-010 |
+| AI-014 | Edit-tracking: record which fields the user changed before saving a draft (field names + source only, no values); show per-source zero-edit rate in a debug screen | F05 | M | Built | 2026-10-12. `DraftEdits` diff (names only) runs on every save of a captured draft and on inbox approve; counts live in DataStore (`DraftEditStats`, no migration, not backed up). Debug view under Add from > Draft edit stats. Unit tests (`DraftEditsTest`). Inline category changes count as an edit. Not seen on the phone; zero-edit rate not measured yet |
 | AI-015 | Golden-fixture harness: scrubbed inputs with expected draft, run in unit tests, per source | F05 | M | Planned | none |
 | AI-016 | Duplicate detection across sources (bank SMS vs card SMS vs voice vs receipt for one purchase) | F06 | L | Planned | AI-010 |
 
@@ -41,9 +41,9 @@ Last reviewed: 2026-10-11.
 | AI-051 | `captured_messages` ledger + draft table, migration v19, backup/CSV/Drive formats (includes AI-013) | F07 | L | Built | v18→v19 migration ran on the S24 over real data on 2026-10-11 (app opens, data intact). Restore of a v19 backup not yet run on the phone |
 | AI-052 | Share-sheet text target into the draft flow | F07 | S | Planned | none |
 | AI-053 | `personal` flavor (READ_SMS) + inbox scanner: cursor window with 2 h overlap, start date, anchor fallback, 31-day/500-message cap, rules only, writes pending ledger rows; check merged release manifest | F07 E4 | M | Built | 2026-10-11. 9 unit tests (`InboxScannerTest`: planner, drafts, ledger skip, non-transactions, overlap, cap, anchor). Play release manifest has no SMS permission (checked). Not run on the phone: no trigger until AI-058 |
-| AI-054 | Semantic dedup: ref number, amount+account+window, transfer pairing, recurring/EMI/manual; uncertain matches shown as merge/keep-both | F07 E5, F06 | M | Planned | AI-053 |
-| AI-055 | Account Sources screen (map or create account) + balance cross-check | F07 E6 | M | Planned | AI-051 |
-| AI-056 | Capture hub screen replacing the AI dropdown + draft inbox: bulk approve of deterministic rows only, inline category fix, reject / always-ignore, undo | F07 E7 | L | Planned | AI-053, AI-054 |
+| AI-054 | Semantic dedup: ref number, amount+account+window, transfer pairing, recurring/EMI/manual; uncertain matches shown as merge/keep-both | F07 E5, F06 | M | Built | 2026-10-12. Pure `CaptureDedup`: reference → saved → pending → uncertain. Each saved spend can absorb one SMS. Hidden only on a merchant match; amount + window alone is shown as "maybe duplicate". Unit tests (`CaptureDedupTest`, 11) and scanner tests (4). Not built: transfer pairing (own-account debit + credit), manual-vs-draft check at save time. Not seen on the phone. Ledger schema unchanged |
+| AI-055 | Account Sources screen (map or create account) + balance cross-check | F07 E6 | M | Built | 2026-10-12, partial. Under Add from: maps each source to an account or creates one (opens at zero), and moves its pending drafts. Grouping and labels unit-tested (`AccountSourcesTest`). Not built: balance cross-check (the SMS balance is not kept on the draft). Not seen on the phone |
+| AI-056 | Capture hub screen replacing the AI dropdown + draft inbox: bulk approve of deterministic rows only, inline category fix, reject / always-ignore, undo | F07 E7 | L | Built | 2026-10-12, partial. Add from replaces the FAB dropdown; SMS tile shows the pending count. Inbox scans on open, groups by day, "Save N ready" (expense and income with no flags), undo snackbar, reject, merge / keep both, top-5 category fix, and tap-to-edit. Not built: always-ignore list, paste-text tile. Only the pure rules are unit-tested (`InboxRulesTest`); inbox view model has no test. Not seen on the phone |
 | AI-058 | Scan on app open + home banner (dismiss today / don't show) | F07 E8 | S | Planned | AI-056 |
 | AI-059 | Noon / evening reminder worker: inexact alarm, scan first, notify only if count > 0, reboot reschedule, notification permission, battery tip | F07 E9 | M | Planned | AI-058 |
 | AI-057 | Model best-guess for missing fields, batched after scan (multiple choice) with verify, timeout, parser tests | F07 E10 | M | Planned | AI-010 (AI-004 closed without data: measure picks inside this workflow) |
