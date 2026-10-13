@@ -7,21 +7,27 @@ import org.junit.Test
 class CaptureConnectPolicyTest {
 
     @Test
-    fun `fresh install in a build with an inbox shows the connect card and does not scan`() {
-        assertTrue(CaptureConnectPolicy.showConnectCard(inboxAvailable = true, permitted = false))
-        assertFalse(CaptureConnectPolicy.scanOnOpen(inboxAvailable = true, permitted = false))
+    fun `fresh install shows the connect card and does not scan`() {
+        assertTrue(CaptureConnectPolicy.showConnectCard(inboxAvailable = true, readPermitted = false, receivePermitted = false))
+        assertFalse(CaptureConnectPolicy.scanOnOpen(inboxAvailable = true, readPermitted = false))
     }
 
     @Test
-    fun `granted permission hides the card and scans on open`() {
-        assertFalse(CaptureConnectPolicy.showConnectCard(inboxAvailable = true, permitted = true))
-        assertTrue(CaptureConnectPolicy.scanOnOpen(inboxAvailable = true, permitted = true))
+    fun `install that granted only READ_SMS still sees the card for the receiver, and scans on open`() {
+        assertTrue(CaptureConnectPolicy.showConnectCard(inboxAvailable = true, readPermitted = true, receivePermitted = false))
+        assertTrue(CaptureConnectPolicy.scanOnOpen(inboxAvailable = true, readPermitted = true))
+    }
+
+    @Test
+    fun `both permissions hide the card and scan on open`() {
+        assertFalse(CaptureConnectPolicy.showConnectCard(inboxAvailable = true, readPermitted = true, receivePermitted = true))
+        assertTrue(CaptureConnectPolicy.scanOnOpen(inboxAvailable = true, readPermitted = true))
     }
 
     @Test
     fun `a build without an inbox never shows the card or scans, even if permission somehow exists`() {
-        assertFalse(CaptureConnectPolicy.showConnectCard(inboxAvailable = false, permitted = false))
-        assertFalse(CaptureConnectPolicy.showConnectCard(inboxAvailable = false, permitted = true))
-        assertFalse(CaptureConnectPolicy.scanOnOpen(inboxAvailable = false, permitted = true))
+        assertFalse(CaptureConnectPolicy.showConnectCard(inboxAvailable = false, readPermitted = false, receivePermitted = false))
+        assertFalse(CaptureConnectPolicy.showConnectCard(inboxAvailable = false, readPermitted = true, receivePermitted = true))
+        assertFalse(CaptureConnectPolicy.scanOnOpen(inboxAvailable = false, readPermitted = true))
     }
 }

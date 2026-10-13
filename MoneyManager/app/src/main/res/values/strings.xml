@@ -90,4 +90,6 @@
         <item quantity="other">%d new from SMS</item>
     </plurals>
     <string name="capture_reminder_text">Open Money Manager to approve or fix them.</string>
+    <string name="capture_live_channel_name">New SMS drafts</string>
+    <string name="capture_live_channel_description">Quiet notice when a new bank SMS becomes a draft to review</string>
 </resources>

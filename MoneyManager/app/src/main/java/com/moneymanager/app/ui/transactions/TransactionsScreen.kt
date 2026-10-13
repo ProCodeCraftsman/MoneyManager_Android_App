@@ -571,7 +571,7 @@ fun TransactionsScreen(
                         // AI-079: first-run connect card, the only way a fresh install starts reading SMS
                         if (BuildConfig.SMS_CAPTURE && showConnectSms) {
                             item(key = "capture_connect") {
-                                CaptureConnectCard(onPermissionResult = captureBannerViewModel::onSmsPermissionResult)
+                                CaptureConnectCard(onPermissionResult = captureBannerViewModel::refreshPermission)
                             }
                         }
 

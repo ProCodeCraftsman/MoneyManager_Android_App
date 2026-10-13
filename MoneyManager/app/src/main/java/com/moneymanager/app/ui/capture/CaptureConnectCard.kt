@@ -31,16 +31,17 @@ import androidx.compose.ui.unit.dp
 import com.moneymanager.app.ui.util.Permissions
 
 /**
- * First-run connect card (AI-079). It asks for the inbox permission, which is the only thing that lets the app
- * suggest drafts from SMS. "Not now" hides it until the app is reopened. Nothing is saved from SMS without review.
+ * First-run connect card (AI-079, AI-060). It asks for READ_SMS, which lets the app scan, and RECEIVE_SMS, which lets
+ * new messages arrive as they come. "Not now" hides it until the app is reopened. Nothing is saved from SMS without
+ * review.
  */
 @Composable
-fun CaptureConnectCard(onPermissionResult: (Boolean) -> Unit) {
+fun CaptureConnectCard(onPermissionResult: () -> Unit) {
     var dismissed by rememberSaveable { mutableStateOf(false) }
     if (dismissed) return
 
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        onPermissionResult(granted)
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        onPermissionResult()
     }
 
     Card(
@@ -73,7 +74,9 @@ fun CaptureConnectCard(onPermissionResult: (Boolean) -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = { dismissed = true }) { Text("Not now") }
-                Button(onClick = { permissionLauncher.launch(Permissions.READ_SMS) }) { Text("Connect") }
+                Button(onClick = { permissionLauncher.launch(arrayOf(Permissions.READ_SMS, Permissions.RECEIVE_SMS)) }) {
+                    Text("Connect")
+                }
             }
         }
     }

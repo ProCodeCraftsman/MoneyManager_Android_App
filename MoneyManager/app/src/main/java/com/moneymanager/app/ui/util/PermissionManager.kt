@@ -10,6 +10,7 @@ object Permissions {
     val CAMERA = Manifest.permission.CAMERA
     val RECORD_AUDIO = Manifest.permission.RECORD_AUDIO
     val READ_SMS = Manifest.permission.READ_SMS
+    val RECEIVE_SMS = Manifest.permission.RECEIVE_SMS
     val READ_CONTACTS = Manifest.permission.READ_CONTACTS
 
     val POST_NOTIFICATIONS: String?

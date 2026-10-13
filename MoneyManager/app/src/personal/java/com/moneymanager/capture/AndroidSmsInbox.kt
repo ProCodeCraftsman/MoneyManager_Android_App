@@ -22,6 +22,9 @@ class AndroidSmsInbox @Inject constructor(
     override fun hasPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
 
+    override fun hasReceivePermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+
     override suspend fun read(sinceMillis: Long, newestFirst: Boolean, limit: Int): List<SmsInboxMessage> =
         withContext(Dispatchers.IO) {
             if (!hasPermission()) return@withContext emptyList()

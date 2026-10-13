@@ -12,7 +12,7 @@ Last reviewed: 2026-10-13 (plan corrected after the SMS flow review: connect ste
 5. Done 2026-10-13: AI-012 commit policy (voice auto-commit removed) and AI-079 SMS connect card (`personal`). Next on the phone: check the connect card on a fresh install (revoke READ_SMS with adb, or clear the permission in Settings).
 6. AI-072 normalisation, AI-073 + AI-074 audit.
 7. AI-057 model best-guess, AI-075 teach screen, AI-076 correction-aware memory, AI-077 model judge (shadow first).
-8. Later: AI-060 receiver (pending draft and notification only, after AI-079), AI-045 EmbeddingGemma replay. AI-040 and AI-078 are discarded (see Discarded).
+8. Done 2026-10-13: AI-060 receiver (built, `personal`; check on the phone when a bank SMS arrives). Later: AI-045 EmbeddingGemma replay. AI-040 and AI-078 are discarded (see Discarded).
 
 ## Now (finish SMS on the real device)
 
@@ -48,7 +48,7 @@ Last reviewed: 2026-10-13 (plan corrected after the SMS flow review: connect ste
 | AI-058 | Scan on app open + home banner (dismiss today / don't show) | F07 E8 | S | Built | 2026-10-12. `CaptureBanner` on the transactions screen, dismiss for today or don't show again (`CaptureBannerPolicy`, unit-tested in `CaptureBannerPolicyTest`). Scan runs on inbox open. Gap found 2026-10-13 (silent empty scan on a fresh install) fixed by AI-079. Not seen on the phone |
 | AI-059 | Noon / evening reminder worker: inexact alarm, scan first, notify only if count > 0, reboot reschedule, notification permission, battery tip | F07 E9 | M | Built | 2026-10-12. `CaptureReminderScheduler` / `CaptureReminderWorker` / `CaptureReminderReceiver` (boot and update re-arm), schedule logic in `CaptureReminderSchedule` (unit-tested in `CaptureReminderScheduleTest`). Settings toggle asks for READ_SMS and notification permission and shows a battery tip once. Not seen on the phone: notifications and timing need 3 days of S24 use |
 | AI-057 | Model best-guess for missing fields, batched after scan (multiple choice) with verify, timeout, parser tests | F07 E10 | M | Planned | AI-010 (AI-004 closed without data: measure picks inside this workflow) |
-| AI-060 | Real-time `RECEIVE_SMS` receiver into the same scanner. Each new bank or card SMS becomes a pending draft plus one quiet notification with the count. It never auto-saves | F07 E11 | S | Planned | AI-059, AI-079, AI-012 |
+| AI-060 | Real-time `RECEIVE_SMS` receiver into the same scanner. Each new bank or card SMS becomes a pending draft plus one quiet notification with the count. It never auto-saves | F07 E11 | S | Built | 2026-10-13, `personal` only. `SmsArrivedReceiver` (declared in the personal manifest with `BROADCAST_SMS`) queues `CaptureLiveScanWorker`, which runs the same scan as app open and posts a silent notice on a low-importance channel only when `newDrafts > 0`. The receiver does not parse the SMS. The connect card now asks for READ_SMS and RECEIVE_SMS together, and stays until both are granted. Unit: `CaptureConnectPolicyTest` (4). Play release manifest checked: no SMS permission or receiver. Not seen on the phone: needs a real incoming bank SMS |
 
 ## Learning, audit, setup (F08, ordered)
 

@@ -24,6 +24,7 @@ class InboxScannerTest {
     private class FakeInbox(private val messages: List<SmsInboxMessage>) : SmsInbox {
         override val isAvailable = true
         override fun hasPermission() = true
+        override fun hasReceivePermission() = true
         var lastSince: Long? = null
         var lastNewestFirst: Boolean? = null
 

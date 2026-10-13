@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -48,31 +47,32 @@ class CaptureBannerViewModel @Inject constructor(
         CaptureBannerState(pending = pending, visible = visible)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CaptureBannerState())
 
-    private val permitted = MutableStateFlow(inbox.hasPermission())
+    private val readPermitted = MutableStateFlow(inbox.hasPermission())
+    private val receivePermitted = MutableStateFlow(inbox.hasReceivePermission())
 
-    /** The first-run connect card (AI-079). Shown until the inbox permission is granted. */
-    val showConnectCard: StateFlow<Boolean> = permitted
-        .map { CaptureConnectPolicy.showConnectCard(inbox.isAvailable, it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CaptureConnectPolicy.showConnectCard(inbox.isAvailable, permitted.value))
+    /** The first-run connect card (AI-079, AI-060). Shown until both SMS permissions are granted. */
+    val showConnectCard: StateFlow<Boolean> = combine(readPermitted, receivePermitted) { read, receive ->
+        CaptureConnectPolicy.showConnectCard(inbox.isAvailable, read, receive)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        CaptureConnectPolicy.showConnectCard(inbox.isAvailable, readPermitted.value, receivePermitted.value),
+    )
 
     init {
-        if (CaptureConnectPolicy.scanOnOpen(inbox.isAvailable, permitted.value)) scanQuietly()
+        if (CaptureConnectPolicy.scanOnOpen(inbox.isAvailable, readPermitted.value)) scanQuietly()
     }
 
-    /** Called when the connect card's permission prompt returns. A grant scans straight away. */
-    fun onSmsPermissionResult(granted: Boolean) {
-        if (granted) connect()
-    }
-
-    /** Called when the home screen comes back, so a grant or revoke made in system settings is picked up. */
+    /**
+     * Called when the connect card's prompt returns, and when the home screen comes back, so a grant or revoke made
+     * in system settings is picked up. A READ_SMS grant scans straight away.
+     */
     fun refreshPermission() {
-        val now = inbox.hasPermission()
-        if (now && !permitted.value) connect() else permitted.value = now
-    }
-
-    private fun connect() {
-        permitted.value = true
-        scanQuietly()
+        val read = inbox.hasPermission()
+        val becameReadable = read && !readPermitted.value
+        readPermitted.value = read
+        receivePermitted.value = inbox.hasReceivePermission()
+        if (becameReadable) scanQuietly()
     }
 
     private fun scanQuietly() {

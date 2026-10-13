@@ -9,5 +9,7 @@ object UnavailableSmsInbox : SmsInbox {
 
     override fun hasPermission(): Boolean = false
 
+    override fun hasReceivePermission(): Boolean = false
+
     override suspend fun read(sinceMillis: Long, newestFirst: Boolean, limit: Int): List<SmsInboxMessage> = emptyList()
 }

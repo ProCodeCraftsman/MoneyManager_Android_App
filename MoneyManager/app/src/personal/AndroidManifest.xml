@@ -4,4 +4,18 @@
     <!-- Personal build only: the inbox scanner (AI-053) reads bank SMS. Never declared in the play flavor. -->
     <uses-permission android:name="android.permission.READ_SMS" />
 
+    <!-- Live capture (AI-060): the receiver queues a scan when a new SMS arrives. Personal build only. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+
+    <application>
+        <receiver
+            android:name="com.moneymanager.capture.SmsArrivedReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+    </application>
+
 </manifest>

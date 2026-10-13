@@ -14,6 +14,9 @@ interface SmsInbox {
     /** True when the inbox permission is granted. Always false where [isAvailable] is false. */
     fun hasPermission(): Boolean
 
+    /** True when RECEIVE_SMS is granted, so the live receiver (AI-060) gets new messages. */
+    fun hasReceivePermission(): Boolean
+
     /** Messages received at or after [sinceMillis]. Empty when the permission is not granted. */
     suspend fun read(sinceMillis: Long, newestFirst: Boolean, limit: Int): List<SmsInboxMessage>
 }
