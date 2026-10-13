@@ -4,15 +4,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moneymanager.data.preferences.PreferencesManager
 import com.moneymanager.domain.capture.CaptureBannerPolicy
+import com.moneymanager.domain.capture.CaptureConnectPolicy
 import com.moneymanager.domain.capture.CaptureStore
 import com.moneymanager.domain.capture.ScanInboxUseCase
 import com.moneymanager.domain.capture.SmsInbox
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -24,8 +27,8 @@ data class CaptureBannerState(
 )
 
 /**
- * Scans the inbox on app open (AI-058) and drives the home banner that counts the drafts waiting for review.
- * Builds without an inbox (play) never scan and never show the banner.
+ * Scans the inbox on app open once permission is granted (AI-058, AI-079) and drives the home banner that counts the
+ * drafts waiting for review. Builds without an inbox (play) never scan, never show the banner and never show the card.
  */
 @HiltViewModel
 class CaptureBannerViewModel @Inject constructor(
@@ -45,16 +48,41 @@ class CaptureBannerViewModel @Inject constructor(
         CaptureBannerState(pending = pending, visible = visible)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CaptureBannerState())
 
+    private val permitted = MutableStateFlow(inbox.hasPermission())
+
+    /** The first-run connect card (AI-079). Shown until the inbox permission is granted. */
+    val showConnectCard: StateFlow<Boolean> = permitted
+        .map { CaptureConnectPolicy.showConnectCard(inbox.isAvailable, it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CaptureConnectPolicy.showConnectCard(inbox.isAvailable, permitted.value))
+
     init {
-        if (inbox.isAvailable) {
-            viewModelScope.launch(Dispatchers.IO) {
-                try {
-                    scanInbox()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    // The banner still shows whatever is already waiting.
-                }
+        if (CaptureConnectPolicy.scanOnOpen(inbox.isAvailable, permitted.value)) scanQuietly()
+    }
+
+    /** Called when the connect card's permission prompt returns. A grant scans straight away. */
+    fun onSmsPermissionResult(granted: Boolean) {
+        if (granted) connect()
+    }
+
+    /** Called when the home screen comes back, so a grant or revoke made in system settings is picked up. */
+    fun refreshPermission() {
+        val now = inbox.hasPermission()
+        if (now && !permitted.value) connect() else permitted.value = now
+    }
+
+    private fun connect() {
+        permitted.value = true
+        scanQuietly()
+    }
+
+    private fun scanQuietly() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                scanInbox()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // The banner still shows whatever is already waiting.
             }
         }
     }

@@ -9,7 +9,7 @@ What decides success, in order: capture completeness, zero duplicates, learned m
 
 ## Current state
 - No automatic capture. `SmsPickerScreen` is switched off (`SMS_INBOX_ENABLED = false`). The live path is the SMS inbox under Add from, in the `personal` build only (`play` has no SMS code). `READ_SMS` is declared only in `app/src/debug` and `app/src/personal`.
-- Nothing requests `READ_SMS` on app open. The open scan (AI-058) therefore returns nothing on a fresh install, and the banner stays hidden. Only the SMS inbox screen and the Settings reminder toggle ask (AI-079 fixes this).
+- The first-run connect card (AI-079, built 2026-10-13) asks for `READ_SMS` on the Transactions screen. The open scan runs only once the permission is granted, so a fresh install no longer gets a silent empty scan. The Settings reminder toggle and the SMS inbox screen also ask.
 - Drafts are navigation arguments, never persisted. `captured_messages` (E2) has a writer now: the inbox scanner (E4), rules only, no UI yet.
 - The AI entry point is the **Add from…** hub (AI-056) on `TransactionsScreen`; the old dropdown is gone. The inbox, account sources and edit stats are reached from there.
 - Learning on save exists: `AddTransactionViewModel.recordMerchantCategory` and `recordSmsAccountLink`. It is the only writer of merchant memory: `AiAgent` no longer records the model's category before the user saves (AI-006, fixed 2026-10-11).
@@ -32,7 +32,7 @@ Trigger (app open, once READ_SMS is granted | new-SMS receiver (E11) | reminder 
 - **Anchor stop (fallback only).** With no cursor (first run, after a restore, or cursor lost), stop after 3 consecutive transaction SMS that are already in the ledger or match a saved transaction. Not the primary rule: a past spend logged on Cash may never match, so the anchor can be missing.
 - **Speed.** A scan runs only the rule engine, `SmsVerifier`, memory and history; no model. About 100 messages takes well under a second, so it can run on every app open.
 - **Real-time receiver (E11, AI-060).** A `RECEIVE_SMS` receiver feeds the same scanner. Each new bank or card SMS becomes a pending draft, and one quiet notification shows the count. It never saves: review stays the policy. Pull scans and reminders remain the fallback for missed messages and for Samsung background limits.
-- **Connect step (E12, AI-079).** Before any scan can work on a fresh install, a first-run card explains SMS reading and requests `READ_SMS` and a start date. While permission is missing, the banner shows "Connect SMS to get suggestions" instead of hiding.
+- **Connect step (E12, AI-079).** Before any scan can work on a fresh install, a first-run card explains SMS reading and requests `READ_SMS`. "Not now" hides it until the app is reopened. Built without a start-date question and without changing the banner text; the card covers the not-connected case.
 
 ### Ledger gate
 - Table `captured_messages` stores: message hash, reference-number hash, amount, timestamp, status (pending / saved / rejected / merged), transaction id, and the pending draft as JSON. No raw text.
@@ -103,7 +103,7 @@ Trigger (app open, once READ_SMS is granted | new-SMS receiver (E11) | reminder 
 | E9 | Noon / evening reminder worker: scan first, notify only if count > 0, reboot reschedule, notification permission, battery tip | Notifications seen on the S24 over 3 days | Built (AI-059, 2026-10-12): worker, boot and update re-arm, toggle in Settings; schedule unit-tested (`CaptureReminderScheduleTest`). Not on the phone |
 | E10 | Model best-guess for missing fields, batched after scan (multiple choice, verify, timeout, parser tests) | Unit tests; E2B check on phone; kill rule from AI-004 respected | Not started |
 | E11 | Real-time `RECEIVE_SMS` receiver: pending draft plus quiet notification, never auto-save (AI-060). Needs E12 and AI-012 first | Phone: a new bank SMS appears as a draft within a minute; no entry saved without review | Planned |
-| E12 | SMS connect card and banner state (AI-079): first-run explanation, `READ_SMS` request, banner says "Connect SMS" while not granted | Phone: fresh install, connect, drafts appear without opening the inbox | Planned |
+| E12 | SMS connect card (AI-079): first-run explanation, `READ_SMS` request, scan on open only once granted | Phone: fresh install, connect, drafts appear without opening the inbox | Built (2026-10-13, `personal`): `CaptureConnectCard`, `CaptureConnectPolicy` (unit-tested, 3 tests). Not on the phone yet |
 
 ## Data profile (from the 2026-10-05 JSON backup; counts only, no names or values read)
 - 18 accounts: 11 savings/bank, 6 credit, 1 cash; 2 archived. No account name carries a 3-4 digit run, so last4 cannot be matched by name; learned links / Account Sources are the only reliable mapping.
@@ -129,7 +129,7 @@ Trigger (app open, once READ_SMS is granted | new-SMS receiver (E11) | reminder 
 - Dedup false positives on repeated equal payments.
 - Bulk approve invites rubber-stamping; the "never pre-tick a guess" rule is the mitigation and must not be relaxed for convenience.
 - Samsung app sleeping and battery limits stop the reminder worker; scan on app open is the safety net.
-- **Permission gap.** Without `READ_SMS` granted, the open scan and the banner show nothing, and nothing tells the user why. AI-079 addresses this.
+- **Permission gap.** Without `READ_SMS` granted, the open scan and the banner show nothing, and nothing tells the user why. AI-079 (built 2026-10-13) adds the connect card; the banner itself still shows nothing until granted.
 - **Voice auto-commit removed (AI-012, built 2026-10-13).** Voice drafts open for review; nothing saves without the user. Not seen on the phone.
 - The scan cursor is in DataStore and not backed up: after a restore the anchor fallback and the start date bound the scan, and the ledger hash prevents re-creating drafts.
 - Schema change touches real, critical data: rehearse the migration on a restored copy first.
@@ -160,5 +160,6 @@ Everything.
 - 2026-10-12 (AI-014 built): edit tracking stores field names and counts per source in DataStore, not in Room, so it needs no migration and is not in backups. Only saves from a capture source are counted.
 - 2026-10-13: the real-time receiver (E11, AI-060) moves from Idea to Planned, as pending draft plus quiet notification only. Auto-save stays out. The earlier reason for deferring it (Samsung background fragility) applies to background work in general and is weaker for a broadcast receiver, so the deferral is reversed.
 - 2026-10-13: the connect step (E12, AI-079) comes before the receiver. Without READ_SMS granted, neither the open scan nor a receiver can produce drafts for a fresh install.
+- 2026-10-13 (AI-079 built): the connect state is the permission itself, not a stored flag, so revoking in system settings brings the card back. The scan on open is gated on the permission, and a grant from the card scans at once.
 - 2026-10-13: AI-012 (remove the live voice auto-commit) moves to Now and is the first code fix. The flow must never save a transaction without review. Built 2026-10-13: `AiAgent` no longer takes a transaction repository, so it cannot save.
 - 2026-10-13: AI-016 narrowed to voice and receipt sources plus transfer pairing; AI-013 merged into AI-051.

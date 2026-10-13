@@ -11,6 +11,9 @@ interface SmsInbox {
     /** False when this build cannot read the inbox at all, so the UI can hide the feature. */
     val isAvailable: Boolean
 
+    /** True when the inbox permission is granted. Always false where [isAvailable] is false. */
+    fun hasPermission(): Boolean
+
     /** Messages received at or after [sinceMillis]. Empty when the permission is not granted. */
     suspend fun read(sinceMillis: Long, newestFirst: Boolean, limit: Int): List<SmsInboxMessage>
 }

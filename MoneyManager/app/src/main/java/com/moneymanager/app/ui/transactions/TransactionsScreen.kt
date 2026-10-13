@@ -94,6 +94,7 @@ import com.moneymanager.app.ui.transactions.components.AiDownloadConsentDialog
 import com.moneymanager.app.ui.transactions.components.DownloadProgressBanner
 import com.moneymanager.app.ui.capture.CaptureBanner
 import com.moneymanager.app.ui.capture.CaptureBannerViewModel
+import com.moneymanager.app.ui.capture.CaptureConnectCard
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.moneymanager.app.ui.transactions.components.TransactionItem
 import com.moneymanager.app.ui.dialogs.SplitRowData
@@ -124,6 +125,8 @@ fun TransactionsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val captureBanner by captureBannerViewModel.state.collectAsStateWithLifecycle()
+    val showConnectSms by captureBannerViewModel.showConnectCard.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { captureBannerViewModel.refreshPermission() }
 
     // Download consent + progress state (Phase 40 — additive)
     val showDownloadConsent by viewModel.showDownloadConsentDialog.collectAsStateWithLifecycle()
@@ -563,6 +566,13 @@ fun TransactionsScreen(
                                 captionText = downloadProgressCaption,
                                 percentText = downloadProgressPercent
                             )
+                        }
+
+                        // AI-079: first-run connect card, the only way a fresh install starts reading SMS
+                        if (BuildConfig.SMS_CAPTURE && showConnectSms) {
+                            item(key = "capture_connect") {
+                                CaptureConnectCard(onPermissionResult = captureBannerViewModel::onSmsPermissionResult)
+                            }
                         }
 
                         // AI-058: "N new from SMS" banner, scrolls away like the download banner

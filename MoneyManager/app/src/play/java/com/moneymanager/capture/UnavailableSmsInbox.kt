@@ -7,5 +7,7 @@ import com.moneymanager.domain.capture.SmsInboxMessage
 object UnavailableSmsInbox : SmsInbox {
     override val isAvailable: Boolean = false
 
+    override fun hasPermission(): Boolean = false
+
     override suspend fun read(sinceMillis: Long, newestFirst: Boolean, limit: Int): List<SmsInboxMessage> = emptyList()
 }

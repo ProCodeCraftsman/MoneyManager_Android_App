@@ -19,11 +19,12 @@ class AndroidSmsInbox @Inject constructor(
 
     override val isAvailable: Boolean = true
 
+    override fun hasPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+
     override suspend fun read(sinceMillis: Long, newestFirst: Boolean, limit: Int): List<SmsInboxMessage> =
         withContext(Dispatchers.IO) {
-            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) ==
-                PackageManager.PERMISSION_GRANTED
-            if (!granted) return@withContext emptyList()
+            if (!hasPermission()) return@withContext emptyList()
 
             val order = if (newestFirst) "DESC" else "ASC"
             val cursor = context.contentResolver.query(
