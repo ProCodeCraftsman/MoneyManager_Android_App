@@ -28,7 +28,7 @@ Learn      on save: merchant memory, account links, edit tracking (F05)
 |---|---|---|---|
 | P1 | Extract stages from `AiAgent`, SMS behaviour unchanged (AI-010) | Existing SMS tests pass untouched | Built 2026-10-12: `SmsDraftPipeline` holds the model-free SMS stages (verify, account links, account resolve, memory category); `DraftLearning` is the Learn stage used by the add screen and history confirm; AiAgent keeps the merchant-cache fast path, model calls and status events |
 | P2 | `CapturedInput` adapters (AI-011) | SMS and TEXT on adapters | Not started |
-| P3 | Commit policy (AI-012) | VOICE hard-coding removed; policy unit-tested | Not started |
+| P3 | Commit policy (AI-012) | Auto-commit removed entirely, not a policy; unit-tested | Built 2026-10-13 (not on the phone) |
 | P4 | Backup of learned data (AI-013) | Round-trip test on export/import | Not started |
 
 ## Acceptance

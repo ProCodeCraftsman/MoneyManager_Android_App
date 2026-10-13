@@ -5,7 +5,6 @@ import com.moneymanager.data.ai.PreExtraction
 import com.moneymanager.data.entity.MerchantCategoryMemoryEntity
 import com.moneymanager.data.repository.MerchantCategoryMemoryRepository
 import com.moneymanager.data.repository.SmsAccountLinkRepository
-import com.moneymanager.domain.repository.TransactionRepository
 import com.moneymanager.domain.sms.NotATransactionException
 import com.moneymanager.domain.sms.SmsAccountLinks
 import com.moneymanager.domain.sms.SmsCategory
@@ -33,7 +32,6 @@ class AiAgentSmsFlowTest {
     private lateinit var textUseCase: GenerateDraftFromTextUseCase
     private lateinit var imageUseCase: GenerateDraftFromImageUseCase
     private lateinit var memory: MerchantCategoryMemoryRepository
-    private lateinit var repository: TransactionRepository
     private lateinit var links: SmsAccountLinkRepository
     private lateinit var chooser: SmsCategoryChooser
     private lateinit var agent: AiAgent
@@ -50,15 +48,25 @@ class AiAgentSmsFlowTest {
         textUseCase = mock()
         imageUseCase = mock()
         memory = mock()
-        repository = mock()
         links = mock()
         runBlocking { whenever(links.load()).thenReturn(SmsAccountLinks.EMPTY) }
         chooser = mock()
-        agent = AiAgent(textUseCase, imageUseCase, memory, repository, links, chooser)
+        agent = AiAgent(textUseCase, imageUseCase, memory, links, chooser)
     }
 
     private suspend fun run(text: String, sender: String?) =
         agent.processText(text, context, "SMS", sender).toList()
+
+    @Test
+    fun `a high-confidence voice draft comes back for review and is never saved`() = runTest {
+        val aiDraft = TransactionDraft(typeId = "expense", amount = 120.0, categoryId = 9L, accountId = 1L)
+        whenever(textUseCase.invoke(any(), any(), any(), anyOrNull(), anyOrNull())).thenReturn(Result.success(aiDraft))
+        val events = agent.processText("coffee 120 rupees", context, "VOICE").toList()
+
+        val draft = (events.last() as AgentStatus.Success).draft
+        assertEquals(120.0, draft.amount!!, 0.001)
+        assertTrue(draft.flags.none { it == "auto_committed" })
+    }
 
     @Test
     fun `otp is rejected without calling the ai`() = runTest {

@@ -8,7 +8,8 @@ Goal: bank, card and UPI SMS become reviewable drafts (amount, account, category
 What decides success, in order: capture completeness, zero duplicates, learned memory, a review screen that takes under 10 s a day. The model only fills gaps (E10); it is not the core of this feature.
 
 ## Current state
-- No automatic capture. `SmsPickerScreen` reads the inbox (latest 50), but `READ_SMS` is declared only in `app/src/debug`.
+- No automatic capture. `SmsPickerScreen` is switched off (`SMS_INBOX_ENABLED = false`). The live path is the SMS inbox under Add from, in the `personal` build only (`play` has no SMS code). `READ_SMS` is declared only in `app/src/debug` and `app/src/personal`.
+- Nothing requests `READ_SMS` on app open. The open scan (AI-058) therefore returns nothing on a fresh install, and the banner stays hidden. Only the SMS inbox screen and the Settings reminder toggle ask (AI-079 fixes this).
 - Drafts are navigation arguments, never persisted. `captured_messages` (E2) has a writer now: the inbox scanner (E4), rules only, no UI yet.
 - The AI entry point is the **Add from…** hub (AI-056) on `TransactionsScreen`; the old dropdown is gone. The inbox, account sources and edit stats are reached from there.
 - Learning on save exists: `AddTransactionViewModel.recordMerchantCategory` and `recordSmsAccountLink`. It is the only writer of merchant memory: `AiAgent` no longer records the model's category before the user saves (AI-006, fixed 2026-10-11).
@@ -16,7 +17,7 @@ What decides success, in order: capture completeness, zero duplicates, learned m
 
 ## Design
 ```
-Trigger (app open | reminder worker | manual "Scan now")
+Trigger (app open, once READ_SMS is granted | new-SMS receiver (E11) | reminder worker | manual "Scan now")
   -> Inbox scan (cursor window) -> Ledger gate -> Filter -> Parse+Verify -> Resolve account -> Resolve category (memory, history)
   -> Semantic dedup -> Draft inbox (persisted)
   -> [later, batched] model best-guess for still-missing fields
@@ -30,7 +31,8 @@ Trigger (app open | reminder worker | manual "Scan now")
   - The cursor (date of the newest scanned message) lives in DataStore.
 - **Anchor stop (fallback only).** With no cursor (first run, after a restore, or cursor lost), stop after 3 consecutive transaction SMS that are already in the ledger or match a saved transaction. Not the primary rule: a past spend logged on Cash may never match, so the anchor can be missing.
 - **Speed.** A scan runs only the rule engine, `SmsVerifier`, memory and history; no model. About 100 messages takes well under a second, so it can run on every app open.
-- **Real-time receiver.** `RECEIVE_SMS` is deferred to E11. Pull scans plus reminders cover the daily habit without background-execution fragility on Samsung.
+- **Real-time receiver (E11, AI-060).** A `RECEIVE_SMS` receiver feeds the same scanner. Each new bank or card SMS becomes a pending draft, and one quiet notification shows the count. It never saves: review stays the policy. Pull scans and reminders remain the fallback for missed messages and for Samsung background limits.
+- **Connect step (E12, AI-079).** Before any scan can work on a fresh install, a first-run card explains SMS reading and requests `READ_SMS` and a start date. While permission is missing, the banner shows "Connect SMS to get suggestions" instead of hiding.
 
 ### Ledger gate
 - Table `captured_messages` stores: message hash, reference-number hash, amount, timestamp, status (pending / saved / rejected / merged), transaction id, and the pending draft as JSON. No raw text.
@@ -93,14 +95,15 @@ Trigger (app open | reminder worker | manual "Scan now")
 | E1 | Aggregate data profile of the real DB (counts only) to size sources, accounts, dup rates | Numbers recorded in this file | Done (see Data profile) |
 | E2 | `captured_messages` table (ledger and pending draft in one), migration 18->19, JSON/Drive + CSV backup of it plus learned SMS links and merchant memory (AI-013) | Round-trip tests; migration applied on the phone with the JSON backup in hand | Built (unit tests; migration not yet run on the device) |
 | E3 | Share-sheet target feeding the draft flow | Unit tests + phone | Not started |
-| E4 | `personal` flavor + inbox scanner (cursor window, anchor fallback, caps), rules only, writes pending ledger rows | Scanner unit tests incl. out-of-order and no-cursor cases; merged release manifest has no SMS permission; phone | Built (9 scanner/planner unit tests; play release manifest has no SMS permission; not run on the phone: no trigger yet, arrives with AI-058) |
+| E4 | `personal` flavor + inbox scanner (cursor window, anchor fallback, caps), rules only, writes pending ledger rows | Scanner unit tests incl. out-of-order and no-cursor cases; merged release manifest has no SMS permission; phone | Built (9 scanner/planner unit tests; play release manifest has no SMS permission; not run on the phone. The AI-058 trigger runs on open, but READ_SMS is not requested there, so it returns nothing until AI-079) |
 | E5 | Semantic dedup (F06 D1 + ref matching + transfer pairing, against manual/recurring/EMI) | Unit tests incl. repeat-payment cases | Built (AI-054, 2026-10-12): ref, saved, pending and uncertain matches; 11 dedup + 4 scanner unit tests. Not built: transfer pairing, check at save time. Not on the phone |
 | E6 | Account Sources screen (map / create account) + balance cross-check | Phone, real sources | Built (AI-055, 2026-10-12): map or create, applied to pending drafts; grouping unit-tested. Balance cross-check not built. Not on the phone |
 | E7 | Capture hub screen (replaces the dropdown) + draft inbox with the bulk-approve rules, inline category fix, reject / always-ignore, undo | Phone: a week of real use, zero duplicate drafts, daily review under 10 s | Built (AI-056, 2026-10-12): hub, inbox, bulk approve of ready rows, undo, reject, merge / keep both, category fix. Not built: always-ignore, paste-text tile. Not on the phone |
-| E8 | Scan on app open + home banner with dismiss / don't show | Phone | Built (AI-058, 2026-10-12): banner, dismiss for today, don't show again; policy unit-tested (`CaptureBannerPolicyTest`). Not on the phone |
+| E8 | Scan on app open + home banner with dismiss / don't show | Phone | Built (AI-058, 2026-10-12): banner, dismiss for today, don't show again; policy unit-tested (`CaptureBannerPolicyTest`). Gap found 2026-10-13: no READ_SMS request on open, so a fresh install sees nothing; AI-079 fixes it. Not on the phone |
 | E9 | Noon / evening reminder worker: scan first, notify only if count > 0, reboot reschedule, notification permission, battery tip | Notifications seen on the S24 over 3 days | Built (AI-059, 2026-10-12): worker, boot and update re-arm, toggle in Settings; schedule unit-tested (`CaptureReminderScheduleTest`). Not on the phone |
 | E10 | Model best-guess for missing fields, batched after scan (multiple choice, verify, timeout, parser tests) | Unit tests; E2B check on phone; kill rule from AI-004 respected | Not started |
-| E11 | Real-time `RECEIVE_SMS` receiver into the same scanner | Phone | Idea |
+| E11 | Real-time `RECEIVE_SMS` receiver: pending draft plus quiet notification, never auto-save (AI-060). Needs E12 and AI-012 first | Phone: a new bank SMS appears as a draft within a minute; no entry saved without review | Planned |
+| E12 | SMS connect card and banner state (AI-079): first-run explanation, `READ_SMS` request, banner says "Connect SMS" while not granted | Phone: fresh install, connect, drafts appear without opening the inbox | Planned |
 
 ## Data profile (from the 2026-10-05 JSON backup; counts only, no names or values read)
 - 18 accounts: 11 savings/bank, 6 credit, 1 cash; 2 archived. No account name carries a 3-4 digit run, so last4 cannot be matched by name; learned links / Account Sources are the only reliable mapping.
@@ -126,6 +129,8 @@ Trigger (app open | reminder worker | manual "Scan now")
 - Dedup false positives on repeated equal payments.
 - Bulk approve invites rubber-stamping; the "never pre-tick a guess" rule is the mitigation and must not be relaxed for convenience.
 - Samsung app sleeping and battery limits stop the reminder worker; scan on app open is the safety net.
+- **Permission gap.** Without `READ_SMS` granted, the open scan and the banner show nothing, and nothing tells the user why. AI-079 addresses this.
+- **Voice auto-commit removed (AI-012, built 2026-10-13).** Voice drafts open for review; nothing saves without the user. Not seen on the phone.
 - The scan cursor is in DataStore and not backed up: after a restore the anchor fallback and the start date bound the scan, and the ledger hash prevents re-creating drafts.
 - Schema change touches real, critical data: rehearse the migration on a restored copy first.
 
@@ -153,3 +158,7 @@ Everything.
 - 2026-10-12 (E7 built): only expense and income rows with a category, an account, no flags and no open duplicate question are approved in bulk. Transfers, lend/borrow and anything with a flag always need a look. Undo covers the last approve action only; it deletes the created transactions, reverses their balances, and puts the rows back in the inbox.
 - 2026-10-12 (E7 gap): the always-ignore list and the paste-text tile are not built. The SMS tile opens the inbox, which scans on open; there is no separate scan step before it.
 - 2026-10-12 (AI-014 built): edit tracking stores field names and counts per source in DataStore, not in Room, so it needs no migration and is not in backups. Only saves from a capture source are counted.
+- 2026-10-13: the real-time receiver (E11, AI-060) moves from Idea to Planned, as pending draft plus quiet notification only. Auto-save stays out. The earlier reason for deferring it (Samsung background fragility) applies to background work in general and is weaker for a broadcast receiver, so the deferral is reversed.
+- 2026-10-13: the connect step (E12, AI-079) comes before the receiver. Without READ_SMS granted, neither the open scan nor a receiver can produce drafts for a fresh install.
+- 2026-10-13: AI-012 (remove the live voice auto-commit) moves to Now and is the first code fix. The flow must never save a transaction without review. Built 2026-10-13: `AiAgent` no longer takes a transaction repository, so it cannot save.
+- 2026-10-13: AI-016 narrowed to voice and receipt sources plus transfer pairing; AI-013 merged into AI-051.

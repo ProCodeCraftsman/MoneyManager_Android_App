@@ -349,17 +349,6 @@ fun VoiceMemoScreen(
                         }
                     }
 
-                    OutlinedButton(
-                        onClick = { viewModel.quickAdd(transcription.trim(), "VOICE") },
-                        enabled = transcription.isNotBlank() && !uiState.isGenerating && !isRecording
-                    ) {
-                        if (uiState.isGenerating) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
-                            Spacer(Modifier.width(4.dp))
-                        }
-                        Text("Quick Add")
-                    }
-
                     Button(
                         onClick = { viewModel.generateDraft(transcription.trim(), "VOICE") },
                         enabled = transcription.isNotBlank() && !uiState.isGenerating && !isRecording

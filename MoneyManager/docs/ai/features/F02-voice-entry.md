@@ -6,7 +6,7 @@ State: Planned (a basic flow already exists) | Packages: `app/ui/aidraft`, `doma
 Goal: say "spent 250 on lunch at Swiggy yesterday" and get a draft that needs minimal editing. Non-goals: a conversational assistant, cloud speech, storing audio.
 
 ## Current state
-`VoiceMemoScreen` uses Android `SpeechRecognizer` (offline preferred) to get text, then `AiDraftViewModel.generateDraft(text, "VOICE")` -> `AiAgent.processText`. The view model currently sets `autoCommit = sourceType == "VOICE"` as an example; it needs a real policy (AI-012). Voice text goes through the generic extractor and the model with the free-form JSON path, which is the path found least reliable on E2B. Not measured on the S24 yet.
+`VoiceMemoScreen` uses Android `SpeechRecognizer` (offline preferred) to get text, then `AiDraftViewModel.generateDraft(text, "VOICE")` -> `AiAgent.processText`. Auto-commit was removed by AI-012 (built 2026-10-13): voice text always returns a draft for review. The Quick Add button is gone. No voice auto-commit policy exists yet (AI-023 is the later question). Voice text goes through the generic extractor and the model with the free-form JSON path, which is the path found least reliable on E2B. Not measured on the S24 yet.
 
 ## Design
 - The recogniser is the capture step; its output is untrusted text.

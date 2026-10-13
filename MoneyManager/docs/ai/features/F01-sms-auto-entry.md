@@ -26,7 +26,7 @@ Dry-run on the real inbox before the redesign: 0 of 1,228 drafts ready (account 
 | C2 | Verify, links, history + model category | Unit tests | Built |
 | C3 | Device verification: AI-002..004 | Verify rejects near 0; ready rate reported; E2B picks reviewed | Done 2026-10-11 (rejects 2 of 1250; ready 8%; E2B picks not reviewed, moved to the category workflow) |
 | C4 | Links on AI paths (AI-005) | Test + device | Built (unit tests; device pending) |
-| D | Learned templates (AI-040) | Proposed rule passes its own sample and the user's approval | Not started |
+| D | Learned templates (AI-040) | Discarded 2026-10-13: a model-written regex is free-form output and breaks principle 2. A future version lets the model pick from app-built candidates only | Discarded |
 | E | Inbox import, non-Play build (AI-042) | Policy decision first | Not started |
 
 ## Acceptance
@@ -50,3 +50,4 @@ Verified on the S24 (2026-10-11): analyzer scan, verify reject rate, masked expo
 - 2026-10: card repayment SMS maps to transfer; source account left to the user.
 - 2026-10-11: direction conflict is checked on generic parses only; a rule's direction is authored for its wording (NPS "Units … credited" was 14 of 16 rejects).
 - 2026-10-11: AI-003/004 closed. Missing categories are accepted as something memory learns over time; category matching gets a separate AI-assisted workflow (AI-075, AI-057). No debug logging of model picks.
+- 2026-10-13: learned templates (AI-040) discarded as written. A model-proposed regex is free-form output, which the README principles forbid.

@@ -103,7 +103,7 @@ Non-goals:
 | L3 | Teach screen with batched model suggestions | Parser tests; phone | Not started |
 | L5 | Correction-aware memory (needs AI-014) | Unit tests | Not started |
 | A3 | Model plausibility judge, shadow mode then live | Shadow precision meets the bar | Not started |
-| O1–O5 | Setup flow | Only if the app goes to other users | Idea |
+| O1–O5 | Setup flow for the user's own data, deterministic only. The connect step is AI-079 (Now). The model-generated setup in AI-078 is discarded (2026-10-13) | Only if the app goes to other users | Idea |
 
 ## Acceptance
 - L: share of F07 drafts whose category comes from memory/history (not the model, not missing) is at least 70% in the first week after L2. Today it is close to 0 (F01 dry run: category 0%).

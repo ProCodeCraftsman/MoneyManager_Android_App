@@ -25,7 +25,6 @@ enum class AgentStep(val label: String) {
     RETRIEVING_MISSING("Resolving entities…"),
     FIXING("Fixing AI output…"),
     FINALIZING("Finalizing…"),
-    AUTO_COMMITTING("Auto-committing high confidence draft…")
 }
 
 sealed class AgentStatus {

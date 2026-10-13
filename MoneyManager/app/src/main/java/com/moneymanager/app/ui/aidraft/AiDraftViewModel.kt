@@ -108,52 +108,13 @@ class AiDraftViewModel @Inject constructor(
                     sourceType = sourceType,
                     sourceSender = sourceSender,
                     attachmentPath = attachmentPath,
-                    autoCommit = sourceType == "VOICE" // Example: auto-commit voice if high confidence
                 ).collect { status ->
                     when (status) {
                         is AgentStatus.Progress -> {
                             _uiState.update { it.copy(agentStep = status.step, generatingStep = status.detail) }
                         }
                         is AgentStatus.Success -> {
-                            if (status.draft.flags.contains("auto_committed")) {
-                                val txId = status.draft.flags.last().toLongOrNull() ?: 0L
-                                _navigationEvent.emit(NavigationEvent.NavigateToCreated(txId, "Transaction created automatically"))
-                            } else {
-                                _navigationEvent.emit(NavigationEvent.NavigateToDraft(status.draft))
-                            }
-                            _uiState.update { it.copy(isGenerating = false, agentStep = null, generatingStep = null) }
-                        }
-                        is AgentStatus.Failure -> {
-                            val error = mapThrowableToAiError(status.throwable)
-                            _uiState.update { it.copy(isGenerating = false, agentStep = null, error = error.userMessage()) }
-                            _navigationEvent.emit(NavigationEvent.ShowError(error.userMessage()))
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isGenerating = false, agentStep = null, error = "Unexpected error: ${e.message}") }
-            }
-        }
-    }
-
-    fun quickAdd(rawText: String, sourceType: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isGenerating = true, error = null, agentStep = AgentStep.READING) }
-            try {
-                val promptContext = loadPromptContext()
-                aiAgent.processText(
-                    rawText = rawText,
-                    context = promptContext,
-                    sourceType = sourceType,
-                    autoCommit = true
-                ).collect { status ->
-                    when (status) {
-                        is AgentStatus.Progress -> {
-                            _uiState.update { it.copy(agentStep = status.step, generatingStep = status.detail) }
-                        }
-                        is AgentStatus.Success -> {
-                            val txId = status.draft.flags.lastOrNull()?.toLongOrNull() ?: 0L
-                            _navigationEvent.emit(NavigationEvent.NavigateToCreated(txId, "Transaction created automatically"))
+                            _navigationEvent.emit(NavigationEvent.NavigateToDraft(status.draft))
                             _uiState.update { it.copy(isGenerating = false, agentStep = null, generatingStep = null) }
                         }
                         is AgentStatus.Failure -> {
@@ -196,7 +157,6 @@ class AiDraftViewModel @Inject constructor(
                     context = promptContext,
                     sourceType = sourceType,
                     attachmentPath = attachmentPath,
-                    autoCommit = false // Usually don't auto-commit receipts without review
                 ).collect { status ->
                     when (status) {
                         is AgentStatus.Progress -> {
